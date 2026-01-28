@@ -1,0 +1,36 @@
+name: SMCBlacksmith
+version: ${project.version}
+main: com.simmc.blacksmith.SMCBlacksmith
+api-version: '1.21'
+description: Complete blacksmithing system with furnaces, forging minigame, and repair system
+authors:
+  - SimMC
+
+softdepend:
+  - PlaceholderAPI
+  - SMCCore
+  - Nexo
+
+commands:
+  blacksmith:
+    description: Main command for SMCBlacksmith
+    aliases: [bs, smith]
+    permission: blacksmith.use
+    usage: /<command> [args]
+
+permissions:
+  blacksmith.use:
+    description: Allows basic usage of blacksmith features
+    default: true
+  blacksmith.admin:
+    description: Allows administrative commands
+    default: op
+  blacksmith.furnace.create:
+    description: Allows creating furnaces
+    default: op
+  blacksmith.forge.*:
+    description: Allows all forging recipes
+    default: op
+  blacksmith.repair.*:
+    description: Allows all repair operations
+    default: op

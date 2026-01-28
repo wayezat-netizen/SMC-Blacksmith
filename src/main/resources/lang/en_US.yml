@@ -1,0 +1,8 @@
+furnace_title: "Furnace"
+anvil_title: "Anvil"
+vanilla_anvil: "Shift click anvil to use normal anvil"
+grindstone_repair_failed: "Repair failed!"
+grindstone_repair_success: "Repair Successful!"
+grindstone_no_perms: "You do not have permission to do this!"
+grindstone_invalid: "This item cannot be repaired"
+grindstone_materials: "Missing materials! You need %d %s"

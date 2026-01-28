@@ -1,0 +1,29 @@
+coal:
+  id: coal
+  type: minecraft
+  burn_time: 1600
+  temperature_boost: 20
+
+charcoal:
+  id: charcoal
+  type: minecraft
+  burn_time: 1600
+  temperature_boost: 20
+
+coal_block:
+  id: coal_block
+  type: minecraft
+  burn_time: 16000
+  temperature_boost: 25
+
+blaze_rod:
+  id: blaze_rod
+  type: minecraft
+  burn_time: 2400
+  temperature_boost: 40
+
+lava_bucket:
+  id: lava_bucket
+  type: minecraft
+  burn_time: 20000
+  temperature_boost: 60

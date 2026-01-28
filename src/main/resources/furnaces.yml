@@ -1,0 +1,59 @@
+basic_furnace:
+  item_id: "basic_furnace"
+  max_temperature: 100
+  display_material: "STICK"
+  display_cmd: 1401
+  temperature_change: 10
+  min_ideal_temperature: 80
+  max_ideal_temperature: 100
+  max_temperature_gain_from_fuel_percentage: 0.2
+  recipes:
+    iron_ingot:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: raw_iron
+          type: minecraft
+          amount: 1
+      outputs:
+        a:
+          id: iron_ingot
+          type: minecraft
+          amount: 1
+      bad_outputs:
+        a:
+          id: iron_nugget
+          type: minecraft
+          amount: 3
+
+stellar_furnace:
+  item_id: "stellar_furnace"
+  max_temperature: 1000
+  display_material: "STICK"
+  display_cmd: 1402
+  temperature_change: 100
+  min_ideal_temperature: 800
+  max_ideal_temperature: 1000
+  max_temperature_gain_from_fuel_percentage: 0.4
+  recipes:
+    netherite:
+      smelt_time: 16000
+      inputs:
+        a:
+          id: ancient_debris
+          type: minecraft
+          amount: 4
+        b:
+          id: gold_ingot
+          type: minecraft
+          amount: 4
+      outputs:
+        a:
+          id: netherite_ingot
+          type: minecraft
+          amount: 1
+      bad_outputs:
+        a:
+          id: netherite_scrap
+          type: minecraft
+          amount: 2
