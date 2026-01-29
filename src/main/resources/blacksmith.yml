@@ -1,0 +1,77 @@
+shortsword:
+  frames:
+    frame_0:
+      material: STICK
+      cmd: 31
+    frame_1:
+      material: STICK
+      cmd: 32
+    frame_2:
+      material: STICK
+      cmd: 33
+  permission: smithing.shortsword
+  hits: 8
+  bias: 0.2
+  target_size: 0.5
+  input:
+    id: iron_ingot
+    type: minecraft
+    amount: 3
+  results:
+    result_0:
+      id: iron_sword
+      type: minecraft
+    result_1:
+      id: iron_sword
+      type: minecraft
+    result_2:
+      id: iron_sword
+      type: minecraft
+    result_3:
+      id: iron_sword
+      type: minecraft
+    result_4:
+      id: iron_sword
+      type: minecraft
+    result_5:
+      id: iron_sword
+      type: minecraft
+
+longsword:
+  frames:
+    frame_0:
+      material: STICK
+      cmd: 41
+    frame_1:
+      material: STICK
+      cmd: 42
+    frame_2:
+      material: STICK
+      cmd: 43
+  permission: smithing.longsword
+  hits: 12
+  bias: 0.15
+  target_size: 0.4
+  input:
+    id: diamond
+    type: minecraft
+    amount: 5
+  results:
+    result_0:
+      id: diamond_sword
+      type: minecraft
+    result_1:
+      id: diamond_sword
+      type: minecraft
+    result_2:
+      id: diamond_sword
+      type: minecraft
+    result_3:
+      id: diamond_sword
+      type: minecraft
+    result_4:
+      id: diamond_sword
+      type: minecraft
+    result_5:
+      id: diamond_sword
+      type: minecraft
