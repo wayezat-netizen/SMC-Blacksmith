@@ -1,0 +1,39 @@
+iron_sword:
+  permission: skill.repair.iron
+  id: iron_sword
+  type: minecraft
+  repair_chance_permission: skill.repair.chance
+  input:
+    id: iron_ingot
+    type: minecraft
+    amount: 1
+
+diamond_sword:
+  permission: skill.repair.diamond
+  id: diamond_sword
+  type: minecraft
+  repair_chance_permission: skill.repair.chance
+  input:
+    id: diamond
+    type: minecraft
+    amount: 1
+
+iron_pickaxe:
+  permission: skill.repair.iron
+  id: iron_pickaxe
+  type: minecraft
+  repair_chance_permission: skill.repair.chance
+  input:
+    id: iron_ingot
+    type: minecraft
+    amount: 1
+
+diamond_pickaxe:
+  permission: skill.repair.diamond
+  id: diamond_pickaxe
+  type: minecraft
+  repair_chance_permission: skill.repair.chance
+  input:
+    id: diamond
+    type: minecraft
+    amount: 1
