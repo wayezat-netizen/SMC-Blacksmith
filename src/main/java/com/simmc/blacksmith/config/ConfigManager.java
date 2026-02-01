@@ -19,7 +19,7 @@ public class ConfigManager {
     private GrindstoneConfig grindstoneConfig;
     private FuelConfig fuelConfig;
     private MessageConfig messageConfig;
-
+    private ForgeConfig forgeConfig;
     public ConfigManager(JavaPlugin plugin) {
         this.plugin = plugin;
     }
@@ -52,10 +52,18 @@ public class ConfigManager {
         messageConfig = new MessageConfig();
         messageConfig.load(langConfig);
 
+        FileConfiguration forgeFile = loadConfig("blacksmith.yml");
+        forgeConfig = new ForgeConfig();
+        forgeConfig.load(forgeFile);
+
         plugin.getLogger().info("Loaded " + furnaceConfig.getFurnaceTypeCount() + " furnace types");
         plugin.getLogger().info("Loaded " + blacksmithConfig.getRecipeCount() + " forge recipes");
         plugin.getLogger().info("Loaded " + grindstoneConfig.getRepairConfigCount() + " repair configs");
         plugin.getLogger().info("Loaded " + fuelConfig.getFuelCount() + " fuel types");
+    }
+
+    public ForgeConfig getForgeConfig() {
+        return forgeConfig;
     }
 
     private void saveDefaultConfigs() {

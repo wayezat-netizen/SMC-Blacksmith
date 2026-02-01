@@ -17,6 +17,7 @@ import com.simmc.blacksmith.repair.RepairManager;
 import com.simmc.blacksmith.util.TaskManager;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
+import com.simmc.blacksmith.listeners.GrindstoneListener;
 
 public final class SMCBlacksmith extends JavaPlugin {
 
@@ -103,7 +104,7 @@ public final class SMCBlacksmith extends JavaPlugin {
     private void registerListeners() {
         getServer().getPluginManager().registerEvents(new FurnaceListener(furnaceManager), this);
         getServer().getPluginManager().registerEvents(new ForgeListener(forgeManager), this);
-        getServer().getPluginManager().registerEvents(new RepairListener(repairManager), this);
+        getServer().getPluginManager().registerEvents(new GrindstoneListener(repairManager, configManager), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(furnaceManager, forgeManager), this);
     }
 
