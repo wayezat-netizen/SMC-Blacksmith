@@ -3,6 +3,8 @@ package com.simmc.blacksmith.config;
 import com.simmc.blacksmith.util.ColorUtil;
 import org.bukkit.configuration.file.FileConfiguration;
 
+import static com.simmc.blacksmith.util.ColorUtil.colorize;
+
 public class MessageConfig {
 
     private String furnaceTitle;
@@ -13,6 +15,9 @@ public class MessageConfig {
     private String noPermission;
     private String invalidItem;
     private String missingMaterials;
+    private String activeSessionMessage;
+    private String unknownRecipeMessage;
+    private String forgeStartedMessage;
 
     public void load(FileConfiguration config) {
         furnaceTitle = config.getString("furnace_title", "Furnace");
@@ -26,34 +31,46 @@ public class MessageConfig {
     }
 
     public String getFurnaceTitle() {
-        return ColorUtil.colorize(furnaceTitle);
+        return colorize(furnaceTitle);
     }
 
     public String getAnvilTitle() {
-        return ColorUtil.colorize(anvilTitle);
+        return colorize(anvilTitle);
     }
 
     public String getVanillaAnvil() {
-        return ColorUtil.colorize(vanillaAnvil);
+        return colorize(vanillaAnvil);
     }
 
     public String getRepairFailed() {
-        return ColorUtil.colorize(repairFailed);
+        return colorize(repairFailed);
     }
 
     public String getRepairSuccess() {
-        return ColorUtil.colorize(repairSuccess);
+        return colorize(repairSuccess);
     }
 
     public String getNoPermission() {
-        return ColorUtil.colorize(noPermission);
+        return colorize(noPermission);
     }
 
     public String getInvalidItem() {
-        return ColorUtil.colorize(invalidItem);
+        return colorize(invalidItem);
     }
 
     public String getMissingMaterials(int count, String itemName) {
-        return ColorUtil.colorize(String.format(missingMaterials, count, itemName));
+        return colorize(String.format(missingMaterials, count, itemName));
+    }
+
+    public String getActiveSessionMessage() {
+        return colorize(activeSessionMessage);
+    }
+
+    public String getUnknownRecipeMessage(String recipeId) {
+        return colorize(unknownRecipeMessage.replace("%recipe%", recipeId));
+    }
+
+    public String getForgeStartedMessage() {
+        return colorize(forgeStartedMessage);
     }
 }

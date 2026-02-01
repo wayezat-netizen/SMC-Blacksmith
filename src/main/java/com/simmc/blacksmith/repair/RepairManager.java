@@ -49,8 +49,7 @@ public class RepairManager {
             return false;
         }
 
-        consumeRepairMaterials(player, config);
-
+        // CHECK SUCCESS FIRST before consuming
         int successChance = getSuccessChance(player, config.repairChancePermission());
         int roll = random.nextInt(100) + 1;
 
@@ -58,6 +57,8 @@ public class RepairManager {
             player.sendMessage(messages.getRepairFailed());
             return false;
         }
+
+        consumeRepairMaterials(player, config);
 
         int repairPercent = getRepairPercent(player, config.permission());
         applyRepair(item, repairPercent);
@@ -129,10 +130,15 @@ public class RepairManager {
         if (permissionBase == null || permissionBase.isEmpty()) {
             return 100;
         }
+        int[] commonTiers = {100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5};
+        for (int tier : commonTiers) {
+            if (player.hasPermission(permissionBase + "." + tier)) {
+                return tier;
+            }
+        }
 
-        for (int i = 100; i >= 1; i--) {
-            String perm = permissionBase + "." + i;
-            if (player.hasPermission(perm)) {
+        for (int i = 99; i >= 1; i--) {
+            if (player.hasPermission(permissionBase + "." + i)) {
                 return i;
             }
         }

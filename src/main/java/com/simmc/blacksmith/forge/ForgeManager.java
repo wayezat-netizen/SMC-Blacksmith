@@ -10,10 +10,28 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
-
+import java.util.HashSet;
+import java.util.Set;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Manages forge/blacksmithing sessions for players.
+ * Handles the minigame mechanics, GUI updates, and session lifecycle.
+ *
+ * <p>Key responsibilities:</p>
+ * <ul>
+ *   <li>Starting and managing forge sessions</li>
+ *   <li>Processing player strikes and calculating accuracy</li>
+ *   <li>Handling material consumption and output generation</li>
+ *   <li>Managing GUI animations</li>
+ * </ul>
+ *
+ * @author SMCBlacksmith Team
+ * @since 1.0.0
+ */
 
 public class ForgeManager {
 
@@ -29,9 +47,9 @@ public class ForgeManager {
         this.plugin = plugin;
         this.configManager = configManager;
         this.itemRegistry = itemRegistry;
-        this.activeSessions = new HashMap<>();
-        this.activeGUIs = new HashMap<>();
-        this.animationTasks = new HashMap<>();
+        this.activeSessions = new ConcurrentHashMap<>();
+        this.activeGUIs = new ConcurrentHashMap<>();
+        this.animationTasks = new ConcurrentHashMap<>();
     }
 
     public boolean startSession(Player player, String recipeId, Location anvilLocation) {
@@ -237,8 +255,14 @@ public class ForgeManager {
     }
 
     public void cancelAllSessions() {
-        for (UUID playerId : new HashMap<>(activeSessions).keySet()) {
-            cancelSession(playerId);
+        Set<UUID> playerIds = new HashSet<>(activeSessions.keySet());
+
+        for (UUID playerId : playerIds) {
+            try {
+                cancelSession(playerId);
+            } catch (Exception e) {
+                plugin.getLogger().warning("Failed to cancel session for " + playerId + ": " + e.getMessage());
+            }
         }
     }
 

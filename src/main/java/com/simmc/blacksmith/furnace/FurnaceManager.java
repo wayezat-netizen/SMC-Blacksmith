@@ -9,6 +9,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
+import java.util.concurrent.ConcurrentHashMap;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,6 +23,7 @@ public class FurnaceManager {
     private final JavaPlugin plugin;
     private final ConfigManager configManager;
     private final ItemProviderRegistry itemRegistry;
+    private FuelConfig cachedFuelConfig;
 
     private final Map<Location, FurnaceInstance> furnaces;
     private final Map<UUID, FurnaceGUI> openGUIs;
@@ -32,11 +34,14 @@ public class FurnaceManager {
         this.plugin = plugin;
         this.configManager = configManager;
         this.itemRegistry = itemRegistry;
-        this.furnaces = new HashMap<>();
-        this.openGUIs = new HashMap<>();
+        this.furnaces = new ConcurrentHashMap<>();
+        this.openGUIs = new ConcurrentHashMap<>();
     }
 
     public void startTickTask() {
+        cachedFuelConfig = configManager.getFuelConfig();
+        cachedFuelConfig.setItemRegistry(itemRegistry);
+
         int tickRate = configManager.getFurnaceTickRate();
         tickTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, tickRate, tickRate);
     }
@@ -49,11 +54,8 @@ public class FurnaceManager {
     }
 
     private void tick() {
-        FuelConfig fuelConfig = configManager.getFuelConfig();
-        fuelConfig.setItemRegistry(itemRegistry);
-
         for (FurnaceInstance furnace : furnaces.values()) {
-            furnace.tick(itemRegistry, fuelConfig);
+            furnace.tick(itemRegistry, cachedFuelConfig);
         }
 
         for (FurnaceGUI gui : openGUIs.values()) {
@@ -134,6 +136,11 @@ public class FurnaceManager {
             Location loc = entry.getKey();
             FurnaceInstance furnace = entry.getValue();
 
+            if (loc.getWorld() == null) {
+                plugin.getLogger().warning("Skipping furnace with null world at location");
+                continue;
+            }
+
             String path = "furnaces." + count;
             config.set(path + ".type", furnace.getType().getId());
             config.set(path + ".world", loc.getWorld().getName());
@@ -193,7 +200,11 @@ public class FurnaceManager {
         plugin.getLogger().info("Loaded " + loaded + " furnaces.");
     }
 
+
     public void reload() {
+        cachedFuelConfig = configManager.getFuelConfig();
+        cachedFuelConfig.setItemRegistry(itemRegistry);
+
         for (FurnaceGUI gui : openGUIs.values()) {
             gui.saveItemsToFurnace();
         }

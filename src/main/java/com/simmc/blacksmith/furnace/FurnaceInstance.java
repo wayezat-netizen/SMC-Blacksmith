@@ -52,19 +52,23 @@ public class FurnaceInstance {
     }
 
     public void tick(ItemProviderRegistry registry, FuelConfig fuelConfig) {
-        long now = System.currentTimeMillis();
-        long elapsed = now - lastTickTime;
-        lastTickTime = now;
+        try {
+            long now = System.currentTimeMillis();
+            long elapsed = now - lastTickTime;
+            lastTickTime = now;
 
-        updateBurning(fuelConfig, registry);
-        updateTemperature();
+            updateBurning(fuelConfig, registry);
+            updateTemperature();
 
-        if (currentRecipe == null) {
-            findMatchingRecipe(registry);
-        }
+            if (currentRecipe == null) {
+                findMatchingRecipe(registry);
+            }
 
-        if (currentRecipe != null) {
-            processSmelting(elapsed, registry);
+            if (currentRecipe != null) {
+                processSmelting(elapsed, registry);
+            }
+        } catch (Exception e) {
+            resetSmelting();
         }
     }
 

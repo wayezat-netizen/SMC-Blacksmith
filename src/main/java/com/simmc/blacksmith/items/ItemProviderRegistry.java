@@ -43,8 +43,16 @@ public class ItemProviderRegistry {
     }
 
     public ItemStack getItem(String type, String id, int amount) {
-        if (type == null || id == null) {
+        if (type == null || type.isEmpty()) {
+            plugin.getLogger().warning("getItem called with null/empty type");
             return null;
+        }
+        if (id == null || id.isEmpty()) {
+            plugin.getLogger().warning("getItem called with null/empty id");
+            return null;
+        }
+        if (amount < 1) {
+            amount = 1;
         }
 
         ItemProvider provider = providers.get(type.toLowerCase());
@@ -58,7 +66,12 @@ public class ItemProviderRegistry {
             return null;
         }
 
-        return provider.getItem(id, amount);
+        try {
+            return provider.getItem(id, amount);
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to get item " + type + ":" + id + " - " + e.getMessage());
+            return null;
+        }
     }
 
     public boolean matches(ItemStack item, String type, String id) {

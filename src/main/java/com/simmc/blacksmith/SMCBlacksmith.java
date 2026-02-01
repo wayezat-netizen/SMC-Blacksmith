@@ -9,15 +9,12 @@ import com.simmc.blacksmith.integration.NexoHook;
 import com.simmc.blacksmith.integration.PlaceholderAPIHook;
 import com.simmc.blacksmith.integration.SMCCoreHook;
 import com.simmc.blacksmith.items.ItemProviderRegistry;
-import com.simmc.blacksmith.listeners.ForgeListener;
-import com.simmc.blacksmith.listeners.FurnaceListener;
-import com.simmc.blacksmith.listeners.PlayerListener;
-import com.simmc.blacksmith.listeners.RepairListener;
+import com.simmc.blacksmith.listeners.*;
 import com.simmc.blacksmith.repair.RepairManager;
 import com.simmc.blacksmith.util.TaskManager;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
-import com.simmc.blacksmith.listeners.GrindstoneListener;
+import com.simmc.blacksmith.listeners.WorldListener;
 
 public final class SMCBlacksmith extends JavaPlugin {
 
@@ -59,6 +56,7 @@ public final class SMCBlacksmith extends JavaPlugin {
         furnaceManager.loadAll();
 
         logStartupInfo();
+
     }
 
     @Override
@@ -106,6 +104,7 @@ public final class SMCBlacksmith extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ForgeListener(forgeManager), this);
         getServer().getPluginManager().registerEvents(new GrindstoneListener(repairManager, configManager), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(furnaceManager, forgeManager), this);
+        getServer().getPluginManager().registerEvents(new WorldListener(this, furnaceManager), this);
     }
 
     private void registerCommands() {
@@ -128,11 +127,24 @@ public final class SMCBlacksmith extends JavaPlugin {
     }
 
     public void reload() {
-        configManager.loadAll();
-        furnaceManager.reload();
-        forgeManager.reload();
-        repairManager.reload();
-        getLogger().info("Configuration reloaded.");
+        try {
+            getLogger().info("Cancelling active forge sessions...");
+            forgeManager.cancelAllSessions();
+
+            getLogger().info("Saving furnace data...");
+            furnaceManager.saveAll();
+
+            getLogger().info("Reloading configurations...");
+            configManager.loadAll();
+            furnaceManager.reload();
+            forgeManager.reload();
+            repairManager.reload();
+
+            getLogger().info("Configuration reloaded successfully.");
+        } catch (Exception e) {
+            getLogger().severe("Failed to reload configuration: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     public static SMCBlacksmith getInstance() { return instance; }

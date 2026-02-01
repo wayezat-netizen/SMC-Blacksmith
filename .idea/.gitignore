@@ -14,3 +14,6 @@ Thumbs.db
 # Java
 *.class
 *.jar
+
+# Local dependency JARs
+libs/*.jar
