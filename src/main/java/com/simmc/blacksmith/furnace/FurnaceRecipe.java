@@ -7,6 +7,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Represents a smelting recipe for custom furnaces.
+ * Handles input matching and output generation.
+ */
 public class FurnaceRecipe {
 
     private final String id;
@@ -24,12 +28,14 @@ public class FurnaceRecipe {
         this.badOutputs = badOutputs;
     }
 
+    /**
+     * Checks if the provided input slots match this recipe's requirements.
+     */
     public boolean matchesInputs(ItemStack[] slots, ItemProviderRegistry registry) {
         if (slots == null || registry == null) return false;
 
         Map<String, Integer> available = new HashMap<>();
-        for (int i = 0; i < slots.length; i++) {
-            ItemStack item = slots[i];
+        for (ItemStack item : slots) {
             if (item == null || item.getType().isAir()) continue;
 
             String key = getItemKey(item, registry);
@@ -51,24 +57,79 @@ public class FurnaceRecipe {
         return true;
     }
 
+    /**
+     * Gets a unique key for an item based on its provider type.
+     */
     private String getItemKey(ItemStack item, ItemProviderRegistry registry) {
-        for (String type : new String[]{"nexo", "smc", "minecraft"}) {
+        if (item == null) return null;
+
+        // FIXED: Check each provider type properly
+        // Priority: nexo > smc > craftengine > minecraft
+
+        String[] providerTypes = {"nexo", "smc", "craftengine"};
+
+        for (String type : providerTypes) {
             if (registry.hasProvider(type)) {
                 String id = getItemIdForType(item, type, registry);
-                if (id != null) {
+                if (id != null && !id.isEmpty()) {
                     return type + ":" + id.toLowerCase();
                 }
             }
         }
+
+        // Fallback to minecraft
         return "minecraft:" + item.getType().name().toLowerCase();
     }
 
+    /**
+     * Gets the item ID for a specific provider type.
+     * FIXED: Now properly handles all provider types.
+     */
     private String getItemIdForType(ItemStack item, String type, ItemProviderRegistry registry) {
-        if ("minecraft".equals(type)) {
-            return item.getType().name().toLowerCase();
+        if (item == null || type == null || registry == null) {
+            return null;
         }
+
+        switch (type.toLowerCase()) {
+            case "minecraft":
+                return item.getType().name().toLowerCase();
+
+            case "nexo":
+                // Check if the item matches any Nexo item
+                // We need to iterate through known IDs or use the provider's getId method
+                return getCustomItemId(item, registry, "nexo");
+
+            case "smc":
+                return getCustomItemId(item, registry, "smc");
+
+            case "craftengine":
+                return getCustomItemId(item, registry, "craftengine");
+
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Attempts to get a custom item ID from the registry.
+     * This checks if the item matches any known custom item.
+     */
+    private String getCustomItemId(ItemStack item, ItemProviderRegistry registry, String type) {
+        // For custom items, we need to check against the inputs we're looking for
+        // This is a limitation - we can only match items we know about
+
+        for (RecipeInput input : inputs) {
+            if (input.type().equalsIgnoreCase(type)) {
+                if (registry.matches(item, type, input.id())) {
+                    return input.id();
+                }
+            }
+        }
+
         return null;
     }
+
+    // Getters
 
     public String getId() {
         return id;

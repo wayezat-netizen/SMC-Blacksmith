@@ -8,7 +8,11 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.logging.Level;
 
+/**
+ * Manages all configuration files for the plugin.
+ */
 public class ConfigManager {
 
     private final JavaPlugin plugin;
@@ -19,53 +23,57 @@ public class ConfigManager {
     private GrindstoneConfig grindstoneConfig;
     private FuelConfig fuelConfig;
     private MessageConfig messageConfig;
-    private ForgeConfig forgeConfig;
+
     public ConfigManager(JavaPlugin plugin) {
         this.plugin = plugin;
     }
 
+    /**
+     * Loads all configuration files.
+     */
     public void loadAll() {
-        saveDefaultConfigs();
+        try {
+            saveDefaultConfigs();
 
-        FileConfiguration mainFile = loadConfig("config.yml");
-        mainConfig = new MainConfig();
-        mainConfig.load(mainFile);
+            FileConfiguration mainFile = loadConfig("config.yml");
+            mainConfig = new MainConfig();
+            mainConfig.load(mainFile);
 
-        FileConfiguration furnaceFile = loadConfig("furnaces.yml");
-        furnaceConfig = new FurnaceConfig();
-        furnaceConfig.load(furnaceFile);
+            FileConfiguration furnaceFile = loadConfig("furnaces.yml");
+            furnaceConfig = new FurnaceConfig();
+            furnaceConfig.load(furnaceFile);
 
-        FileConfiguration blacksmithFile = loadConfig("blacksmith.yml");
-        blacksmithConfig = new BlacksmithConfig();
-        blacksmithConfig.load(blacksmithFile);
+            FileConfiguration blacksmithFile = loadConfig("blacksmith.yml");
+            blacksmithConfig = new BlacksmithConfig();
+            blacksmithConfig.load(blacksmithFile);
 
-        FileConfiguration grindstoneFile = loadConfig("grindstone.yml");
-        grindstoneConfig = new GrindstoneConfig();
-        grindstoneConfig.load(grindstoneFile);
+            FileConfiguration grindstoneFile = loadConfig("grindstone.yml");
+            grindstoneConfig = new GrindstoneConfig();
+            grindstoneConfig.load(grindstoneFile);
 
-        FileConfiguration fuelFile = loadConfig("fuels.yml");
-        fuelConfig = new FuelConfig();
-        fuelConfig.load(fuelFile);
+            FileConfiguration fuelFile = loadConfig("fuels.yml");
+            fuelConfig = new FuelConfig();
+            fuelConfig.load(fuelFile);
 
-        String langFile = "lang/" + mainConfig.getLanguage();
-        FileConfiguration langConfig = loadConfig(langFile);
-        messageConfig = new MessageConfig();
-        messageConfig.load(langConfig);
+            String langFile = "lang/" + mainConfig.getLanguage();
+            FileConfiguration langConfig = loadConfig(langFile);
+            messageConfig = new MessageConfig();
+            messageConfig.load(langConfig);
 
-        FileConfiguration forgeFile = loadConfig("blacksmith.yml");
-        forgeConfig = new ForgeConfig();
-        forgeConfig.load(forgeFile);
+            plugin.getLogger().info("Loaded " + furnaceConfig.getFurnaceTypeCount() + " furnace types");
+            plugin.getLogger().info("Loaded " + blacksmithConfig.getRecipeCount() + " forge recipes");
+            plugin.getLogger().info("Loaded " + grindstoneConfig.getRepairConfigCount() + " repair configs");
+            plugin.getLogger().info("Loaded " + fuelConfig.getFuelCount() + " fuel types");
 
-        plugin.getLogger().info("Loaded " + furnaceConfig.getFurnaceTypeCount() + " furnace types");
-        plugin.getLogger().info("Loaded " + blacksmithConfig.getRecipeCount() + " forge recipes");
-        plugin.getLogger().info("Loaded " + grindstoneConfig.getRepairConfigCount() + " repair configs");
-        plugin.getLogger().info("Loaded " + fuelConfig.getFuelCount() + " fuel types");
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Error loading configurations", e);
+            throw new RuntimeException("Failed to load configurations", e);
+        }
     }
 
-    public ForgeConfig getForgeConfig() {
-        return forgeConfig;
-    }
-
+    /**
+     * Saves default configuration files if they don't exist.
+     */
     private void saveDefaultConfigs() {
         saveResourceIfNotExists("config.yml");
         saveResourceIfNotExists("furnaces.yml");
@@ -75,6 +83,9 @@ public class ConfigManager {
         saveResourceIfNotExists("lang/en_US.yml");
     }
 
+    /**
+     * Saves a resource file if it doesn't exist.
+     */
     private void saveResourceIfNotExists(String resourcePath) {
         File file = new File(plugin.getDataFolder(), resourcePath);
         if (!file.exists()) {
@@ -83,6 +94,9 @@ public class ConfigManager {
         }
     }
 
+    /**
+     * Loads a configuration file.
+     */
     private FileConfiguration loadConfig(String fileName) {
         File file = new File(plugin.getDataFolder(), fileName);
         if (!file.exists()) {
@@ -100,6 +114,15 @@ public class ConfigManager {
 
         return config;
     }
+
+    /**
+     * Gets the furnace tick rate from config.
+     */
+    public int getFurnaceTickRate() {
+        return mainConfig != null ? mainConfig.getFurnaceTickRate() : 20;
+    }
+
+    // Getters
 
     public MainConfig getMainConfig() {
         return mainConfig;
@@ -123,17 +146,5 @@ public class ConfigManager {
 
     public MessageConfig getMessageConfig() {
         return messageConfig;
-    }
-
-    public int getFurnaceTickRate() {
-        return mainConfig.getFurnaceTicks();
-    }
-
-    public int getBellowsCooldown() {
-        return mainConfig.getBellowsCooldown();
-    }
-
-    public JavaPlugin getPlugin() {
-        return plugin;
     }
 }

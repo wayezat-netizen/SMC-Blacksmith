@@ -4,15 +4,17 @@ import com.simmc.blacksmith.furnace.FurnaceManager;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.world.WorldSaveEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Map;
+import java.util.logging.Level;
 
 /**
- * Handles world-related events to ensure furnace data is saved
- * when worlds are unloaded.
+ * Handles world-related events for furnace data persistence.
  */
 public class WorldListener implements Listener {
 
@@ -24,22 +26,43 @@ public class WorldListener implements Listener {
         this.furnaceManager = furnaceManager;
     }
 
-    @EventHandler
+    /**
+     * Saves furnaces when a world is unloaded.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onWorldUnload(WorldUnloadEvent event) {
         World world = event.getWorld();
 
-        // Count furnaces in this world
-        Map<Location, ?> allFurnaces = furnaceManager.getAllFurnaces();
-        int count = 0;
-        for (Location loc : allFurnaces.keySet()) {
-            if (loc.getWorld() != null && loc.getWorld().equals(world)) {
-                count++;
-            }
-        }
+        try {
+            Map<Location, ?> allFurnaces = furnaceManager.getAllFurnaces();
+            int count = 0;
 
-        if (count > 0) {
-            plugin.getLogger().info("World " + world.getName() + " unloading with " + count + " furnaces. Saving...");
+            for (Location loc : allFurnaces.keySet()) {
+                if (loc.getWorld() != null && loc.getWorld().equals(world)) {
+                    count++;
+                }
+            }
+
+            if (count > 0) {
+                plugin.getLogger().info("World '" + world.getName() + "' unloading with " + count + " furnaces. Saving...");
+                furnaceManager.saveAll();
+            }
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING, "Error handling world unload for " + world.getName(), e);
+        }
+    }
+
+    /**
+     * Saves furnaces when a world is saved.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onWorldSave(WorldSaveEvent event) {
+        // Optionally save furnaces when the world saves
+        // This provides additional data safety
+        try {
             furnaceManager.saveAll();
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING, "Error saving furnaces during world save", e);
         }
     }
 }

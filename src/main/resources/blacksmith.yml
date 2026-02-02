@@ -1,3 +1,13 @@
+# ==========================================
+# SMCBlacksmith - Forge Recipes Configuration
+# ==========================================
+# Each recipe defines a forging minigame with:
+# - frames: Visual stages of the item being forged
+# - hits: Number of hammer strikes required
+# - bias: Difficulty adjustment (higher = easier)
+# - target_size: Size of the "perfect" hit zone (0.0-1.0)
+# - results: Different quality outputs based on star rating (0-5)
+
 shortsword:
   frames:
     frame_0:
@@ -17,25 +27,34 @@ shortsword:
     id: iron_ingot
     type: minecraft
     amount: 3
+  # FIXED: Different results based on star rating
   results:
-    result_0:
+    result_0:  # 0 stars - Failed
+      id: iron_nugget
+      type: minecraft
+      amount: 3
+    result_1:  # 1 star - Poor quality
+      id: iron_nugget
+      type: minecraft
+      amount: 6
+    result_2:  # 2 stars - Below average
       id: iron_sword
       type: minecraft
-    result_1:
+      amount: 1
+      # Note: Could use custom items with lower durability via SMCCore/Nexo
+    result_3:  # 3 stars - Average
       id: iron_sword
       type: minecraft
-    result_2:
+      amount: 1
+    result_4:  # 4 stars - Good quality
       id: iron_sword
       type: minecraft
-    result_3:
+      amount: 1
+    result_5:  # 5 stars - Perfect quality
       id: iron_sword
       type: minecraft
-    result_4:
-      id: iron_sword
-      type: minecraft
-    result_5:
-      id: iron_sword
-      type: minecraft
+      amount: 1
+      # Note: In production, this would give an enchanted/custom sword
 
 longsword:
   frames:
@@ -57,21 +76,73 @@ longsword:
     type: minecraft
     amount: 5
   results:
-    result_0:
+    result_0:  # 0 stars - Failed
+      id: coal
+      type: minecraft
+      amount: 2
+    result_1:  # 1 star - Poor quality
+      id: diamond
+      type: minecraft
+      amount: 1
+    result_2:  # 2 stars - Below average
+      id: diamond
+      type: minecraft
+      amount: 2
+    result_3:  # 3 stars - Average
       id: diamond_sword
       type: minecraft
-    result_1:
+      amount: 1
+    result_4:  # 4 stars - Good quality
       id: diamond_sword
       type: minecraft
-    result_2:
+      amount: 1
+    result_5:  # 5 stars - Perfect quality
       id: diamond_sword
       type: minecraft
-    result_3:
-      id: diamond_sword
-      type: minecraft
-    result_4:
-      id: diamond_sword
-      type: minecraft
-    result_5:
-      id: diamond_sword
-      type: minecraft
+      amount: 1
+
+# Example with custom items (requires SMCCore or Nexo)
+  mythril_blade:
+   frames:
+     frame_0:
+       material: STICK
+       cmd: 51
+     frame_1:
+       material: STICK
+       cmd: 52
+     frame_2:
+       material: STICK
+       cmd: 53
+   permission: smithing.mythril
+   hits: 16
+   bias: 0.1
+   target_size: 0.3
+   input:
+     id: mythril_ingot
+     type: smc
+     amount: 5
+   results:
+     result_0:
+       id: mythril_scrap
+       type: smc
+       amount: 2
+     result_1:
+       id: mythril_scrap
+       type: smc
+       amount: 3
+     result_2:
+       id: broken_mythril_blade
+       type: smc
+       amount: 1
+     result_3:
+       id: mythril_blade_common
+       type: smc
+       amount: 1
+     result_4:
+       id: mythril_blade_rare
+       type: smc
+       amount: 1
+     result_5:
+       id: mythril_blade_legendary
+       type: smc
+       amount: 1

@@ -2,20 +2,23 @@ package com.simmc.blacksmith.config;
 
 import org.bukkit.configuration.file.FileConfiguration;
 
+/**
+ * Main configuration settings for the plugin.
+ */
 public class MainConfig {
 
     private String version;
     private String language;
-    private int furnaceTicks;
+    private int furnaceTickRate;
     private int bellowsCooldown;
-    private String smithingNameFormat;
+    private String smithedNameFormat;
 
     public void load(FileConfiguration config) {
         version = config.getString("version", "1.0.0");
         language = config.getString("language", "en_US.yml");
-        furnaceTicks = config.getInt("furnaces.ticks", 20);
+        furnaceTickRate = config.getInt("furnaces.ticks", 20);
         bellowsCooldown = config.getInt("furnaces.bellows_cooldown", 20);
-        smithingNameFormat = config.getString("blacksmithing.name_format", "Smithed by %s");
+        smithedNameFormat = config.getString("blacksmithing.name_format", "Smithed by %s");
     }
 
     public String getVersion() {
@@ -26,15 +29,19 @@ public class MainConfig {
         return language;
     }
 
-    public int getFurnaceTicks() {
-        return furnaceTicks;
+    public int getFurnaceTickRate() {
+        return furnaceTickRate;
     }
 
     public int getBellowsCooldown() {
         return bellowsCooldown;
     }
 
-    public String getSmithingNameFormat() {
-        return smithingNameFormat;
+    public String getSmithedNameFormat() {
+        return smithedNameFormat;
+    }
+
+    public String formatSmithedName(String playerName) {
+        return String.format(smithedNameFormat, playerName);
     }
 }

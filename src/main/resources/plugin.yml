@@ -5,11 +5,14 @@ api-version: '1.21'
 description: Complete blacksmithing system with furnaces, forging minigame, and repair system
 authors:
   - SimMC
+website: https://github.com/noahdionorlogisticsllc-crypto/TestingBlacksmith
 
+# FIXED: Added CraftEngine to softdepend
 softdepend:
   - PlaceholderAPI
   - SMCCore
   - Nexo
+  - CraftEngine
 
 commands:
   blacksmith:
@@ -25,8 +28,14 @@ permissions:
   blacksmith.admin:
     description: Allows administrative commands
     default: op
+  blacksmith.reload:
+    description: Allows reloading the plugin configuration
+    default: op
   blacksmith.furnace.create:
     description: Allows creating furnaces
+    default: op
+  blacksmith.furnace.remove:
+    description: Allows removing furnaces
     default: op
   blacksmith.forge.*:
     description: Allows all forging recipes
