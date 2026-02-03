@@ -236,4 +236,12 @@ public class QuenchingManager {
     public int getActiveSessionCount() {
         return sessions.size();
     }
+
+    public int getAwaitingNameCount() {
+        return (int) awaitingName.values().stream().filter(b -> b).count();
+    }
+
+    public int getPendingCount() {
+        return sessions.size();
+    }
 }

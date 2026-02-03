@@ -2,9 +2,6 @@ package com.simmc.blacksmith.config;
 
 import org.bukkit.configuration.file.FileConfiguration;
 
-/**
- * Handles all plugin messages with localization support.
- */
 public class MessageConfig {
 
     // Furnace messages
@@ -31,6 +28,7 @@ public class MessageConfig {
     private String repairFailed;
     private String invalidItem;
     private String itemNotDamaged;
+    private String vanillaAnvil;
 
     // General messages
     private String noPermission;
@@ -62,6 +60,7 @@ public class MessageConfig {
         repairFailed = color(config.getString("repair.failed", "&cRepair failed!"));
         invalidItem = color(config.getString("repair.invalid_item", "&cThis item cannot be repaired."));
         itemNotDamaged = color(config.getString("repair.not_damaged", "&eThis item is not damaged."));
+        vanillaAnvil = color(config.getString("repair.vanilla_mode", "&7Using vanilla grindstone..."));
 
         // General
         noPermission = color(config.getString("general.no_permission", "&cYou don't have permission to do this."));
@@ -74,8 +73,7 @@ public class MessageConfig {
         return text.replace("&", "§");
     }
 
-    // ==================== GETTERS ====================
-
+    // Furnace
     public String getFurnaceTitle() { return furnaceTitle; }
     public String getBellowsUsed() { return bellowsUsed; }
     public String getHeatToolUsed() { return heatToolUsed; }
@@ -83,37 +81,32 @@ public class MessageConfig {
     public String getSmeltingComplete() { return smeltingComplete; }
     public String getSmeltingFailed() { return smeltingFailed; }
 
+    // Forge
     public String getForgeStarted() { return forgeStarted; }
-
     public String getForgeComplete(int stars, String display) {
-        return forgeComplete
-                .replace("%stars%", String.valueOf(stars))
-                .replace("%display%", display);
+        return forgeComplete.replace("%stars%", String.valueOf(stars)).replace("%display%", display);
     }
-
     public String getForgeRefunded() { return forgeRefunded; }
     public String getForgeSessionActive() { return forgeSessionActive; }
-
     public String getForgeUnknownRecipe(String recipeId) {
         return forgeUnknownRecipe.replace("%recipe%", recipeId);
     }
-
     public String getForgePerfectHit() { return forgePerfectHit; }
     public String getForgeGoodHit() { return forgeGoodHit; }
     public String getForgeOkayHit() { return forgeOkayHit; }
     public String getForgeMiss() { return forgeMiss; }
 
-    public String getNoPermission() { return noPermission; }
-    public String getConditionNotMet() { return conditionNotMet; }
-
-    public String getMissingMaterials(int amount, String itemName) {
-        return missingMaterials
-                .replace("%amount%", String.valueOf(amount))
-                .replace("%item%", itemName);
-    }
-
+    // Repair
     public String getRepairSuccess() { return repairSuccess; }
     public String getRepairFailed() { return repairFailed; }
     public String getInvalidItem() { return invalidItem; }
     public String getItemNotDamaged() { return itemNotDamaged; }
+    public String getVanillaAnvil() { return vanillaAnvil; }
+
+    // General
+    public String getNoPermission() { return noPermission; }
+    public String getConditionNotMet() { return conditionNotMet; }
+    public String getMissingMaterials(int amount, String itemName) {
+        return missingMaterials.replace("%amount%", String.valueOf(amount)).replace("%item%", itemName);
+    }
 }

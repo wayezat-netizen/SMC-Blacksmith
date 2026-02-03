@@ -218,6 +218,18 @@ public class ForgeSession {
         activePoints.clear();
     }
 
+    public UUID getSessionId() {
+        return playerId; // Use playerId as session identifier
+    }
+
+    public long getElapsedTime() {
+        return System.currentTimeMillis() - startTime;
+    }
+
+    public double calculateFinalScore() {
+        return Math.min(1.0, getAverageAccuracy() + recipe.getBias());
+    }
+
     // Getters
     public UUID getPlayerId() { return playerId; }
     public ForgeRecipe getRecipe() { return recipe; }

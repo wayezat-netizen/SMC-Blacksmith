@@ -331,32 +331,30 @@ public class BlacksmithCommand implements CommandExecutor, TabCompleter {
 
     private void debugSession(CommandSender sender) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cThis command can only be used by players.");
+            sender.sendMessage("§cPlayers only.");
             return;
         }
 
-        ForgeSession session = plugin.getForgeManager().getSession(player.getUniqueId());
+        var session = plugin.getForgeManager().getSession(player.getUniqueId());
 
         if (session == null) {
-            sender.sendMessage("§cYou don't have an active forge session.");
+            sender.sendMessage("§cNo active forge session.");
             return;
         }
 
-        sender.sendMessage("§6§lForge Session Debug Info:");
-        sender.sendMessage("§7Session ID: §f" + session.getSessionId());
+        sender.sendMessage("§6§lForge Session Debug:");
         sender.sendMessage("§7Recipe: §f" + session.getRecipe().getId());
         sender.sendMessage("§7Hits: §f" + session.getHitsCompleted() + "/" + session.getTotalHits());
         sender.sendMessage("§7Perfect Hits: §f" + session.getPerfectHits());
+        sender.sendMessage("§7Missed Points: §f" + session.getMissedPoints());
         sender.sendMessage("§7Average Accuracy: §f" + String.format("%.1f%%", session.getAverageAccuracy() * 100));
-        sender.sendMessage("§7Final Score: §f" + String.format("%.2f", session.calculateFinalScore()));
         sender.sendMessage("§7Current Star Rating: §f" + session.calculateStarRating() + " stars");
         sender.sendMessage("§7Progress: §f" + String.format("%.1f%%", session.getProgress() * 100));
-        sender.sendMessage("§7Elapsed Time: §f" + (session.getElapsedTime() / 1000) + "s");
+        sender.sendMessage("§7Active Points: §f" + session.getActivePoints().size());
         sender.sendMessage("§7Active: §f" + session.isActive());
 
-        // Show star thresholds if custom
         if (session.getRecipe().hasStarThresholds()) {
-            sender.sendMessage("§7§lCustom Star Thresholds:");
+            sender.sendMessage("§7§lCustom Thresholds:");
             for (int i = 5; i >= 0; i--) {
                 var threshold = session.getRecipe().getStarThreshold(i);
                 if (threshold != null) {
@@ -405,47 +403,47 @@ public class BlacksmithCommand implements CommandExecutor, TabCompleter {
      */
     private void handleStats(CommandSender sender) {
         if (!sender.hasPermission("blacksmith.admin")) {
-            sender.sendMessage("§cYou don't have permission to do this.");
+            sender.sendMessage("§cNo permission.");
             return;
         }
 
-        sender.sendMessage("§6§l=== SMCBlacksmith Performance Stats ===");
+        sender.sendMessage("§6§l=== SMCBlacksmith Stats ===");
 
-        // Memory info
+        // Memory
         Runtime rt = Runtime.getRuntime();
         long usedMB = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
         long maxMB = rt.maxMemory() / 1024 / 1024;
         sender.sendMessage("§7Memory: §f" + usedMB + "MB / " + maxMB + "MB");
 
-        // Furnace stats
+        // Furnace
         FurnaceManager fm = plugin.getFurnaceManager();
-        sender.sendMessage("§7");
-        sender.sendMessage("§e§lFurnace Manager:");
-        sender.sendMessage("§7  Active Furnaces: §f" + fm.getFurnaceCount());
-        sender.sendMessage("§7  Temperature Bars: §f" + fm.getTemperatureBarCount());
+        sender.sendMessage("§e§lFurnace:");
+        sender.sendMessage("§7  Active: §f" + fm.getFurnaceCount());
+        sender.sendMessage("§7  Temp Bars: §f" + fm.getTemperatureBarCount());
         sender.sendMessage("§7  Open GUIs: §f" + fm.getOpenGUICount());
-        sender.sendMessage("§7  Async Enabled: §f" + fm.isAsyncEnabled());
+        sender.sendMessage("§7  Async: §f" + fm.isAsyncEnabled());
 
-        // Recipe cache stats
-        sender.sendMessage("§7  Recipe Cache: §f" + fm.getRecipeCache().getStats());
+        var cache = fm.getRecipeCache();
+        if (cache != null) {
+            sender.sendMessage("§7  Cache: §f" + cache.getStats());
+        }
 
-        // Forge stats
-        sender.sendMessage("§7");
-        sender.sendMessage("§e§lForge Manager:");
-        sender.sendMessage("§7  Active Sessions: §f" + plugin.getForgeManager().getActiveSessionCount());
+        // Forge
+        sender.sendMessage("§e§lForge:");
+        sender.sendMessage("§7  Sessions: §f" + plugin.getForgeManager().getActiveSessionCount());
 
-        // Integration status
-        sender.sendMessage("§7");
-        sender.sendMessage("§e§lIntegrations:");
-        sender.sendMessage("§7  " + plugin.getHookSummary());
+        // Quenching
+        sender.sendMessage("§e§lQuenching:");
+        sender.sendMessage("§7  Sessions: §f" + plugin.getQuenchingManager().getActiveSessionCount());
 
-        sender.sendMessage("§6§l==========================================");
-    }
+        // Hooks
+        sender.sendMessage("§e§lHooks:");
+        sender.sendMessage("§7  PAPI: §f" + plugin.hasPAPI());
+        sender.sendMessage("§7  SMCCore: §f" + plugin.hasSMCCore());
+        sender.sendMessage("§7  CraftEngine: §f" + plugin.hasCraftEngine());
+        sender.sendMessage("§7  Nexo: §f" + plugin.hasNexo());
 
-    private String formatLocation(Location loc) {
-        return String.format("%s, %d, %d, %d",
-                loc.getWorld().getName(),
-                loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+        sender.sendMessage("§6§l===========================");
     }
 
     @Override
@@ -483,5 +481,14 @@ public class BlacksmithCommand implements CommandExecutor, TabCompleter {
         return completions.stream()
                 .filter(s -> s.toLowerCase().startsWith(lastArg))
                 .collect(Collectors.toList());
+    }
+
+    private String formatLocation(Location loc) {
+        if (loc == null) return "null";
+        return String.format("%s: %d, %d, %d",
+                loc.getWorld() != null ? loc.getWorld().getName() : "unknown",
+                loc.getBlockX(),
+                loc.getBlockY(),
+                loc.getBlockZ());
     }
 }
