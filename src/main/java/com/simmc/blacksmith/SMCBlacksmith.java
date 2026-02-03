@@ -60,21 +60,18 @@ public final class SMCBlacksmith extends JavaPlugin {
         instance = this;
 
         taskManager = new TaskManager(this);
-
-        // Pre-initialize hooks that are needed immediately
         initializeEarlyHooks();
 
         configManager = new ConfigManager(this);
         configManager.loadAll();
 
-        // Pass hooks to item registry (may be null if not available)
         itemRegistry = new ItemProviderRegistry(this,
                 getSmcCoreHook(),
                 getCraftEngineHook(),
                 getNexoHook());
 
         furnaceManager = new FurnaceManager(this, configManager, itemRegistry);
-        forgeManager = new ForgeManager(this, configManager, itemRegistry);
+        forgeManager = new ForgeManager(this, configManager, itemRegistry);  // Only create once
         repairManager = new RepairManager(this, configManager, itemRegistry);
 
         registerListeners();
@@ -85,11 +82,13 @@ public final class SMCBlacksmith extends JavaPlugin {
 
         logStartupInfo();
 
-        ForgeManager forgeManager = new ForgeManager(this, configManager, itemRegistry);
-        getServer().getPluginManager().registerEvents(new ForgeListener(forgeManager), this);
-
         List<String> recipeIds = new ArrayList<>(configManager.getBlacksmithConfig().getRecipeIds());
-        getCommand("forge").setExecutor(new ForgeCommands(forgeManager, recipeIds));
+        PluginCommand forgeCommand = getCommand("forge");
+        if (forgeCommand != null) {
+            ForgeCommands forgeCommands = new ForgeCommands(forgeManager, recipeIds);
+            forgeCommand.setExecutor(forgeCommands);
+            forgeCommand.setTabCompleter(forgeCommands);
+        }
     }
 
     @Override
