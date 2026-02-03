@@ -5,17 +5,12 @@ import com.simmc.blacksmith.repair.RepairConfigData;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Configuration handler for grindstone repair system.
- * Parses grindstone.yml configuration file.
- */
 public class GrindstoneConfig {
 
     private final Map<String, RepairConfigData> repairConfigs;
@@ -42,30 +37,21 @@ public class GrindstoneConfig {
         }
     }
 
-    /**
-     * Logs validation results to the plugin logger.
-     */
-    public void logValidationResults(JavaPlugin plugin) {
-        if (!loadWarnings.isEmpty()) {
-            plugin.getLogger().warning("Grindstone config warnings:");
-            for (String warning : loadWarnings) {
-                plugin.getLogger().warning("  " + warning);
-            }
-        }
-    }
-
     private RepairConfigData parseRepairConfig(String id, ConfigurationSection section) {
-        String permission = section.getString("permission", "");
         String itemId = section.getString("id", "");
-        String itemType = section.getString("type", "minecraft").toLowerCase();
-        String repairChancePerm = section.getString("repair_chance_permission", "");
+        String itemType = section.getString("type", "minecraft");
 
         if (itemId.isEmpty()) {
-            loadWarnings.add("[" + id + "] Missing item id, skipping");
+            loadWarnings.add("[" + id + "] Missing item id");
             return null;
         }
 
-        // Parse input material requirements
+        // PAPI-based settings
+        String condition = section.getString("condition", "");
+        String successChance = section.getString("success_chance", "%svalues_repair_chance%");
+        String repairAmount = section.getString("repair_amount", "%svalues_repair_amount%");
+
+        // Input material
         ConfigurationSection inputSection = section.getConfigurationSection("input");
         String inputId = "";
         String inputType = "minecraft";
@@ -73,30 +59,22 @@ public class GrindstoneConfig {
 
         if (inputSection != null) {
             inputId = inputSection.getString("id", "");
-            inputType = inputSection.getString("type", "minecraft").toLowerCase();
+            inputType = inputSection.getString("type", "minecraft");
             inputAmount = inputSection.getInt("amount", 1);
-
-            if (inputAmount <= 0) {
-                loadWarnings.add("[" + id + ".input] Invalid amount, using 1");
-                inputAmount = 1;
-            }
+            if (inputAmount < 1) inputAmount = 1;
         }
 
-        return new RepairConfigData(id, permission, itemId, itemType,
-                repairChancePerm, inputId, inputType, inputAmount);
+        return new RepairConfigData(
+                id, itemId, itemType,
+                condition, successChance, repairAmount,
+                inputId, inputType, inputAmount
+        );
     }
 
     public void setItemRegistry(ItemProviderRegistry registry) {
         this.itemRegistry = registry;
     }
 
-    public RepairConfigData getRepairConfig(String id) {
-        return repairConfigs.get(id);
-    }
-
-    /**
-     * Finds a repair configuration that matches the given item.
-     */
     public RepairConfigData findByItem(ItemStack item) {
         if (item == null || itemRegistry == null) return null;
 
@@ -108,31 +86,8 @@ public class GrindstoneConfig {
         return null;
     }
 
-    /**
-     * Gets all repair configs for a specific permission base.
-     * Useful for listing all items a player can repair.
-     */
-    public List<RepairConfigData> getConfigsByPermissionBase(String permBase) {
-        List<RepairConfigData> result = new ArrayList<>();
-        for (RepairConfigData config : repairConfigs.values()) {
-            if (config.permission().startsWith(permBase)) {
-                result.add(config);
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Gets all repair configs for a specific item type.
-     */
-    public List<RepairConfigData> getConfigsByItemType(String type) {
-        List<RepairConfigData> result = new ArrayList<>();
-        for (RepairConfigData config : repairConfigs.values()) {
-            if (config.itemType().equalsIgnoreCase(type)) {
-                result.add(config);
-            }
-        }
-        return result;
+    public RepairConfigData getRepairConfig(String id) {
+        return repairConfigs.get(id);
     }
 
     public Map<String, RepairConfigData> getRepairConfigs() {

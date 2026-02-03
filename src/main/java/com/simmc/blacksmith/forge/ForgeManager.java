@@ -6,6 +6,7 @@ import com.simmc.blacksmith.config.MessageConfig;
 import com.simmc.blacksmith.forge.display.ForgeDisplay;
 import com.simmc.blacksmith.integration.PlaceholderAPIHook;
 import com.simmc.blacksmith.items.ItemProviderRegistry;
+import com.simmc.blacksmith.quench.QuenchingManager;
 import com.simmc.blacksmith.util.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -147,14 +148,10 @@ public class ForgeManager {
 
         playCompletionEffects(player, session.getAnvilLocation(), stars);
 
+        // Get the result item
+        ItemStack resultItem = null;
         if (result != null) {
-            ItemStack item = itemRegistry.getItem(result.type(), result.id(), result.amount());
-            if (item != null) {
-                HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(item);
-                for (ItemStack leftover : overflow.values()) {
-                    player.getWorld().dropItemNaturally(player.getLocation(), leftover);
-                }
-            }
+            resultItem = itemRegistry.getItem(result.type(), result.id(), result.amount());
         }
 
         String starDisplay = ColorUtil.formatStars(stars, 5);
@@ -162,7 +159,27 @@ public class ForgeManager {
 
         executeCommand(player, session.getRecipe(), stars);
 
+        // Start quenching instead of giving item directly
+        if (resultItem != null) {
+            SMCBlacksmith instance = SMCBlacksmith.getInstance();
+            QuenchingManager quenchManager = instance.getQuenchingManager();
+
+            if (quenchManager != null) {
+                quenchManager.startQuenching(player, resultItem, stars, session.getAnvilLocation());
+            } else {
+                // Fallback: give item directly
+                giveItem(player, resultItem);
+            }
+        }
+
         Bukkit.getScheduler().runTaskLater(plugin, () -> cleanup(playerId), 40L);
+    }
+
+    private void giveItem(Player player, ItemStack item) {
+        var overflow = player.getInventory().addItem(item);
+        for (ItemStack leftover : overflow.values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+        }
     }
 
     private void playCompletionEffects(Player player, Location loc, int stars) {

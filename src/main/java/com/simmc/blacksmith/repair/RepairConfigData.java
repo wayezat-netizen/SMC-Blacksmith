@@ -2,24 +2,31 @@ package com.simmc.blacksmith.repair;
 
 public record RepairConfigData(
         String id,
-        String permission,
         String itemId,
         String itemType,
-        String repairChancePermission,
+        String condition,
+        String successChancePlaceholder,
+        String repairAmountPlaceholder,
         String inputId,
         String inputType,
         int inputAmount
 ) {
     public RepairConfigData {
         if (inputAmount < 1) inputAmount = 1;
+        if (itemType == null) itemType = "minecraft";
+        if (inputType == null) inputType = "minecraft";
     }
 
-    public boolean hasPermission() {
-        return permission != null && !permission.isEmpty();
+    public boolean hasCondition() {
+        return condition != null && !condition.isEmpty();
     }
 
-    public boolean hasRepairChancePermission() {
-        return repairChancePermission != null && !repairChancePermission.isEmpty();
+    public boolean hasSuccessChancePlaceholder() {
+        return successChancePlaceholder != null && !successChancePlaceholder.isEmpty();
+    }
+
+    public boolean hasRepairAmountPlaceholder() {
+        return repairAmountPlaceholder != null && !repairAmountPlaceholder.isEmpty();
     }
 
     public boolean hasInput() {

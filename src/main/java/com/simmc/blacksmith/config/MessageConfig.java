@@ -26,6 +26,12 @@ public class MessageConfig {
     private String forgeOkayHit;
     private String forgeMiss;
 
+    // Repair messages
+    private String repairSuccess;
+    private String repairFailed;
+    private String invalidItem;
+    private String itemNotDamaged;
+
     // General messages
     private String noPermission;
     private String conditionNotMet;
@@ -50,6 +56,12 @@ public class MessageConfig {
         forgeGoodHit = color(config.getString("forge.good_hit", "&aGood hit!"));
         forgeOkayHit = color(config.getString("forge.okay_hit", "&eOkay hit."));
         forgeMiss = color(config.getString("forge.miss", "&cMissed!"));
+
+        // Repair
+        repairSuccess = color(config.getString("repair.success", "&aRepair successful!"));
+        repairFailed = color(config.getString("repair.failed", "&cRepair failed!"));
+        invalidItem = color(config.getString("repair.invalid_item", "&cThis item cannot be repaired."));
+        itemNotDamaged = color(config.getString("repair.not_damaged", "&eThis item is not damaged."));
 
         // General
         noPermission = color(config.getString("general.no_permission", "&cYou don't have permission to do this."));
@@ -99,4 +111,9 @@ public class MessageConfig {
                 .replace("%amount%", String.valueOf(amount))
                 .replace("%item%", itemName);
     }
+
+    public String getRepairSuccess() { return repairSuccess; }
+    public String getRepairFailed() { return repairFailed; }
+    public String getInvalidItem() { return invalidItem; }
+    public String getItemNotDamaged() { return itemNotDamaged; }
 }

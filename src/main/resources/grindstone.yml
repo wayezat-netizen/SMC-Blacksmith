@@ -1,39 +1,49 @@
+# Repair configuration using PAPI placeholders
+# condition: PAPI condition to check (format: "%placeholder% operator value")
+# success_chance: PAPI placeholder returning 0-100 success percentage
+# repair_amount: PAPI placeholder returning 0-100 repair percentage
+
 iron_sword:
-  permission: skill.repair.iron
   id: iron_sword
   type: minecraft
-  repair_chance_permission: skill.repair.chance
+  condition: "%svalues_repair_skill% >= 1"
+  success_chance: "%svalues_repair_chance%"
+  repair_amount: "%svalues_repair_amount%"
   input:
     id: iron_ingot
     type: minecraft
     amount: 1
 
 diamond_sword:
-  permission: skill.repair.diamond
   id: diamond_sword
   type: minecraft
-  repair_chance_permission: skill.repair.chance
+  condition: "%svalues_repair_skill% >= 10"
+  success_chance: "%svalues_repair_chance%"
+  repair_amount: "%svalues_repair_amount%"
   input:
     id: diamond
     type: minecraft
     amount: 1
 
-iron_pickaxe:
-  permission: skill.repair.iron
-  id: iron_pickaxe
+netherite_sword:
+  id: netherite_sword
   type: minecraft
-  repair_chance_permission: skill.repair.chance
+  condition: "%svalues_repair_skill% >= 20"
+  success_chance: "%svalues_repair_chance%"
+  repair_amount: "%svalues_repair_amount%"
   input:
-    id: iron_ingot
+    id: netherite_ingot
     type: minecraft
     amount: 1
 
-diamond_pickaxe:
-  permission: skill.repair.diamond
-  id: diamond_pickaxe
-  type: minecraft
-  repair_chance_permission: skill.repair.chance
+# SMCCore item example
+custom_blade:
+  id: custom_blade
+  type: smc
+  condition: "%svalues_repair_mastery% >= 5"
+  success_chance: "%svalues_repair_chance%"
+  repair_amount: "%svalues_repair_amount%"
   input:
-    id: diamond
-    type: minecraft
+    id: smc:repair_kit
+    type: craftengine
     amount: 1

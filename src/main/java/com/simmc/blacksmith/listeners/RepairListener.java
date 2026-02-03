@@ -28,37 +28,27 @@ public class RepairListener implements Listener {
         if (event.getHand() != EquipmentSlot.HAND) return;
 
         Block block = event.getClickedBlock();
-        if (block == null) return;
-
-        if (block.getType() != Material.GRINDSTONE) return;
+        if (block == null || block.getType() != Material.GRINDSTONE) return;
 
         Player player = event.getPlayer();
 
-        // Allow vanilla grindstone if sneaking
-        if (player.isSneaking()) {
-            return;
-        }
+        // Sneak to use vanilla grindstone
+        if (player.isSneaking()) return;
 
         ItemStack mainHand = player.getInventory().getItemInMainHand();
+        if (mainHand.getType().isAir()) return;
 
-        if (mainHand.getType().isAir()) {
-            return;
-        }
+        if (!repairManager.canRepair(mainHand)) return;
 
-        if (!repairManager.canRepair(mainHand)) {
-            return;
-        }
+        event.setCancelled(true);
 
-        // Get message config
         MessageConfig messages = SMCBlacksmith.getInstance().getConfigManager().getMessageConfig();
 
         if (!repairManager.isDamaged(mainHand)) {
             player.sendMessage(messages.getItemNotDamaged());
-            event.setCancelled(true);
             return;
         }
 
-        event.setCancelled(true);
         repairManager.attemptRepair(player, mainHand);
     }
 }

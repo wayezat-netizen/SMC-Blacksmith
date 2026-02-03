@@ -10,7 +10,13 @@ import com.simmc.blacksmith.integration.NexoHook;
 import com.simmc.blacksmith.integration.PlaceholderAPIHook;
 import com.simmc.blacksmith.integration.SMCCoreHook;
 import com.simmc.blacksmith.items.ItemProviderRegistry;
-import com.simmc.blacksmith.listeners.*;
+import com.simmc.blacksmith.listeners.BlockInteractListener;
+import com.simmc.blacksmith.listeners.ForgeListener;
+import com.simmc.blacksmith.listeners.FurnaceListener;
+import com.simmc.blacksmith.listeners.PlayerListener;
+import com.simmc.blacksmith.listeners.QuenchingListener;
+import com.simmc.blacksmith.listeners.RepairListener;
+import com.simmc.blacksmith.quench.QuenchingManager;
 import com.simmc.blacksmith.repair.RepairManager;
 import com.simmc.blacksmith.util.TaskManager;
 import org.bukkit.command.PluginCommand;
@@ -19,10 +25,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Main plugin class for SMCBlacksmith.
- * Manages initialization, hooks, and provides access to all managers.
- */
 public final class SMCBlacksmith extends JavaPlugin {
 
     private static SMCBlacksmith instance;
@@ -32,21 +34,19 @@ public final class SMCBlacksmith extends JavaPlugin {
     private ItemProviderRegistry itemRegistry;
     private FurnaceManager furnaceManager;
     private ForgeManager forgeManager;
+    private QuenchingManager quenchingManager;
     private RepairManager repairManager;
 
-    // Lazy-initialized hooks with double-checked locking
     private volatile PlaceholderAPIHook papiHook;
     private volatile SMCCoreHook smcCoreHook;
     private volatile CraftEngineHook craftEngineHook;
     private volatile NexoHook nexoHook;
 
-    // Lock objects for lazy initialization
     private final Object papiLock = new Object();
     private final Object smcCoreLock = new Object();
     private final Object craftEngineLock = new Object();
     private final Object nexoLock = new Object();
 
-    // Track if hooks have been checked (to avoid repeated null checks)
     private volatile boolean papiChecked = false;
     private volatile boolean smcCoreChecked = false;
     private volatile boolean craftEngineChecked = false;
@@ -55,8 +55,8 @@ public final class SMCBlacksmith extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
-
         taskManager = new TaskManager(this);
+
         initializeEarlyHooks();
 
         configManager = new ConfigManager(this);
@@ -68,7 +68,8 @@ public final class SMCBlacksmith extends JavaPlugin {
                 getNexoHook());
 
         furnaceManager = new FurnaceManager(this, configManager, itemRegistry);
-        forgeManager = new ForgeManager(this, configManager, itemRegistry);  // Only create once
+        forgeManager = new ForgeManager(this, configManager, itemRegistry);
+        quenchingManager = new QuenchingManager(this, configManager);
         repairManager = new RepairManager(this, configManager, itemRegistry);
 
         registerListeners();
@@ -78,18 +79,14 @@ public final class SMCBlacksmith extends JavaPlugin {
         furnaceManager.loadAll();
 
         logStartupInfo();
-
-        List<String> recipeIds = new ArrayList<>(configManager.getBlacksmithConfig().getRecipeIds());
-        PluginCommand forgeCommand = getCommand("forge");
-        if (forgeCommand != null) {
-            ForgeCommands forgeCommands = new ForgeCommands(forgeManager, recipeIds);
-            forgeCommand.setExecutor(forgeCommands);
-            forgeCommand.setTabCompleter(forgeCommands);
-        }
     }
 
     @Override
     public void onDisable() {
+        if (quenchingManager != null) {
+            quenchingManager.cancelAllSessions();
+        }
+
         if (forgeManager != null) {
             forgeManager.cancelAllSessions();
         }
@@ -107,29 +104,25 @@ public final class SMCBlacksmith extends JavaPlugin {
         instance = null;
     }
 
-    /**
-     * Initialize hooks that are needed during startup.
-     * These are checked eagerly but still use lazy initialization pattern.
-     */
     private void initializeEarlyHooks() {
-        // Just mark what's available - actual initialization is lazy
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            getLogger().info("PlaceholderAPI detected - will hook when needed");
+            getLogger().info("PlaceholderAPI detected");
         }
         if (getServer().getPluginManager().getPlugin("SMCCore") != null) {
-            getLogger().info("SMCCore detected - will hook when needed");
+            getLogger().info("SMCCore detected");
         }
         if (getServer().getPluginManager().getPlugin("CraftEngine") != null) {
-            getLogger().info("CraftEngine detected - will hook when needed");
+            getLogger().info("CraftEngine detected");
         }
         if (getServer().getPluginManager().getPlugin("Nexo") != null) {
-            getLogger().info("Nexo detected - will hook when needed");
+            getLogger().info("Nexo detected");
         }
     }
 
     private void registerListeners() {
         getServer().getPluginManager().registerEvents(new FurnaceListener(furnaceManager), this);
         getServer().getPluginManager().registerEvents(new ForgeListener(forgeManager), this);
+        getServer().getPluginManager().registerEvents(new QuenchingListener(quenchingManager), this);
         getServer().getPluginManager().registerEvents(new RepairListener(repairManager), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(furnaceManager, forgeManager), this);
         getServer().getPluginManager().registerEvents(new BlockInteractListener(furnaceManager, configManager), this);
@@ -137,10 +130,18 @@ public final class SMCBlacksmith extends JavaPlugin {
 
     private void registerCommands() {
         BlacksmithCommand commandExecutor = new BlacksmithCommand(this);
-        PluginCommand command = getCommand("blacksmith");
-        if (command != null) {
-            command.setExecutor(commandExecutor);
-            command.setTabCompleter(commandExecutor);
+        PluginCommand bsCommand = getCommand("blacksmith");
+        if (bsCommand != null) {
+            bsCommand.setExecutor(commandExecutor);
+            bsCommand.setTabCompleter(commandExecutor);
+        }
+
+        List<String> recipeIds = new ArrayList<>(configManager.getBlacksmithConfig().getRecipeIds());
+        ForgeCommands forgeCommands = new ForgeCommands(forgeManager, recipeIds);
+        PluginCommand forgeCommand = getCommand("forge");
+        if (forgeCommand != null) {
+            forgeCommand.setExecutor(forgeCommands);
+            forgeCommand.setTabCompleter(forgeCommands);
         }
     }
 
@@ -154,29 +155,22 @@ public final class SMCBlacksmith extends JavaPlugin {
         getLogger().info("========================================");
     }
 
-    /**
-     * Reloads all configurations and managers.
-     */
     public void reload() {
         configManager.loadAll();
         furnaceManager.reload();
         forgeManager.reload();
+        quenchingManager.reload();
         repairManager.reload();
         getLogger().info("Configuration reloaded.");
     }
 
-    // ==================== LAZY INITIALIZATION GETTERS ====================
-
-    /**
-     * Gets the PlaceholderAPI hook, initializing it lazily if available.
-     */
+    // Lazy hook getters (unchanged)
     public PlaceholderAPIHook getPapiHook() {
         if (!papiChecked) {
             synchronized (papiLock) {
                 if (!papiChecked) {
                     if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
                         papiHook = new PlaceholderAPIHook(this);
-                        getLogger().info("Lazily hooked into PlaceholderAPI");
                     }
                     papiChecked = true;
                 }
@@ -185,16 +179,12 @@ public final class SMCBlacksmith extends JavaPlugin {
         return papiHook;
     }
 
-    /**
-     * Gets the SMCCore hook, initializing it lazily if available.
-     */
     public SMCCoreHook getSmcCoreHook() {
         if (!smcCoreChecked) {
             synchronized (smcCoreLock) {
                 if (!smcCoreChecked) {
                     if (getServer().getPluginManager().getPlugin("SMCCore") != null) {
                         smcCoreHook = new SMCCoreHook(this);
-                        getLogger().info("Lazily hooked into SMCCore");
                     }
                     smcCoreChecked = true;
                 }
@@ -203,16 +193,12 @@ public final class SMCBlacksmith extends JavaPlugin {
         return smcCoreHook;
     }
 
-    /**
-     * Gets the CraftEngine hook, initializing it lazily if available.
-     */
     public CraftEngineHook getCraftEngineHook() {
         if (!craftEngineChecked) {
             synchronized (craftEngineLock) {
                 if (!craftEngineChecked) {
                     if (getServer().getPluginManager().getPlugin("CraftEngine") != null) {
                         craftEngineHook = new CraftEngineHook(this);
-                        getLogger().info("Lazily hooked into CraftEngine");
                     }
                     craftEngineChecked = true;
                 }
@@ -221,16 +207,12 @@ public final class SMCBlacksmith extends JavaPlugin {
         return craftEngineHook;
     }
 
-    /**
-     * Gets the Nexo hook, initializing it lazily if available.
-     */
     public NexoHook getNexoHook() {
         if (!nexoChecked) {
             synchronized (nexoLock) {
                 if (!nexoChecked) {
                     if (getServer().getPluginManager().getPlugin("Nexo") != null) {
                         nexoHook = new NexoHook(this);
-                        getLogger().info("Lazily hooked into Nexo");
                     }
                     nexoChecked = true;
                 }
@@ -239,37 +221,14 @@ public final class SMCBlacksmith extends JavaPlugin {
         return nexoHook;
     }
 
-    // ==================== STANDARD GETTERS ====================
-
-    public static SMCBlacksmith getInstance() {
-        return instance;
-    }
-
-    public TaskManager getTaskManager() {
-        return taskManager;
-    }
-
-    public ConfigManager getConfigManager() {
-        return configManager;
-    }
-
-    public ItemProviderRegistry getItemRegistry() {
-        return itemRegistry;
-    }
-
-    public FurnaceManager getFurnaceManager() {
-        return furnaceManager;
-    }
-
-    public ForgeManager getForgeManager() {
-        return forgeManager;
-    }
-
-    public RepairManager getRepairManager() {
-        return repairManager;
-    }
-
-    // ==================== AVAILABILITY CHECKS ====================
+    public static SMCBlacksmith getInstance() { return instance; }
+    public TaskManager getTaskManager() { return taskManager; }
+    public ConfigManager getConfigManager() { return configManager; }
+    public ItemProviderRegistry getItemRegistry() { return itemRegistry; }
+    public FurnaceManager getFurnaceManager() { return furnaceManager; }
+    public ForgeManager getForgeManager() { return forgeManager; }
+    public QuenchingManager getQuenchingManager() { return quenchingManager; }
+    public RepairManager getRepairManager() { return repairManager; }
 
     public boolean hasPAPI() {
         PlaceholderAPIHook hook = getPapiHook();
@@ -289,13 +248,5 @@ public final class SMCBlacksmith extends JavaPlugin {
     public boolean hasNexo() {
         NexoHook hook = getNexoHook();
         return hook != null && hook.isAvailable();
-    }
-
-    /**
-     * Gets a summary of hook availability for debugging.
-     */
-    public String getHookSummary() {
-        return String.format("Hooks: PAPI=%s, SMCCore=%s, CraftEngine=%s, Nexo=%s",
-                hasPAPI(), hasSMCCore(), hasCraftEngine(), hasNexo());
     }
 }
