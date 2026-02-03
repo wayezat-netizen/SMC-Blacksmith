@@ -140,7 +140,7 @@ public class ForgeManager {
         if (session == null) return;
 
         int stars = session.calculateStarRating();
-        ForgeResult result = session.getResultItem();
+        ForgeRecipe recipe = session.getRecipe();
 
         if (display != null) {
             display.showCompletion(stars);
@@ -148,26 +148,33 @@ public class ForgeManager {
 
         playCompletionEffects(player, session.getAnvilLocation(), stars);
 
-        // Get the result item
+        // Get result item
         ItemStack resultItem = null;
-        if (result != null) {
-            resultItem = itemRegistry.getItem(result.type(), result.id(), result.amount());
+
+        if (recipe.usesBaseItem()) {
+            // Single item mode - get base item
+            resultItem = itemRegistry.getItem(recipe.getBaseItemType(), recipe.getBaseItemId(), 1);
+        } else {
+            // Multi-item mode - get star-specific result
+            ForgeResult result = recipe.getResult(stars);
+            if (result != null) {
+                resultItem = itemRegistry.getItem(result.type(), result.id(), result.amount());
+            }
         }
 
         String starDisplay = ColorUtil.formatStars(stars, 5);
         player.sendMessage(configManager.getMessageConfig().getForgeComplete(stars, starDisplay));
 
-        executeCommand(player, session.getRecipe(), stars);
+        executeCommand(player, recipe, stars);
 
-        // Start quenching instead of giving item directly
+        // Start quenching
         if (resultItem != null) {
             SMCBlacksmith instance = SMCBlacksmith.getInstance();
             QuenchingManager quenchManager = instance.getQuenchingManager();
 
             if (quenchManager != null) {
-                quenchManager.startQuenching(player, resultItem, stars, session.getAnvilLocation());
+                quenchManager.startQuenching(player, resultItem, stars, session.getAnvilLocation(), recipe);
             } else {
-                // Fallback: give item directly
                 giveItem(player, resultItem);
             }
         }

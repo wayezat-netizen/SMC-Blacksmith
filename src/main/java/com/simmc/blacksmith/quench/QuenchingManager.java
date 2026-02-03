@@ -2,9 +2,13 @@ package com.simmc.blacksmith.quench;
 
 import com.simmc.blacksmith.SMCBlacksmith;
 import com.simmc.blacksmith.config.ConfigManager;
+import com.simmc.blacksmith.forge.ForgeRecipe;
+import com.simmc.blacksmith.forge.ItemModifierService;
 import com.simmc.blacksmith.integration.SMCCoreHook;
+import com.simmc.blacksmith.items.ItemProviderRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -21,19 +25,20 @@ public class QuenchingManager {
 
     private final JavaPlugin plugin;
     private final ConfigManager configManager;
+    private final ItemModifierService modifierService;
 
     private final Map<UUID, QuenchingSession> sessions;
     private final Map<UUID, Boolean> awaitingName;
 
     private static final String TONGS_ITEM_ID = "blacksmith_tongs";
-    private static final long SESSION_TIMEOUT_MS = 120000; // 2 minutes
+    private static final long SESSION_TIMEOUT_MS = 120000;
 
     public QuenchingManager(JavaPlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
         this.configManager = configManager;
+        this.modifierService = new ItemModifierService();
         this.sessions = new ConcurrentHashMap<>();
         this.awaitingName = new ConcurrentHashMap<>();
-
         startTimeoutChecker();
     }
 
@@ -49,7 +54,8 @@ public class QuenchingManager {
         }, 200L, 200L);
     }
 
-    public void startQuenching(Player player, ItemStack forgedItem, int starRating, Location anvilLocation) {
+    public void startQuenching(Player player, ItemStack forgedItem, int starRating,
+                               Location anvilLocation, ForgeRecipe recipe) {
         UUID playerId = player.getUniqueId();
 
         if (sessions.containsKey(playerId)) {
@@ -57,7 +63,7 @@ public class QuenchingManager {
             return;
         }
 
-        QuenchingSession session = new QuenchingSession(playerId, forgedItem, starRating, anvilLocation);
+        QuenchingSession session = new QuenchingSession(playerId, forgedItem, starRating, anvilLocation, recipe);
         sessions.put(playerId, session);
 
         player.sendMessage("§6§l⚒ QUENCHING");
@@ -80,7 +86,6 @@ public class QuenchingManager {
             return handleContainerPlace(player, targetLocation);
         }
 
-        // Check if clicking near anvil
         if (session.getAnvilLocation().distanceSquared(targetLocation) > 4) {
             player.sendMessage("§cClick on the anvil to pick up your item.");
             return false;
@@ -100,7 +105,6 @@ public class QuenchingManager {
 
         if (session == null || !session.isPickedUp()) return false;
 
-        // Valid container interaction
         awaitingName.put(playerId, true);
 
         player.sendMessage("§6§l⚒ NAME YOUR CREATION");
@@ -137,27 +141,29 @@ public class QuenchingManager {
         if (session == null) return;
 
         ItemStack result = session.getForgedItem();
-        ItemMeta meta = result.getItemMeta();
+        ForgeRecipe recipe = session.getRecipe();
+        int stars = session.getStarRating();
 
-        if (meta != null) {
-            // Apply custom name
-            if (session.getCustomName() != null && !session.getCustomName().isEmpty()) {
+        // Apply star modifiers if recipe has them
+        if (recipe != null && recipe.hasStarModifiers()) {
+            result = modifierService.applyStarModifiers(
+                    result,
+                    stars,
+                    recipe.getStarModifiers(),
+                    player.getName()
+            );
+        } else {
+            // Fallback: manually add lore
+            result = addBasicLore(result, stars, player.getName(), session.getCustomName());
+        }
+
+        // Apply custom name if provided
+        if (session.getCustomName() != null && !session.getCustomName().isEmpty()) {
+            ItemMeta meta = result.getItemMeta();
+            if (meta != null) {
                 meta.setDisplayName("§f" + session.getCustomName());
+                result.setItemMeta(meta);
             }
-
-            // Add forger lore
-            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-            lore.add("");
-            lore.add("§7Forged by §e" + player.getName());
-            lore.add("§7Quality: " + formatStars(session.getStarRating()));
-
-            String format = configManager.getMainConfig().getSmithingNameFormat();
-            if (format != null && !format.isEmpty()) {
-                lore.add("§8" + String.format(format, player.getName()));
-            }
-
-            meta.setLore(lore);
-            result.setItemMeta(meta);
         }
 
         // Give item
@@ -167,13 +173,28 @@ public class QuenchingManager {
         }
 
         player.sendMessage("§a§l✓ Quenching complete!");
-        player.sendMessage("§7Your " + formatStars(session.getStarRating()) + " §7item is ready.");
+        player.sendMessage("§7Your " + formatStars(stars) + " §7item is ready.");
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.2f);
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 0.6f, 0.8f);
     }
 
+    private ItemStack addBasicLore(ItemStack item, int stars, String forgerName, String customName) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+
+        lore.add("");
+        lore.add(formatStars(stars));
+        lore.add("§7Forged by §e" + forgerName);
+
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
     private String formatStars(int stars) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder("§7Quality: ");
         for (int i = 0; i < 5; i++) {
             sb.append(i < stars ? "§6★" : "§7☆");
         }
@@ -188,12 +209,10 @@ public class QuenchingManager {
 
         Player player = Bukkit.getPlayer(playerId);
         if (player != null) {
-            // Refund the item
             var overflow = player.getInventory().addItem(session.getForgedItem());
             for (ItemStack leftover : overflow.values()) {
                 player.getWorld().dropItemNaturally(player.getLocation(), leftover);
             }
-
             player.sendMessage("§cQuenching cancelled: " + reason);
             player.sendMessage("§7Your item has been returned.");
         }
@@ -211,8 +230,7 @@ public class QuenchingManager {
             return TONGS_ITEM_ID.equalsIgnoreCase(itemId);
         }
 
-        // Fallback: check for shears (vanilla tongs substitute)
-        return mainHand.getType() == org.bukkit.Material.SHEARS;
+        return mainHand.getType() == Material.SHEARS;
     }
 
     public boolean hasActiveSession(UUID playerId) {
@@ -234,14 +252,6 @@ public class QuenchingManager {
     }
 
     public int getActiveSessionCount() {
-        return sessions.size();
-    }
-
-    public int getAwaitingNameCount() {
-        return (int) awaitingName.values().stream().filter(b -> b).count();
-    }
-
-    public int getPendingCount() {
         return sessions.size();
     }
 }

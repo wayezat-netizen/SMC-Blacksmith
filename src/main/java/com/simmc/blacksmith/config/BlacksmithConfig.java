@@ -1,9 +1,6 @@
 package com.simmc.blacksmith.config;
 
-import com.simmc.blacksmith.forge.ForgeFrame;
-import com.simmc.blacksmith.forge.ForgeRecipe;
-import com.simmc.blacksmith.forge.ForgeResult;
-import com.simmc.blacksmith.forge.StarThreshold;
+import com.simmc.blacksmith.forge.*;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -11,295 +8,286 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 
-/**
- * Configuration handler for blacksmith/forge recipes.
- * Parses and validates all forge recipe configurations including star thresholds.
- */
 public class BlacksmithConfig {
 
     private final Map<String, ForgeRecipe> recipes;
+    private final Map<String, ForgeCategory> categories;
     private final List<String> loadErrors;
     private final List<String> loadWarnings;
 
     public BlacksmithConfig() {
         this.recipes = new HashMap<>();
+        this.categories = new HashMap<>();
         this.loadErrors = new ArrayList<>();
         this.loadWarnings = new ArrayList<>();
     }
 
-    /**
-     * Loads all forge recipes from the configuration file.
-     */
     public void load(FileConfiguration config) {
         recipes.clear();
+        categories.clear();
         loadErrors.clear();
         loadWarnings.clear();
 
-        for (String recipeId : config.getKeys(false)) {
-            // Skip internal/meta sections
-            if (recipeId.startsWith("_")) continue;
-
-            ConfigurationSection section = config.getConfigurationSection(recipeId);
-            if (section == null) continue;
-
-            try {
-                ForgeRecipe recipe = parseRecipe(recipeId, section);
-                if (recipe != null) {
-                    recipes.put(recipeId, recipe);
+        // Load categories first
+        ConfigurationSection catSection = config.getConfigurationSection("categories");
+        if (catSection != null) {
+            for (String catId : catSection.getKeys(false)) {
+                ConfigurationSection cs = catSection.getConfigurationSection(catId);
+                if (cs != null) {
+                    ForgeCategory category = parseCategory(catId, cs);
+                    if (category != null) {
+                        categories.put(catId, category);
+                    }
                 }
-            } catch (Exception e) {
-                loadErrors.add("[" + recipeId + "] Failed to parse: " + e.getMessage());
             }
+        }
+
+        // Load recipes
+        ConfigurationSection recipesSection = config.getConfigurationSection("recipes");
+        if (recipesSection != null) {
+            for (String recipeId : recipesSection.getKeys(false)) {
+                ConfigurationSection rs = recipesSection.getConfigurationSection(recipeId);
+                if (rs != null) {
+                    ForgeRecipe recipe = parseRecipe(recipeId, rs);
+                    if (recipe != null) {
+                        recipes.put(recipeId, recipe);
+                    }
+                }
+            }
+        }
+
+        // Fallback: load old format (recipes at root level)
+        if (recipes.isEmpty()) {
+            for (String key : config.getKeys(false)) {
+                if (key.equals("categories")) continue;
+                ConfigurationSection rs = config.getConfigurationSection(key);
+                if (rs != null && rs.contains("hits")) {
+                    ForgeRecipe recipe = parseRecipe(key, rs);
+                    if (recipe != null) {
+                        recipes.put(key, recipe);
+                    }
+                }
+            }
+        }
+
+        // Auto-create default category if none exist
+        if (categories.isEmpty() && !recipes.isEmpty()) {
+            List<String> allRecipeIds = new ArrayList<>(recipes.keySet());
+            ForgeCategory defaultCat = new ForgeCategory(
+                    "all",
+                    "§6All Recipes",
+                    Material.ANVIL,
+                    0,
+                    List.of("§7All available recipes"),
+                    allRecipeIds,
+                    22
+            );
+            categories.put("all", defaultCat);
         }
     }
 
-    /**
-     * Parses a single forge recipe from configuration.
-     */
+    private ForgeCategory parseCategory(String id, ConfigurationSection section) {
+        String displayName = section.getString("display_name", "§f" + id);
+        displayName = displayName.replace("&", "§");
+
+        String materialStr = section.getString("icon.material", "IRON_INGOT");
+        Material material = Material.matchMaterial(materialStr);
+        if (material == null) material = Material.IRON_INGOT;
+
+        int cmd = section.getInt("icon.cmd", 0);
+        int slot = section.getInt("slot", 22);
+
+        List<String> description = section.getStringList("description");
+        description = description.stream().map(s -> s.replace("&", "§")).toList();
+
+        List<String> recipeIds = section.getStringList("recipes");
+
+        return new ForgeCategory(id, displayName, material, cmd, description, recipeIds, slot);
+    }
+
     private ForgeRecipe parseRecipe(String id, ConfigurationSection section) {
         // Parse frames
-        Map<Integer, ForgeFrame> frames = parseFrames(id, section);
+        Map<Integer, ForgeFrame> frames = parseFrames(id, section.getConfigurationSection("frames"));
 
-        // Core settings
         String permission = section.getString("permission", "");
         String condition = section.getString("condition", "");
-        int hits = section.getInt("hits", 8);
+        int hits = section.getInt("hits", 5);
         double bias = section.getDouble("bias", 0.0);
-        double targetSize = section.getDouble("target_size", 0.5);
-        String runAfterCommand = section.getString("run_after_command", null);
-
-        // Validate core settings
-        if (hits <= 0) {
-            loadWarnings.add("[" + id + "] hits must be positive, using default 8");
-            hits = 8;
-        }
-
-        if (targetSize <= 0 || targetSize > 1.0) {
-            loadWarnings.add("[" + id + "] target_size should be 0.0-1.0, clamping");
-            targetSize = Math.max(0.1, Math.min(1.0, targetSize));
-        }
+        double targetSize = section.getDouble("target_size", 0.4);
+        String runAfterCommand = section.getString("run_after_command", "");
 
         // Parse input
-        ConfigurationSection inputSection = section.getConfigurationSection("input");
         String inputId = "";
         String inputType = "minecraft";
         int inputAmount = 1;
 
+        ConfigurationSection inputSection = section.getConfigurationSection("input");
         if (inputSection != null) {
             inputId = inputSection.getString("id", "");
-            inputType = inputSection.getString("type", "minecraft").toLowerCase();
+            inputType = inputSection.getString("type", "minecraft");
             inputAmount = inputSection.getInt("amount", 1);
-
-            if (inputAmount <= 0) {
-                loadWarnings.add("[" + id + ".input] amount must be positive, using 1");
-                inputAmount = 1;
-            }
         }
 
         // Parse results
-        Map<Integer, ForgeResult> results = parseResults(id, section);
+        Map<Integer, ForgeResult> results = parseResults(id, section.getConfigurationSection("results"));
 
-        if (results.isEmpty()) {
-            loadErrors.add("[" + id + "] Recipe must have at least one result");
-            return null;
-        }
+        // Parse star thresholds
+        Map<Integer, StarThreshold> thresholds = parseStarThresholds(id, section.getConfigurationSection("star_thresholds"));
 
-        // Parse star thresholds (NEW)
-        Map<Integer, StarThreshold> starThresholds = parseStarThresholds(id, section);
+        // Parse star modifiers (NEW)
+        Map<Integer, StarModifier> starModifiers = parseStarModifiers(id, section.getConfigurationSection("star_modifiers"));
 
-        return new ForgeRecipe(id, frames, permission, condition, hits, bias, targetSize,
-                runAfterCommand, inputId, inputType, inputAmount, results, starThresholds);
+        // Determine if using single item mode
+        String baseItemId = section.getString("base_item", "");
+        String baseItemType = section.getString("base_item_type", "smc");
+
+        return new ForgeRecipe(id, frames, permission, condition, hits, bias, targetSize, runAfterCommand, inputId, inputType, inputAmount, results, thresholds, starModifiers, baseItemId, baseItemType);
     }
 
-    /**
-     * Parses frame configurations for visual progression.
-     */
     private Map<Integer, ForgeFrame> parseFrames(String recipeId, ConfigurationSection section) {
         Map<Integer, ForgeFrame> frames = new HashMap<>();
-        ConfigurationSection framesSection = section.getConfigurationSection("frames");
+        if (section == null) return frames;
 
-        if (framesSection == null) {
-            frames.put(0, new ForgeFrame(Material.STICK, 0));
-            frames.put(1, new ForgeFrame(Material.STICK, 0));
-            frames.put(2, new ForgeFrame(Material.STICK, 0));
-            return frames;
-        }
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection fs = section.getConfigurationSection(key);
+            if (fs == null) continue;
 
-        for (int i = 0; i <= 2; i++) {
-            ConfigurationSection frameSection = framesSection.getConfigurationSection("frame_" + i);
-            if (frameSection != null) {
-                String matStr = frameSection.getString("material", "STICK");
-                Material mat = Material.matchMaterial(matStr);
-
-                if (mat == null) {
-                    loadWarnings.add("[" + recipeId + ".frames.frame_" + i + "] Unknown material '" + matStr + "', using STICK");
-                    mat = Material.STICK;
-                }
-
-                int cmd = frameSection.getInt("cmd", 0);
-                frames.put(i, new ForgeFrame(mat, cmd));
-            } else {
-                frames.put(i, new ForgeFrame(Material.STICK, 0));
+            int index;
+            try {
+                index = Integer.parseInt(key.replace("frame_", ""));
+            } catch (NumberFormatException e) {
+                continue;
             }
+
+            String materialStr = fs.getString("material", "STICK");
+            Material material = Material.matchMaterial(materialStr);
+            if (material == null) material = Material.STICK;
+
+            int cmd = fs.getInt("cmd", 0);
+            frames.put(index, new ForgeFrame(material, cmd));
         }
 
         return frames;
     }
 
-    /**
-     * Parses result configurations for each star rating.
-     */
     private Map<Integer, ForgeResult> parseResults(String recipeId, ConfigurationSection section) {
         Map<Integer, ForgeResult> results = new HashMap<>();
-        ConfigurationSection resultsSection = section.getConfigurationSection("results");
+        if (section == null) return results;
 
-        if (resultsSection == null) {
-            return results;
-        }
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection rs = section.getConfigurationSection(key);
+            if (rs == null) continue;
 
-        for (int i = 0; i <= 5; i++) {
-            ConfigurationSection resultSection = resultsSection.getConfigurationSection("result_" + i);
-            if (resultSection != null) {
-                String resultId = resultSection.getString("id", "");
-                String resultType = resultSection.getString("type", "minecraft").toLowerCase();
-                int resultAmount = resultSection.getInt("amount", 1);
-
-                if (resultId.isEmpty()) {
-                    loadWarnings.add("[" + recipeId + ".results.result_" + i + "] Result id is empty, skipping");
-                    continue;
-                }
-
-                if (resultAmount <= 0) {
-                    resultAmount = 1;
-                }
-
-                results.put(i, new ForgeResult(resultId, resultType, resultAmount));
+            int star;
+            try {
+                star = Integer.parseInt(key.replace("result_", ""));
+            } catch (NumberFormatException e) {
+                continue;
             }
+
+            String itemId = rs.getString("id", "");
+            String itemType = rs.getString("type", "minecraft");
+            int amount = rs.getInt("amount", 1);
+
+            results.put(star, new ForgeResult(itemId, itemType, amount));
         }
 
-        // Fill missing star ratings with nearest defined result
         fillMissingResults(results);
-
         return results;
     }
 
-    /**
-     * Fills missing star rating results with the nearest defined result.
-     */
     private void fillMissingResults(Map<Integer, ForgeResult> results) {
-        if (results.isEmpty()) return;
-
-        ForgeResult lastDefined = null;
-
-        // Forward pass
-        for (int i = 0; i <= 5; i++) {
-            if (results.containsKey(i)) {
-                lastDefined = results.get(i);
-            } else if (lastDefined != null) {
-                results.put(i, lastDefined);
-            }
+        ForgeResult fallback = results.get(0);
+        if (fallback == null && !results.isEmpty()) {
+            fallback = results.values().iterator().next();
         }
+        if (fallback == null) return;
 
-        // Backward pass for any remaining
-        lastDefined = null;
-        for (int i = 5; i >= 0; i--) {
-            if (results.containsKey(i)) {
-                lastDefined = results.get(i);
-            } else if (lastDefined != null) {
-                results.put(i, lastDefined);
-            }
+        for (int i = 0; i <= 5; i++) {
+            results.putIfAbsent(i, fallback);
         }
     }
 
-    /**
-     * Parses star threshold configurations for granular difficulty control.
-     */
     private Map<Integer, StarThreshold> parseStarThresholds(String recipeId, ConfigurationSection section) {
         Map<Integer, StarThreshold> thresholds = new HashMap<>();
-        ConfigurationSection thresholdSection = section.getConfigurationSection("star_thresholds");
+        if (section == null) return thresholds;
 
-        if (thresholdSection == null) {
-            // No custom thresholds - recipe will use default score-based calculation
-            return thresholds;
-        }
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection ts = section.getConfigurationSection(key);
+            if (ts == null) continue;
 
-        for (int star = 0; star <= 5; star++) {
-            ConfigurationSection starSection = thresholdSection.getConfigurationSection("star_" + star);
-            if (starSection != null) {
-                int minPerfectHits = starSection.getInt("min_perfect_hits", 0);
-                double minAccuracy = starSection.getDouble("min_accuracy", 0.0);
-
-                // Validate
-                if (minAccuracy < 0 || minAccuracy > 1.0) {
-                    loadWarnings.add("[" + recipeId + ".star_thresholds.star_" + star +
-                            "] min_accuracy should be 0.0-1.0, clamping");
-                    minAccuracy = Math.max(0, Math.min(1.0, minAccuracy));
-                }
-
-                if (minPerfectHits < 0) {
-                    loadWarnings.add("[" + recipeId + ".star_thresholds.star_" + star +
-                            "] min_perfect_hits cannot be negative, using 0");
-                    minPerfectHits = 0;
-                }
-
-                thresholds.put(star, new StarThreshold(minPerfectHits, minAccuracy));
+            int star;
+            try {
+                star = Integer.parseInt(key.replace("star_", ""));
+            } catch (NumberFormatException e) {
+                continue;
             }
+
+            int minPerfect = ts.getInt("min_perfect_hits", 0);
+            double minAccuracy = ts.getDouble("min_accuracy", 0.0);
+
+            thresholds.put(star, new StarThreshold(minPerfect, minAccuracy));
         }
 
         return thresholds;
     }
 
-    /**
-     * Logs validation results to the plugin logger.
-     */
+    private Map<Integer, StarModifier> parseStarModifiers(String recipeId, ConfigurationSection section) {
+        Map<Integer, StarModifier> modifiers = new HashMap<>();
+        if (section == null) return modifiers;
+
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection ms = section.getConfigurationSection(key);
+            if (ms == null) continue;
+
+            int star;
+            try {
+                star = Integer.parseInt(key);
+            } catch (NumberFormatException e) {
+                continue;
+            }
+
+            String suffix = ms.getString("suffix", "");
+            suffix = suffix.replace("&", "§");
+
+            String loreLine = ms.getString("lore", "");
+            loreLine = loreLine.replace("&", "§");
+
+            Map<String, Double> attrMods = new HashMap<>();
+            ConfigurationSection attrSection = ms.getConfigurationSection("attributes");
+            if (attrSection != null) {
+                for (String attrKey : attrSection.getKeys(false)) {
+                    attrMods.put(attrKey.toLowerCase(), attrSection.getDouble(attrKey, 0.0));
+                }
+            }
+
+            modifiers.put(star, new StarModifier(star, attrMods, suffix.isEmpty() ? null : suffix, loreLine.isEmpty() ? null : loreLine));
+        }
+
+        return modifiers;
+    }
+
     public void logValidationResults(JavaPlugin plugin) {
-        if (!loadWarnings.isEmpty()) {
-            plugin.getLogger().warning("Blacksmith config warnings:");
-            for (String warning : loadWarnings) {
-                plugin.getLogger().warning("  " + warning);
-            }
+        for (String warning : loadWarnings) {
+            plugin.getLogger().warning(warning);
         }
-
-        if (!loadErrors.isEmpty()) {
-            plugin.getLogger().severe("Blacksmith config errors:");
-            for (String error : loadErrors) {
-                plugin.getLogger().severe("  " + error);
-            }
+        for (String error : loadErrors) {
+            plugin.getLogger().severe(error);
         }
-
-        plugin.getLogger().info("Loaded " + recipes.size() + " forge recipes.");
     }
 
-    public boolean hasErrors() {
-        return !loadErrors.isEmpty();
-    }
+    // Getters
+    public ForgeRecipe getRecipe(String id) { return recipes.get(id); }
+    public Map<String, ForgeRecipe> getRecipes() { return new HashMap<>(recipes); }
+    public int getRecipeCount() { return recipes.size(); }
+    public Set<String> getRecipeIds() { return new HashSet<>(recipes.keySet()); }
+    public boolean hasRecipe(String id) { return recipes.containsKey(id); }
 
-    public List<String> getErrors() {
-        return new ArrayList<>(loadErrors);
-    }
+    public ForgeCategory getCategory(String id) { return categories.get(id); }
+    public Map<String, ForgeCategory> getCategories() { return new HashMap<>(categories); }
+    public int getCategoryCount() { return categories.size(); }
 
-    public List<String> getWarnings() {
-        return new ArrayList<>(loadWarnings);
-    }
-
-    public ForgeRecipe getRecipe(String id) {
-        return recipes.get(id);
-    }
-
-    public Map<String, ForgeRecipe> getRecipes() {
-        return new HashMap<>(recipes);
-    }
-
-    public int getRecipeCount() {
-        return recipes.size();
-    }
-
-    public Set<String> getRecipeIds() {
-        return new HashSet<>(recipes.keySet());
-    }
-
-    public boolean hasRecipe(String id) {
-        return recipes.containsKey(id);
-    }
-
+    public boolean hasErrors() { return !loadErrors.isEmpty(); }
+    public List<String> getErrors() { return new ArrayList<>(loadErrors); }
+    public List<String> getWarnings() { return new ArrayList<>(loadWarnings); }
 }

@@ -2,8 +2,10 @@ package com.simmc.blacksmith.commands;
 
 import com.simmc.blacksmith.SMCBlacksmith;
 import com.simmc.blacksmith.config.BlacksmithConfig;
+import com.simmc.blacksmith.forge.ForgeCategory;
 import com.simmc.blacksmith.forge.ForgeRecipe;
 import com.simmc.blacksmith.forge.ForgeSession;
+import com.simmc.blacksmith.forge.gui.ForgeCategoryGUI;
 import com.simmc.blacksmith.furnace.FurnaceInstance;
 import com.simmc.blacksmith.furnace.FurnaceManager;
 import com.simmc.blacksmith.furnace.FurnaceType;
@@ -177,23 +179,25 @@ public class BlacksmithCommand implements CommandExecutor, TabCompleter {
 
     private void handleForge(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cThis command can only be used by players.");
+            sender.sendMessage("§cPlayers only.");
             return;
         }
 
+        // No args = open category GUI
         if (args.length < 2) {
-            sender.sendMessage("§cUsage: /blacksmith forge <recipe>");
+            openCategoryGUI(player);
             return;
         }
 
         String recipeId = args[1];
-        Location anvilLoc = player.getLocation();
+        plugin.getForgeManager().startSession(player, recipeId, player.getLocation());
+    }
 
-        boolean started = plugin.getForgeManager().startSession(player, recipeId, anvilLoc);
-
-        if (!started) {
-            sender.sendMessage("§cFailed to start forging session.");
-        }
+    private void openCategoryGUI(Player player) {
+        BlacksmithConfig config = plugin.getConfigManager().getBlacksmithConfig();
+        Map<String, ForgeCategory> categories = config.getCategories();
+        ForgeCategoryGUI gui = new ForgeCategoryGUI(categories);
+        gui.open(player);
     }
 
     private void handleList(CommandSender sender, String[] args) {

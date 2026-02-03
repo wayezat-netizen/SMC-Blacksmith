@@ -3,11 +3,6 @@ package com.simmc.blacksmith.forge;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Represents a forge recipe configuration.
- * Contains all settings for a forging minigame including frames, inputs, outputs,
- * permissions, PAPI conditions, and configurable star thresholds.
- */
 public class ForgeRecipe {
 
     private final String id;
@@ -23,22 +18,19 @@ public class ForgeRecipe {
     private final int inputAmount;
     private final Map<Integer, ForgeResult> results;
     private final Map<Integer, StarThreshold> starThresholds;
-
-    public ForgeRecipe(String id, Map<Integer, ForgeFrame> frames, String permission,
-                       String condition, int hits, double bias, double targetSize,
-                       String runAfterCommand, String inputId, String inputType,
-                       int inputAmount, Map<Integer, ForgeResult> results) {
-        this(id, frames, permission, condition, hits, bias, targetSize, runAfterCommand,
-                inputId, inputType, inputAmount, results, null);
-    }
+    private final Map<Integer, StarModifier> starModifiers;
+    private final String baseItemId;
+    private final String baseItemType;
 
     public ForgeRecipe(String id, Map<Integer, ForgeFrame> frames, String permission,
                        String condition, int hits, double bias, double targetSize,
                        String runAfterCommand, String inputId, String inputType,
                        int inputAmount, Map<Integer, ForgeResult> results,
-                       Map<Integer, StarThreshold> starThresholds) {
+                       Map<Integer, StarThreshold> starThresholds,
+                       Map<Integer, StarModifier> starModifiers,
+                       String baseItemId, String baseItemType) {
         this.id = id;
-        this.frames = frames;
+        this.frames = frames != null ? frames : new HashMap<>();
         this.permission = permission != null ? permission : "";
         this.condition = condition != null ? condition : "";
         this.hits = hits;
@@ -48,25 +40,31 @@ public class ForgeRecipe {
         this.inputId = inputId != null ? inputId : "";
         this.inputType = inputType != null ? inputType : "minecraft";
         this.inputAmount = inputAmount;
-        this.results = results;
+        this.results = results != null ? results : new HashMap<>();
         this.starThresholds = starThresholds != null ? starThresholds : new HashMap<>();
+        this.starModifiers = starModifiers != null ? starModifiers : new HashMap<>();
+        this.baseItemId = baseItemId != null ? baseItemId : "";
+        this.baseItemType = baseItemType != null ? baseItemType : "smc";
     }
 
-    /**
-     * Gets the frame for the specified index.
-     */
+    // Backwards compatibility constructor
+    public ForgeRecipe(String id, Map<Integer, ForgeFrame> frames, String permission,
+                       String condition, int hits, double bias, double targetSize,
+                       String runAfterCommand, String inputId, String inputType,
+                       int inputAmount, Map<Integer, ForgeResult> results,
+                       Map<Integer, StarThreshold> starThresholds) {
+        this(id, frames, permission, condition, hits, bias, targetSize, runAfterCommand,
+                inputId, inputType, inputAmount, results, starThresholds, null, "", "");
+    }
+
     public ForgeFrame getFrame(int index) {
         return frames.get(index);
     }
 
-    /**
-     * Gets the result item for the specified star rating.
-     */
     public ForgeResult getResult(int starRating) {
         int clamped = Math.max(0, Math.min(5, starRating));
         ForgeResult result = results.get(clamped);
 
-        // Fallback to nearest result if not found
         if (result == null) {
             for (int i = clamped; i >= 0; i--) {
                 result = results.get(i);
@@ -77,101 +75,59 @@ public class ForgeRecipe {
         return result;
     }
 
-    /**
-     * Gets the frame index for the given progress.
-     */
     public int getFrameForProgress(double progress) {
         if (progress < 0.33) return 0;
         if (progress < 0.66) return 1;
         return 2;
     }
 
-    /**
-     * Checks if this recipe has a permission requirement.
-     */
     public boolean hasPermission() {
         return permission != null && !permission.isEmpty();
     }
 
-    /**
-     * Checks if this recipe has a PAPI condition requirement.
-     */
     public boolean hasCondition() {
         return condition != null && !condition.isEmpty();
     }
 
-    /**
-     * Checks if this recipe requires input materials.
-     */
     public boolean hasInput() {
         return inputId != null && !inputId.isEmpty();
     }
 
-    /**
-     * Checks if this recipe has custom star thresholds.
-     */
     public boolean hasStarThresholds() {
         return starThresholds != null && !starThresholds.isEmpty();
     }
 
-    /**
-     * Gets the star threshold for a specific star rating.
-     */
+    public boolean hasStarModifiers() {
+        return starModifiers != null && !starModifiers.isEmpty();
+    }
+
+    public boolean usesBaseItem() {
+        return baseItemId != null && !baseItemId.isEmpty();
+    }
+
     public StarThreshold getStarThreshold(int star) {
         return starThresholds.get(star);
     }
 
-    // ==================== GETTERS ====================
-
-    public String getId() {
-        return id;
+    public StarModifier getStarModifier(int star) {
+        return starModifiers.get(star);
     }
 
-    public Map<Integer, ForgeFrame> getFrames() {
-        return frames;
-    }
-
-    public String getPermission() {
-        return permission;
-    }
-
-    public String getCondition() {
-        return condition;
-    }
-
-    public int getHits() {
-        return hits;
-    }
-
-    public double getBias() {
-        return bias;
-    }
-
-    public double getTargetSize() {
-        return targetSize;
-    }
-
-    public String getRunAfterCommand() {
-        return runAfterCommand;
-    }
-
-    public String getInputId() {
-        return inputId;
-    }
-
-    public String getInputType() {
-        return inputType;
-    }
-
-    public int getInputAmount() {
-        return inputAmount;
-    }
-
-    public Map<Integer, ForgeResult> getResults() {
-        return results;
-    }
-
-    public Map<Integer, StarThreshold> getStarThresholds() {
-        return starThresholds;
-    }
+    // Getters
+    public String getId() { return id; }
+    public Map<Integer, ForgeFrame> getFrames() { return frames; }
+    public String getPermission() { return permission; }
+    public String getCondition() { return condition; }
+    public int getHits() { return hits; }
+    public double getBias() { return bias; }
+    public double getTargetSize() { return targetSize; }
+    public String getRunAfterCommand() { return runAfterCommand; }
+    public String getInputId() { return inputId; }
+    public String getInputType() { return inputType; }
+    public int getInputAmount() { return inputAmount; }
+    public Map<Integer, ForgeResult> getResults() { return results; }
+    public Map<Integer, StarThreshold> getStarThresholds() { return starThresholds; }
+    public Map<Integer, StarModifier> getStarModifiers() { return starModifiers; }
+    public String getBaseItemId() { return baseItemId; }
+    public String getBaseItemType() { return baseItemType; }
 }
