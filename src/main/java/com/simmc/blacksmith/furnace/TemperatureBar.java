@@ -1,102 +1,140 @@
 package com.simmc.blacksmith.furnace;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.entity.Display;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.TextDisplay;
-import org.bukkit.util.Transformation;
-import org.joml.AxisAngle4f;
-import org.joml.Vector3f;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
+import org.bukkit.entity.Player;
 
 /**
- * Displays a temperature bar above a furnace using TextDisplay entities.
+ * Displays temperature as a boss bar for nearby players.
  */
 public class TemperatureBar {
 
     private final FurnaceInstance furnace;
-    private TextDisplay displayEntity;
+    private BossBar bossBar;
     private boolean spawned;
+
+    private static final double VIEW_DISTANCE = 10.0;
+    private static final double VIEW_DISTANCE_SQUARED = VIEW_DISTANCE * VIEW_DISTANCE;
 
     public TemperatureBar(FurnaceInstance furnace) {
         this.furnace = furnace;
         this.spawned = false;
     }
 
-    /**
-     * Spawns the temperature bar display entity.
-     */
     public void spawn() {
         if (spawned) return;
 
-        Location loc = furnace.getLocation().clone().add(0.5, 1.5, 0.5);
-        if (loc.getWorld() == null) return;
-
-        displayEntity = (TextDisplay) loc.getWorld().spawnEntity(loc, EntityType.TEXT_DISPLAY);
-        displayEntity.setBillboard(Display.Billboard.CENTER);
-        displayEntity.setAlignment(TextDisplay.TextAlignment.CENTER);
-        displayEntity.setSeeThrough(false);
-        displayEntity.setDefaultBackground(false);
-
-        Transformation transform = new Transformation(
-                new Vector3f(0, 0, 0),
-                new AxisAngle4f(0, 0, 0, 1),
-                new Vector3f(1, 1, 1),
-                new AxisAngle4f(0, 0, 0, 1)
+        bossBar = Bukkit.createBossBar(
+                buildTitle(),
+                BarColor.YELLOW,
+                BarStyle.SEGMENTED_10
         );
-        displayEntity.setTransformation(transform);
-
-        update();
+        bossBar.setVisible(true);
         spawned = true;
     }
 
-    /**
-     * Updates the temperature bar display text.
-     */
     public void update() {
-        if (displayEntity == null || displayEntity.isDead()) return;
+        if (!spawned || bossBar == null) return;
 
-        displayEntity.setText(formatTemperature());
+        // Update title and progress
+        bossBar.setTitle(buildTitle());
+        bossBar.setProgress(getTemperatureProgress());
+        bossBar.setColor(getBarColor());
+
+        // Update visible players based on distance
+        updateVisiblePlayers();
     }
 
-    /**
-     * Removes the temperature bar display entity.
-     */
-    public void remove() {
-        if (displayEntity != null && !displayEntity.isDead()) {
-            displayEntity.remove();
-        }
-        displayEntity = null;
-        spawned = false;
-    }
-
-    /**
-     * Formats the temperature display string with colors.
-     */
-    private String formatTemperature() {
-        int temp = furnace.getCurrentTemperature();
+    private String buildTitle() {
+        int current = furnace.getCurrentTemperature();
         int max = furnace.getType().getMaxTemperature();
-        boolean isIdeal = furnace.getType().isIdealTemperature(temp);
+        boolean isIdeal = furnace.getType().isIdealTemperature(current);
 
-        String color;
-        if (temp == 0) {
-            color = "§7";
+        StringBuilder title = new StringBuilder();
+
+        // Temperature icon
+        if (current == 0) {
+            title.append("§8❄ ");
         } else if (isIdeal) {
-            color = "§a";
-        } else if (temp < furnace.getType().getMinIdealTemperature()) {
-            color = "§e";
+            title.append("§a✓ ");
+        } else if (current < furnace.getType().getMinIdealTemperature()) {
+            title.append("§e⚠ ");
         } else {
-            color = "§c";
+            title.append("§c⚠ ");
         }
 
-        String indicator = isIdeal ? "§a⬤" : "§7○";
-        return indicator + " " + color + temp + "°C §7/ §f" + max + "°C";
+        // Temperature value
+        title.append("§e").append(current).append("°C");
+
+        // Status
+        if (furnace.isBurning()) {
+            title.append(" §7| §6Burning");
+        }
+
+        if (furnace.getCurrentRecipe() != null) {
+            int progress = (int) (furnace.getSmeltProgress() * 100);
+            title.append(" §7| §fSmelting: §a").append(progress).append("%");
+        }
+
+        return title.toString();
+    }
+
+    private double getTemperatureProgress() {
+        int current = furnace.getCurrentTemperature();
+        int max = furnace.getType().getMaxTemperature();
+        return max > 0 ? Math.min(1.0, (double) current / max) : 0.0;
+    }
+
+    private BarColor getBarColor() {
+        int current = furnace.getCurrentTemperature();
+        boolean isIdeal = furnace.getType().isIdealTemperature(current);
+
+        if (current == 0) {
+            return BarColor.WHITE;
+        } else if (isIdeal) {
+            return BarColor.GREEN;
+        } else if (current < furnace.getType().getMinIdealTemperature()) {
+            return BarColor.YELLOW;
+        } else {
+            return BarColor.RED;
+        }
+    }
+
+    private void updateVisiblePlayers() {
+        Location furnaceLoc = furnace.getLocation();
+        if (furnaceLoc.getWorld() == null) return;
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!player.getWorld().equals(furnaceLoc.getWorld())) {
+                bossBar.removePlayer(player);
+                continue;
+            }
+
+            double distanceSquared = player.getLocation().distanceSquared(furnaceLoc);
+
+            if (distanceSquared <= VIEW_DISTANCE_SQUARED) {
+                if (!bossBar.getPlayers().contains(player)) {
+                    bossBar.addPlayer(player);
+                }
+            } else {
+                bossBar.removePlayer(player);
+            }
+        }
+    }
+
+    public void remove() {
+        if (bossBar != null) {
+            bossBar.removeAll();
+            bossBar.setVisible(false);
+            bossBar = null;
+        }
+        spawned = false;
     }
 
     public boolean isSpawned() {
         return spawned;
-    }
-
-    public FurnaceInstance getFurnace() {
-        return furnace;
     }
 }

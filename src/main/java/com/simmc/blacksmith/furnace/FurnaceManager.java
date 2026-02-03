@@ -263,22 +263,14 @@ public class FurnaceManager {
 
         String key = locationToKey(location);
 
-        // Debug logging
-        plugin.getLogger().info("Creating furnace with key: " + key);
-
         if (furnaces.containsKey(key)) {
-            plugin.getLogger().info("Furnace already exists at this location");
             return furnaces.get(key);
         }
 
-        // Store the normalized location in the furnace instance
         Location normalizedLoc = normalizeLocation(location);
         FurnaceInstance instance = new FurnaceInstance(type, normalizedLoc);
         furnaces.put(key, instance);
 
-        plugin.getLogger().info("Furnace created. Total furnaces: " + furnaces.size());
-
-        // Create temperature bar if enabled
         if (configManager.getMainConfig().isTemperatureBarEnabled()) {
             createTemperatureBar(instance, key);
         }
@@ -304,21 +296,15 @@ public class FurnaceManager {
 
     public FurnaceInstance getFurnace(Location location) {
         String key = locationToKey(location);
-        FurnaceInstance furnace = furnaces.get(key);
-
-        // Debug logging
-        plugin.getLogger().info("Looking for furnace with key: " + key + " - Found: " + (furnace != null));
-
-        return furnace;
+        return furnaces.get(key);
     }
+
 
     public void removeFurnace(Location location) {
         String key = locationToKey(location);
 
-        // Remove furnace
         FurnaceInstance removed = furnaces.remove(key);
 
-        // Remove temperature bar
         TemperatureBar bar = temperatureBars.remove(key);
         if (bar != null) {
             bar.remove();
@@ -329,14 +315,10 @@ public class FurnaceManager {
         }
     }
 
+
     public boolean isFurnace(Location location) {
         String key = locationToKey(location);
-        boolean exists = furnaces.containsKey(key);
-
-        // Debug logging
-        plugin.getLogger().info("Checking isFurnace for key: " + key + " - Result: " + exists);
-
-        return exists;
+        return furnaces.containsKey(key);
     }
 
     public void openFurnaceGUI(Player player, Location location) {

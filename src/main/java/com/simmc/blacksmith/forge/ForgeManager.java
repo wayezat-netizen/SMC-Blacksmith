@@ -10,16 +10,20 @@ import com.simmc.blacksmith.quench.QuenchingManager;
 import com.simmc.blacksmith.util.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.RayTraceResult;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -33,8 +37,14 @@ public class ForgeManager {
     private final Map<UUID, ForgeDisplay> displays;
     private BukkitTask tickTask;
 
-    // Cached list for iteration to avoid ConcurrentModificationException
     private final List<UUID> tickIterationList = new ArrayList<>();
+
+    // Valid anvil blocks
+    private static final Set<Material> ANVIL_MATERIALS = EnumSet.of(
+            Material.ANVIL,
+            Material.CHIPPED_ANVIL,
+            Material.DAMAGED_ANVIL
+    );
 
     public ForgeManager(JavaPlugin plugin, ConfigManager configManager, ItemProviderRegistry itemRegistry) {
         this.plugin = plugin;
@@ -52,7 +62,6 @@ public class ForgeManager {
     private void tick() {
         if (sessions.isEmpty()) return;
 
-        // Copy keys to avoid CME
         tickIterationList.clear();
         tickIterationList.addAll(sessions.keySet());
 
@@ -83,12 +92,23 @@ public class ForgeManager {
         }
     }
 
+    /**
+     * Starts a forge session. If anvilLocation is null, finds nearest anvil.
+     */
     public boolean startSession(Player player, String recipeId, Location anvilLocation) {
         MessageConfig messages = configManager.getMessageConfig();
         UUID playerId = player.getUniqueId();
 
+        // Check existing session
         if (sessions.containsKey(playerId)) {
             player.sendMessage(messages.getForgeSessionActive());
+            return false;
+        }
+
+        // Check quenching session
+        QuenchingManager quenchManager = SMCBlacksmith.getInstance().getQuenchingManager();
+        if (quenchManager != null && quenchManager.hasActiveSession(playerId)) {
+            player.sendMessage("§cComplete your quenching session first!");
             return false;
         }
 
@@ -108,23 +128,71 @@ public class ForgeManager {
             return false;
         }
 
+        // Find anvil location if not provided
+        Location actualAnvilLocation = anvilLocation;
+        if (actualAnvilLocation == null || !isAnvilBlock(actualAnvilLocation.getBlock())) {
+            actualAnvilLocation = findNearbyAnvil(player);
+        }
+
+        if (actualAnvilLocation == null) {
+            player.sendMessage("§cYou must be near an anvil to forge!");
+            return false;
+        }
+
         if (!consumeMaterials(player, recipe)) {
             player.sendMessage(messages.getMissingMaterials(recipe.getInputAmount(), recipe.getInputId()));
             return false;
         }
 
-        ForgeSession session = new ForgeSession(playerId, recipe, anvilLocation);
+        // Create session with anvil location
+        ForgeSession session = new ForgeSession(playerId, recipe, actualAnvilLocation);
         sessions.put(playerId, session);
 
-        ForgeDisplay display = new ForgeDisplay(playerId, anvilLocation, recipe);
+        ForgeDisplay display = new ForgeDisplay(playerId, actualAnvilLocation, recipe);
         display.spawn();
         displays.put(playerId, display);
 
-        player.playSound(anvilLocation, Sound.BLOCK_ANVIL_PLACE, 0.8f, 0.9f);
+        player.playSound(actualAnvilLocation, Sound.BLOCK_ANVIL_PLACE, 0.8f, 0.9f);
         player.sendMessage(messages.getForgeStarted());
         player.sendMessage("§e§lRIGHT CLICK §7the glowing points to strike!");
 
         return true;
+    }
+
+    /**
+     * Finds the nearest anvil within 5 blocks of player.
+     */
+    private Location findNearbyAnvil(Player player) {
+        // First try ray trace (what player is looking at)
+        RayTraceResult rayTrace = player.rayTraceBlocks(5.0);
+        if (rayTrace != null && rayTrace.getHitBlock() != null) {
+            Block hitBlock = rayTrace.getHitBlock();
+            if (isAnvilBlock(hitBlock)) {
+                return hitBlock.getLocation();
+            }
+        }
+
+        // Search nearby blocks
+        Location playerLoc = player.getLocation();
+        int radius = 5;
+
+        for (int x = -radius; x <= radius; x++) {
+            for (int y = -2; y <= 2; y++) {
+                for (int z = -radius; z <= radius; z++) {
+                    Block block = playerLoc.clone().add(x, y, z).getBlock();
+                    if (isAnvilBlock(block)) {
+                        return block.getLocation();
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isAnvilBlock(Block block) {
+        if (block == null) return false;
+        return ANVIL_MATERIALS.contains(block.getType());
     }
 
     public void processPointHit(Player player, UUID hitboxId) {
@@ -155,6 +223,10 @@ public class ForgeManager {
         ForgeDisplay display = displays.get(playerId);
 
         if (session == null) return;
+
+        // Prevent double completion
+        if (!session.isActive()) return;
+        session.setActive(false);
 
         int stars = session.calculateStarRating();
         ForgeRecipe recipe = session.getRecipe();
@@ -187,7 +259,7 @@ public class ForgeManager {
             SMCBlacksmith instance = SMCBlacksmith.getInstance();
             QuenchingManager quenchManager = instance.getQuenchingManager();
 
-            if (quenchManager != null) {
+            if (quenchManager != null && !quenchManager.hasActiveSession(playerId)) {
                 quenchManager.startQuenching(player, resultItem, stars, session.getAnvilLocation(), recipe);
             } else {
                 giveItem(player, resultItem);
@@ -274,7 +346,6 @@ public class ForgeManager {
         String id = recipe.getInputId();
         int required = recipe.getInputAmount();
 
-        // First pass: count available
         int found = 0;
         ItemStack[] contents = player.getInventory().getContents();
         for (ItemStack item : contents) {
@@ -286,7 +357,6 @@ public class ForgeManager {
 
         if (found < required) return false;
 
-        // Second pass: consume
         int remaining = required;
         for (int i = 0; i < contents.length && remaining > 0; i++) {
             ItemStack item = contents[i];
@@ -321,7 +391,6 @@ public class ForgeManager {
     }
 
     public void cancelAllSessions() {
-        // Create copy to avoid CME
         List<UUID> playerIds = new ArrayList<>(sessions.keySet());
         for (UUID playerId : playerIds) {
             cancelSession(playerId);

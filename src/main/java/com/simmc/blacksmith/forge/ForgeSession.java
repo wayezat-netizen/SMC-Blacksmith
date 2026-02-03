@@ -1,9 +1,6 @@
 package com.simmc.blacksmith.forge;
 
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -20,29 +17,22 @@ public class ForgeSession {
     private final Random random;
     private final long startTime;
 
-    // Point management - use ArrayList with initial capacity
     private final List<ForgePoint> activePoints;
     private final List<Double> hitAccuracies;
 
-    // Cached point item to avoid recreation
-    private final ItemStack cachedPointItem;
-
-    // Rhythm control
     private long lastPointSpawn;
     private long currentInterval;
     private int pointsToSpawn;
 
-    // Progress
     private int hitsCompleted;
     private int perfectHits;
     private int missedPoints;
     private int currentFrame;
     private boolean active;
 
-    // Rhythm settings
     private static final long INITIAL_INTERVAL = 1200;
-    private static final long MIN_INTERVAL = 400;
-    private static final long POINT_DURATION = 2000;
+    private static final long MIN_INTERVAL = 500;
+    private static final long POINT_DURATION = 1800;
     private static final int SPEEDUP_EVERY_N_HITS = 3;
     private static final int INITIAL_POINTS_CAPACITY = 8;
 
@@ -53,7 +43,6 @@ public class ForgeSession {
         this.random = new Random();
         this.startTime = System.currentTimeMillis();
 
-        // Pre-size collections
         this.activePoints = new ArrayList<>(INITIAL_POINTS_CAPACITY);
         this.hitAccuracies = new ArrayList<>(recipe.getHits());
 
@@ -66,9 +55,6 @@ public class ForgeSession {
         this.missedPoints = 0;
         this.currentFrame = 0;
         this.active = true;
-
-        // Cache point item once
-        this.cachedPointItem = createPointItem();
     }
 
     public void tick() {
@@ -76,7 +62,7 @@ public class ForgeSession {
 
         long now = System.currentTimeMillis();
 
-        // Use iterator to safely remove expired points
+        // Update existing points
         Iterator<ForgePoint> iterator = activePoints.iterator();
         while (iterator.hasNext()) {
             ForgePoint point = iterator.next();
@@ -89,7 +75,7 @@ public class ForgeSession {
             }
         }
 
-        // Spawn new points based on rhythm
+        // Spawn new points
         if (now - lastPointSpawn >= currentInterval && hitsCompleted < recipe.getHits()) {
             spawnPoints();
             lastPointSpawn = now;
@@ -104,46 +90,32 @@ public class ForgeSession {
         for (int i = 0; i < count; i++) {
             Location pointLoc = generatePointLocation();
             ForgePoint point = new ForgePoint(pointLoc, POINT_DURATION);
-            point.spawn(cachedPointItem);
+            point.spawn();
             activePoints.add(point);
         }
     }
 
     private Location generatePointLocation() {
-        double angle = random.nextDouble() * Math.PI * 2;
-        double radius = 0.8 + random.nextDouble() * 0.5;
-        double height = 1.0 + random.nextDouble() * 0.6;
+        // Spawn directly on anvil surface with tiny variation
+        double offsetX = (random.nextDouble() - 0.5) * 0.15;
+        double offsetZ = (random.nextDouble() - 0.5) * 0.15;
 
         return anvilLocation.clone().add(
-                Math.cos(angle) * radius,
-                height,
-                Math.sin(angle) * radius
+                0.5 + offsetX,
+                1.1,  // Just above anvil surface
+                0.5 + offsetZ
         );
     }
 
-    private ItemStack createPointItem() {
-        ItemStack item = new ItemStack(Material.NETHER_STAR);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("§e§lStrike!");
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
-
     private void updateRhythm() {
-        // Speed up every N hits
         if (hitsCompleted > 0 && hitsCompleted % SPEEDUP_EVERY_N_HITS == 0) {
-            currentInterval = Math.max(MIN_INTERVAL, currentInterval - 150);
+            currentInterval = Math.max(MIN_INTERVAL, currentInterval - 100);
         }
 
-        // Occasionally spawn multiple points at higher progress
         double progress = getProgress();
         double roll = random.nextDouble();
 
-        if (progress > 0.75 && roll < 0.2) {
-            pointsToSpawn = 3;
-        } else if (progress > 0.5 && roll < 0.3) {
+        if (progress > 0.75 && roll < 0.15) {
             pointsToSpawn = 2;
         } else {
             pointsToSpawn = 1;
@@ -151,7 +123,6 @@ public class ForgeSession {
     }
 
     public double processHit(UUID hitboxId) {
-        // Use indexed loop to avoid CME when removing
         for (int i = 0; i < activePoints.size(); i++) {
             ForgePoint point = activePoints.get(i);
             if (point.matchesHitbox(hitboxId) && point.isActive()) {
@@ -223,6 +194,10 @@ public class ForgeSession {
         return recipe.getResult(calculateStarRating());
     }
 
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
     public void cancel() {
         active = false;
         cleanup();
@@ -235,19 +210,10 @@ public class ForgeSession {
         activePoints.clear();
     }
 
-    public UUID getSessionId() {
-        return playerId;
-    }
+    public UUID getSessionId() { return playerId; }
+    public long getElapsedTime() { return System.currentTimeMillis() - startTime; }
+    public double calculateFinalScore() { return Math.min(1.0, getAverageAccuracy() + recipe.getBias()); }
 
-    public long getElapsedTime() {
-        return System.currentTimeMillis() - startTime;
-    }
-
-    public double calculateFinalScore() {
-        return Math.min(1.0, getAverageAccuracy() + recipe.getBias());
-    }
-
-    // Getters
     public UUID getPlayerId() { return playerId; }
     public ForgeRecipe getRecipe() { return recipe; }
     public Location getAnvilLocation() { return anvilLocation.clone(); }

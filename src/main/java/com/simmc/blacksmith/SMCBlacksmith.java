@@ -119,6 +119,7 @@ public final class SMCBlacksmith extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ForgeListener(forgeManager), this);
         getServer().getPluginManager().registerEvents(new QuenchingListener(quenchingManager), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(furnaceManager, forgeManager, quenchingManager), this);
+        getServer().getPluginManager().registerEvents(new FurnaceBlockListener(furnaceManager), this);
         getServer().getPluginManager().registerEvents(new ForgeGUIListener(forgeManager), this);
         getServer().getPluginManager().registerEvents(new BlockInteractListener(furnaceManager, configManager), this);
     }
