@@ -4,13 +4,12 @@ import com.simmc.blacksmith.SMCBlacksmith;
 import com.simmc.blacksmith.config.ConfigManager;
 import com.simmc.blacksmith.config.MessageConfig;
 import com.simmc.blacksmith.forge.display.ForgeDisplay;
-import com.simmc.blacksmith.forge.display.ForgeParticles;
-import com.simmc.blacksmith.forge.display.ForgeSounds;
 import com.simmc.blacksmith.integration.PlaceholderAPIHook;
 import com.simmc.blacksmith.items.ItemProviderRegistry;
 import com.simmc.blacksmith.util.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -20,169 +19,107 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 
-/**
- * Manages forge/blacksmithing sessions with 3D world display.
- */
 public class ForgeManager {
 
     private final JavaPlugin plugin;
     private final ConfigManager configManager;
     private final ItemProviderRegistry itemRegistry;
 
-    private final Map<UUID, ForgeSession> activeSessions;
-    private final Map<UUID, ForgeDisplay> activeDisplays;
+    private final Map<UUID, ForgeSession> sessions;
+    private final Map<UUID, ForgeDisplay> displays;
     private BukkitTask tickTask;
-
-    // Particle tick counter (don't spawn every tick)
-    private int particleTick = 0;
 
     public ForgeManager(JavaPlugin plugin, ConfigManager configManager, ItemProviderRegistry itemRegistry) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.itemRegistry = itemRegistry;
-        this.activeSessions = new ConcurrentHashMap<>();
-        this.activeDisplays = new ConcurrentHashMap<>();
-
+        this.sessions = new ConcurrentHashMap<>();
+        this.displays = new ConcurrentHashMap<>();
         startTickTask();
     }
 
-    /**
-     * Starts the main tick task for all forge displays.
-     */
     private void startTickTask() {
         tickTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 0L, 1L);
     }
 
-    /**
-     * Main tick - updates all active forge displays.
-     */
     private void tick() {
-        particleTick++;
+        for (UUID playerId : sessions.keySet()) {
+            ForgeSession session = sessions.get(playerId);
+            ForgeDisplay display = displays.get(playerId);
 
-        for (Map.Entry<UUID, ForgeSession> entry : activeSessions.entrySet()) {
-            UUID playerId = entry.getKey();
-            ForgeSession session = entry.getValue();
-            ForgeDisplay display = activeDisplays.get(playerId);
+            if (session == null || !session.isActive()) continue;
 
-            if (display == null || !display.isValid()) continue;
-            if (!session.isActive()) continue;
+            session.tick();
 
-            // Update display
-            display.tick(session, session.getCurrentTargetPosition());
-
-            // Spawn ambient particles (every 5 ticks)
-            if (particleTick % 5 == 0) {
-                double intensity = 0.5 + session.getProgress() * 0.5;
-                ForgeParticles.spawnAmbientHeat(display.getAnvilLocation(), intensity);
+            if (display != null && display.isValid()) {
+                display.tick(session);
             }
 
-            // Heat shimmer (every 10 ticks)
-            if (particleTick % 10 == 0) {
-                ForgeParticles.spawnHeatShimmer(display.getAnvilLocation());
-            }
-
-            // Ambient sound (every 40 ticks / 2 seconds)
-            if (particleTick % 40 == 0) {
-                ForgeSounds.playAmbient(display.getAnvilLocation());
+            if (session.isComplete()) {
+                Player player = Bukkit.getPlayer(playerId);
+                if (player != null) {
+                    completeSession(player);
+                }
             }
         }
     }
 
-    /**
-     * Starts a new 3D forging session.
-     */
     public boolean startSession(Player player, String recipeId, Location anvilLocation) {
-        if (player == null || recipeId == null) {
-            return false;
-        }
-
         MessageConfig messages = configManager.getMessageConfig();
+        UUID playerId = player.getUniqueId();
 
-        // Check for existing session
-        if (hasActiveSession(player.getUniqueId())) {
+        if (sessions.containsKey(playerId)) {
             player.sendMessage(messages.getForgeSessionActive());
             return false;
         }
 
-        // Get recipe
         ForgeRecipe recipe = configManager.getBlacksmithConfig().getRecipe(recipeId);
         if (recipe == null) {
             player.sendMessage(messages.getForgeUnknownRecipe(recipeId));
             return false;
         }
 
-        // Check permission
         if (recipe.hasPermission() && !player.hasPermission(recipe.getPermission())) {
             player.sendMessage(messages.getNoPermission());
             return false;
         }
 
-        // Check PAPI condition
-        if (!checkPAPICondition(player, recipe)) {
+        if (!checkCondition(player, recipe)) {
             player.sendMessage(messages.getConditionNotMet());
             return false;
         }
 
-        // Check and consume input materials
-        if (!consumeInputMaterials(player, recipe)) {
-            String itemName = recipe.getInputId();
-            player.sendMessage(messages.getMissingMaterials(recipe.getInputAmount(), itemName));
+        if (!consumeMaterials(player, recipe)) {
+            player.sendMessage(messages.getMissingMaterials(recipe.getInputAmount(), recipe.getInputId()));
             return false;
         }
 
-        // Create session
-        ForgeSession session = new ForgeSession(player.getUniqueId(), recipe, anvilLocation);
-        activeSessions.put(player.getUniqueId(), session);
+        ForgeSession session = new ForgeSession(playerId, recipe, anvilLocation);
+        sessions.put(playerId, session);
 
-        // Create 3D display
-        ForgeDisplay display = new ForgeDisplay(player.getUniqueId(), anvilLocation, recipe);
+        ForgeDisplay display = new ForgeDisplay(playerId, anvilLocation, recipe);
         display.spawn();
-        activeDisplays.put(player.getUniqueId(), display);
+        displays.put(playerId, display);
 
-        // Play start sound
-        ForgeSounds.playSessionStart(player, anvilLocation);
-
+        player.playSound(anvilLocation, Sound.BLOCK_ANVIL_PLACE, 0.8f, 0.9f);
         player.sendMessage(messages.getForgeStarted());
-        player.sendMessage("§e§lLEFT CLICK §7near the anvil to strike!");
+        player.sendMessage("§e§lRIGHT CLICK §7the glowing points to strike!");
 
         return true;
     }
 
-    /**
-     * Processes a hammer strike from the player.
-     */
-    public void processStrike(Player player) {
-        if (player == null) return;
-
+    public void processPointHit(Player player, UUID hitboxId) {
         UUID playerId = player.getUniqueId();
-        ForgeSession session = activeSessions.get(playerId);
-        ForgeDisplay display = activeDisplays.get(playerId);
+        ForgeSession session = sessions.get(playerId);
 
-        if (session == null || display == null || !session.isActive()) {
-            return;
-        }
+        if (session == null || !session.isActive()) return;
 
-        // Check player is near the anvil
-        if (player.getLocation().distanceSquared(display.getAnvilLocation()) > 16) { // 4 blocks
-            player.sendMessage("§cYou're too far from the anvil!");
-            return;
-        }
+        double accuracy = session.processHit(hitboxId);
+        if (accuracy < 0) return;
 
         MessageConfig messages = configManager.getMessageConfig();
 
-        // Get hit position from display indicator
-        double hitPosition = display.getIndicatorPosition();
-        double accuracy = session.calculateAccuracy(hitPosition);
-        boolean complete = session.processHit(hitPosition);
-
-        // Visual feedback
-        display.onStrike(accuracy);
-        ForgeParticles.spawnStrikeEffect(display.getAnvilLocation(), accuracy);
-        ForgeSounds.playStrike(player, display.getAnvilLocation(), accuracy);
-
-        // Send hit feedback
         if (accuracy >= 0.9) {
             player.sendMessage(messages.getForgePerfectHit());
         } else if (accuracy >= 0.7) {
@@ -192,37 +129,24 @@ public class ForgeManager {
         } else {
             player.sendMessage(messages.getForgeMiss());
         }
-
-        // Reset instruction text after short delay
-        Bukkit.getScheduler().runTaskLater(plugin, display::resetInstructionText, 20L);
-
-        if (complete) {
-            completeSession(player);
-        }
     }
 
-    /**
-     * Completes a forging session.
-     */
     private void completeSession(Player player) {
         UUID playerId = player.getUniqueId();
-        ForgeSession session = activeSessions.get(playerId);
-        ForgeDisplay display = activeDisplays.get(playerId);
+        ForgeSession session = sessions.get(playerId);
+        ForgeDisplay display = displays.get(playerId);
 
         if (session == null) return;
 
-        MessageConfig messages = configManager.getMessageConfig();
         int stars = session.calculateStarRating();
         ForgeResult result = session.getResultItem();
 
-        // Show completion on display
         if (display != null) {
             display.showCompletion(stars);
-            ForgeParticles.spawnCompletionEffect(display.getAnvilLocation(), stars);
-            ForgeSounds.playCompletion(player, display.getAnvilLocation(), stars);
         }
 
-        // Give result item
+        playCompletionEffects(player, session.getAnvilLocation(), stars);
+
         if (result != null) {
             ItemStack item = itemRegistry.getItem(result.type(), result.id(), result.amount());
             if (item != null) {
@@ -230,139 +154,110 @@ public class ForgeManager {
                 for (ItemStack leftover : overflow.values()) {
                     player.getWorld().dropItemNaturally(player.getLocation(), leftover);
                 }
-
-                String starDisplay = ColorUtil.formatStars(stars, 5);
-                player.sendMessage(messages.getForgeComplete(stars, starDisplay));
-
-                // Execute after command
-                String command = session.getRecipe().getRunAfterCommand();
-                if (command != null && !command.isEmpty()) {
-                    String parsed = command
-                            .replace("%player%", player.getName())
-                            .replace("<player>", player.getName())
-                            .replace("%stars%", String.valueOf(stars))
-                            .replace("<stars>", String.valueOf(stars));
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsed);
-                }
             }
         }
 
-        // Cleanup after delay (let player see the completion)
-        Bukkit.getScheduler().runTaskLater(plugin, () -> cleanupSession(playerId), 60L);
+        String starDisplay = ColorUtil.formatStars(stars, 5);
+        player.sendMessage(configManager.getMessageConfig().getForgeComplete(stars, starDisplay));
+
+        executeCommand(player, session.getRecipe(), stars);
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> cleanup(playerId), 40L);
     }
 
-    /**
-     * Cancels a forging session.
-     */
-    public void cancelSession(UUID playerId) {
-        ForgeSession session = activeSessions.get(playerId);
-        ForgeDisplay display = activeDisplays.get(playerId);
+    private void playCompletionEffects(Player player, Location loc, int stars) {
+        if (stars >= 5) {
+            player.playSound(loc, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+            player.playSound(loc, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f);
+        } else if (stars >= 3) {
+            player.playSound(loc, Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.0f);
+        } else {
+            player.playSound(loc, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+        }
+    }
 
+    private void executeCommand(Player player, ForgeRecipe recipe, int stars) {
+        String command = recipe.getRunAfterCommand();
+        if (command == null || command.isEmpty()) return;
+
+        String parsed = command
+                .replace("%player%", player.getName())
+                .replace("<player>", player.getName())
+                .replace("%stars%", String.valueOf(stars))
+                .replace("<stars>", String.valueOf(stars));
+
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsed);
+    }
+
+    public void cancelSession(UUID playerId) {
+        ForgeSession session = sessions.get(playerId);
         if (session == null) return;
 
         Player player = Bukkit.getPlayer(playerId);
         if (player != null) {
-            refundInputMaterials(player, session.getRecipe());
+            refundMaterials(player, session.getRecipe());
             player.sendMessage(configManager.getMessageConfig().getForgeRefunded());
-
-            if (display != null) {
-                ForgeSounds.playSessionCancel(player, display.getAnvilLocation());
-            }
+            player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 0.5f, 1.0f);
         }
 
-        cleanupSession(playerId);
+        session.cancel();
+        cleanup(playerId);
     }
 
-    /**
-     * Cleans up session data and entities.
-     */
-    private void cleanupSession(UUID playerId) {
-        activeSessions.remove(playerId);
+    private void cleanup(UUID playerId) {
+        ForgeSession session = sessions.remove(playerId);
+        if (session != null) {
+            session.cleanup();
+        }
 
-        ForgeDisplay display = activeDisplays.remove(playerId);
+        ForgeDisplay display = displays.remove(playerId);
         if (display != null) {
             display.remove();
         }
     }
 
-    /**
-     * Checks PAPI condition.
-     */
-    private boolean checkPAPICondition(Player player, ForgeRecipe recipe) {
-        if (!recipe.hasCondition()) {
-            return true;
-        }
+    private boolean checkCondition(Player player, ForgeRecipe recipe) {
+        if (!recipe.hasCondition()) return true;
 
         SMCBlacksmith instance = SMCBlacksmith.getInstance();
-        if (instance == null) return true;
+        PlaceholderAPIHook papi = instance.getPapiHook();
 
-        PlaceholderAPIHook papiHook = instance.getPapiHook();
-        if (papiHook == null || !papiHook.isAvailable()) {
-            return true;
-        }
+        if (papi == null || !papi.isAvailable()) return true;
 
-        return papiHook.checkCondition(player, recipe.getCondition());
+        return papi.checkCondition(player, recipe.getCondition());
     }
 
-    /**
-     * Checks if a player has an active session.
-     */
-    public boolean hasActiveSession(UUID playerId) {
-        return activeSessions.containsKey(playerId);
-    }
-
-    /**
-     * Gets a player's active session.
-     */
-    public ForgeSession getSession(UUID playerId) {
-        return activeSessions.get(playerId);
-    }
-
-    /**
-     * Gets a player's forge display.
-     */
-    public ForgeDisplay getDisplay(UUID playerId) {
-        return activeDisplays.get(playerId);
-    }
-
-    /**
-     * Consumes input materials.
-     */
-    private boolean consumeInputMaterials(Player player, ForgeRecipe recipe) {
+    private boolean consumeMaterials(Player player, ForgeRecipe recipe) {
         if (!recipe.hasInput()) return true;
 
-        String inputType = recipe.getInputType();
-        String inputId = recipe.getInputId();
+        String type = recipe.getInputType();
+        String id = recipe.getInputId();
         int required = recipe.getInputAmount();
 
         int found = 0;
         for (ItemStack item : player.getInventory().getContents()) {
-            if (item == null || item.getType().isAir()) continue;
-            if (itemRegistry.matches(item, inputType, inputId)) {
+            if (item != null && itemRegistry.matches(item, type, id)) {
                 found += item.getAmount();
             }
         }
 
-        if (found < required) {
-            return false;
-        }
+        if (found < required) return false;
 
         int remaining = required;
         ItemStack[] contents = player.getInventory().getContents();
 
         for (int i = 0; i < contents.length && remaining > 0; i++) {
             ItemStack item = contents[i];
-            if (item == null || item.getType().isAir()) continue;
+            if (item == null) continue;
 
-            if (itemRegistry.matches(item, inputType, inputId)) {
+            if (itemRegistry.matches(item, type, id)) {
                 int take = Math.min(remaining, item.getAmount());
                 remaining -= take;
 
-                int newAmount = item.getAmount() - take;
-                if (newAmount <= 0) {
+                if (item.getAmount() - take <= 0) {
                     player.getInventory().setItem(i, null);
                 } else {
-                    item.setAmount(newAmount);
+                    item.setAmount(item.getAmount() - take);
                 }
             }
         }
@@ -370,10 +265,7 @@ public class ForgeManager {
         return true;
     }
 
-    /**
-     * Refunds input materials.
-     */
-    private void refundInputMaterials(Player player, ForgeRecipe recipe) {
+    private void refundMaterials(Player player, ForgeRecipe recipe) {
         if (!recipe.hasInput()) return;
 
         ItemStack refund = itemRegistry.getItem(recipe.getInputType(), recipe.getInputId(), recipe.getInputAmount());
@@ -385,37 +277,32 @@ public class ForgeManager {
         }
     }
 
-    /**
-     * Cancels all active sessions.
-     */
     public void cancelAllSessions() {
-        for (UUID playerId : new HashMap<>(activeSessions).keySet()) {
-            try {
-                cancelSession(playerId);
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.WARNING, "Error cancelling session for " + playerId, e);
-            }
+        for (UUID playerId : new HashMap<>(sessions).keySet()) {
+            cancelSession(playerId);
         }
     }
 
-    /**
-     * Shuts down the manager.
-     */
     public void shutdown() {
-        if (tickTask != null && !tickTask.isCancelled()) {
+        if (tickTask != null) {
             tickTask.cancel();
         }
         cancelAllSessions();
     }
 
-    /**
-     * Reloads the manager.
-     */
     public void reload() {
         cancelAllSessions();
     }
 
+    public boolean hasActiveSession(UUID playerId) {
+        return sessions.containsKey(playerId);
+    }
+
+    public ForgeSession getSession(UUID playerId) {
+        return sessions.get(playerId);
+    }
+
     public int getActiveSessionCount() {
-        return activeSessions.size();
+        return sessions.size();
     }
 }

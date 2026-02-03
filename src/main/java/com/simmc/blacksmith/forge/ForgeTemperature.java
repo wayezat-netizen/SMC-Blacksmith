@@ -1,6 +1,5 @@
 package com.simmc.blacksmith.forge;
 
-import com.simmc.blacksmith.forge.display.ForgeParticles;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;

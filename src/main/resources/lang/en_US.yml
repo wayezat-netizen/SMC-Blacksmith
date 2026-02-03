@@ -15,6 +15,14 @@ no_permission: "&cYou do not have permission to do this!"
 vanilla_anvil: "Shift click anvil to use normal anvil"
 bellows_used: "§6You pump the bellows, increasing the temperature!"
 
+furnace:
+  title: "&8Custom Furnace"
+  bellows_used: "&6Bellows pumped! Temperature rising..."
+  heat_tool_used: "&6Heat tool used! Temperature boosted!"
+  created: "&aFurnace created."
+  smelting_complete: "&aSmelting complete!"
+  smelting_failed: "&cSmelting failed - temperature was unstable."
+
 # Grindstone/Repair messages
 grindstone_repair_failed: "Repair failed!"
 grindstone_repair_success: "Repair Successful!"

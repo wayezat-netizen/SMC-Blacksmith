@@ -10,10 +10,7 @@ import com.simmc.blacksmith.integration.NexoHook;
 import com.simmc.blacksmith.integration.PlaceholderAPIHook;
 import com.simmc.blacksmith.integration.SMCCoreHook;
 import com.simmc.blacksmith.items.ItemProviderRegistry;
-import com.simmc.blacksmith.listeners.ForgeListener;
-import com.simmc.blacksmith.listeners.FurnaceListener;
-import com.simmc.blacksmith.listeners.PlayerListener;
-import com.simmc.blacksmith.listeners.RepairListener;
+import com.simmc.blacksmith.listeners.*;
 import com.simmc.blacksmith.repair.RepairManager;
 import com.simmc.blacksmith.util.TaskManager;
 import org.bukkit.command.PluginCommand;
@@ -135,6 +132,7 @@ public final class SMCBlacksmith extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ForgeListener(forgeManager), this);
         getServer().getPluginManager().registerEvents(new RepairListener(repairManager), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(furnaceManager, forgeManager), this);
+        getServer().getPluginManager().registerEvents(new BlockInteractListener(furnaceManager, configManager), this);
     }
 
     private void registerCommands() {

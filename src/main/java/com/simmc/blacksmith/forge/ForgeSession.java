@@ -1,6 +1,9 @@
 package com.simmc.blacksmith.forge;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,172 +11,186 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
-/**
- * Represents an active forging session for a player.
- * Tracks hits, accuracy, and calculates star rating based on configurable thresholds.
- */
 public class ForgeSession {
 
-    private static final double PERFECT_HIT_THRESHOLD = 0.9;
-
-    private final UUID sessionId;
     private final UUID playerId;
     private final ForgeRecipe recipe;
     private final Location anvilLocation;
-    private final long startTime;
-    private final List<HitRecord> hitRecords;
     private final Random random;
+    private final long startTime;
 
-    private int currentFrame;
+    // Point management
+    private final List<ForgePoint> activePoints;
+    private final List<Double> hitAccuracies;
+
+    // Rhythm control
+    private long lastPointSpawn;
+    private long currentInterval;
+    private int pointsToSpawn;
+
+    // Progress
     private int hitsCompleted;
     private int perfectHits;
-    private double currentTargetPosition;
+    private int missedPoints;
+    private int currentFrame;
     private boolean active;
 
+    // Rhythm settings
+    private static final long INITIAL_INTERVAL = 1200;
+    private static final long MIN_INTERVAL = 400;
+    private static final long POINT_DURATION = 2000;
+    private static final int SPEEDUP_EVERY_N_HITS = 3;
+
     public ForgeSession(UUID playerId, ForgeRecipe recipe, Location anvilLocation) {
-        this.sessionId = UUID.randomUUID();
         this.playerId = playerId;
         this.recipe = recipe;
         this.anvilLocation = anvilLocation.clone();
-        this.startTime = System.currentTimeMillis();
-        this.hitRecords = new ArrayList<>();
         this.random = new Random();
+        this.startTime = System.currentTimeMillis();
 
-        this.currentFrame = 0;
+        this.activePoints = new ArrayList<>();
+        this.hitAccuracies = new ArrayList<>();
+
+        this.lastPointSpawn = startTime;
+        this.currentInterval = INITIAL_INTERVAL;
+        this.pointsToSpawn = 1;
+
         this.hitsCompleted = 0;
         this.perfectHits = 0;
+        this.missedPoints = 0;
+        this.currentFrame = 0;
         this.active = true;
-
-        randomizeTarget();
     }
 
-    /**
-     * Processes a hammer hit at the given position.
-     *
-     * @param hitPosition the position of the hit (0.0 - 1.0)
-     * @return true if forging is complete
-     */
-    public boolean processHit(double hitPosition) {
-        if (!active) return false;
+    public void tick() {
+        if (!active) return;
 
-        double accuracy = calculateAccuracy(hitPosition);
-        hitRecords.add(new HitRecord(hitPosition, currentTargetPosition, accuracy, System.currentTimeMillis()));
-        hitsCompleted++;
+        long now = System.currentTimeMillis();
 
-        // Track perfect hits
-        if (accuracy >= PERFECT_HIT_THRESHOLD) {
-            perfectHits++;
+        // Update existing points
+        for (int i = activePoints.size() - 1; i >= 0; i--) {
+            ForgePoint point = activePoints.get(i);
+            point.tick();
+
+            if (point.isExpired() && !point.isHit()) {
+                missedPoints++;
+                point.remove();
+                activePoints.remove(i);
+            }
         }
 
-        randomizeTarget();
-        updateFrame();
-
-        return hitsCompleted >= recipe.getHits();
+        // Spawn new points based on rhythm
+        if (now - lastPointSpawn >= currentInterval && hitsCompleted < recipe.getHits()) {
+            spawnPoints();
+            lastPointSpawn = now;
+            updateRhythm();
+        }
     }
 
-    /**
-     * Calculates accuracy based on hit position relative to target.
-     */
-    public double calculateAccuracy(double hitPosition) {
-        double distance = Math.abs(hitPosition - currentTargetPosition);
-        double halfTarget = recipe.getTargetSize() / 2.0;
+    private void spawnPoints() {
+        int remaining = recipe.getHits() - hitsCompleted;
+        int count = Math.min(pointsToSpawn, remaining);
 
-        if (distance <= halfTarget) {
-            // Inside target zone - high accuracy
-            return 1.0 - (distance / halfTarget) * 0.3;
+        for (int i = 0; i < count; i++) {
+            Location pointLoc = generatePointLocation();
+            ForgePoint point = new ForgePoint(pointLoc, POINT_DURATION);
+            point.spawn(createPointItem());
+            activePoints.add(point);
+        }
+    }
+
+    private Location generatePointLocation() {
+        double angle = random.nextDouble() * Math.PI * 2;
+        double radius = 0.8 + random.nextDouble() * 0.5;
+        double height = 1.0 + random.nextDouble() * 0.6;
+
+        return anvilLocation.clone().add(
+                Math.cos(angle) * radius,
+                height,
+                Math.sin(angle) * radius
+        );
+    }
+
+    private ItemStack createPointItem() {
+        ItemStack item = new ItemStack(Material.NETHER_STAR);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§e§lStrike!");
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private void updateRhythm() {
+        // Speed up every N hits
+        if (hitsCompleted > 0 && hitsCompleted % SPEEDUP_EVERY_N_HITS == 0) {
+            currentInterval = Math.max(MIN_INTERVAL, currentInterval - 150);
+        }
+
+        // Occasionally spawn multiple points at higher progress
+        double progress = getProgress();
+        if (progress > 0.5 && random.nextDouble() < 0.3) {
+            pointsToSpawn = 2;
+        } else if (progress > 0.75 && random.nextDouble() < 0.2) {
+            pointsToSpawn = 3;
         } else {
-            // Outside target zone - reduced accuracy
-            return Math.max(0.0, 0.7 - (distance - halfTarget));
+            pointsToSpawn = 1;
         }
     }
 
-    /**
-     * Randomizes the target position for the next hit.
-     */
-    public void randomizeTarget() {
-        double margin = recipe.getTargetSize() / 2.0;
-        currentTargetPosition = margin + random.nextDouble() * (1.0 - 2 * margin);
+    public double processHit(UUID hitboxId) {
+        for (ForgePoint point : activePoints) {
+            if (point.matchesHitbox(hitboxId) && point.isActive()) {
+                double accuracy = point.hit();
+                hitAccuracies.add(accuracy);
+                hitsCompleted++;
+
+                if (accuracy >= 0.9) {
+                    perfectHits++;
+                }
+
+                updateFrame();
+                point.remove();
+                activePoints.remove(point);
+
+                return accuracy;
+            }
+        }
+        return -1;
     }
 
     private void updateFrame() {
         currentFrame = recipe.getFrameForProgress(getProgress());
     }
 
-    /**
-     * Gets the current progress (0.0 - 1.0).
-     */
+    public boolean isComplete() {
+        return hitsCompleted >= recipe.getHits();
+    }
+
     public double getProgress() {
-        if (recipe.getHits() <= 0) return 1.0;
-        return (double) hitsCompleted / recipe.getHits();
+        return recipe.getHits() > 0 ? (double) hitsCompleted / recipe.getHits() : 1.0;
     }
 
-    /**
-     * Calculates the final score based on average accuracy and bias.
-     */
-    public double calculateFinalScore() {
-        if (hitRecords.isEmpty()) return 0.0;
-
-        double avgAccuracy = hitRecords.stream()
-                .mapToDouble(HitRecord::accuracy)
-                .average()
-                .orElse(0.0);
-
-        return Math.min(1.0, avgAccuracy + recipe.getBias());
-    }
-
-    /**
-     * Gets the average accuracy of all hits.
-     */
     public double getAverageAccuracy() {
-        if (hitRecords.isEmpty()) return 0.0;
-
-        return hitRecords.stream()
-                .mapToDouble(HitRecord::accuracy)
-                .average()
-                .orElse(0.0);
+        if (hitAccuracies.isEmpty()) return 0.0;
+        return hitAccuracies.stream().mapToDouble(d -> d).average().orElse(0.0);
     }
 
-    /**
-     * Calculates the star rating based on configurable thresholds.
-     * Uses recipe-specific thresholds if available, otherwise uses score-based calculation.
-     */
     public int calculateStarRating() {
-        // Check if recipe has custom star thresholds
         Map<Integer, StarThreshold> thresholds = recipe.getStarThresholds();
 
         if (thresholds != null && !thresholds.isEmpty()) {
-            // Use configurable thresholds
-            return calculateStarRatingFromThresholds(thresholds);
-        }
-
-        // Fallback to score-based calculation
-        return calculateStarRatingFromScore();
-    }
-
-    /**
-     * Calculates star rating using configurable thresholds.
-     * Checks from highest star (5) to lowest (0).
-     */
-    private int calculateStarRatingFromThresholds(Map<Integer, StarThreshold> thresholds) {
-        double avgAccuracy = getAverageAccuracy();
-
-        // Check from highest to lowest
-        for (int star = 5; star >= 0; star--) {
-            StarThreshold threshold = thresholds.get(star);
-            if (threshold != null && threshold.isMet(perfectHits, avgAccuracy)) {
-                return star;
+            double avg = getAverageAccuracy();
+            for (int star = 5; star >= 0; star--) {
+                StarThreshold t = thresholds.get(star);
+                if (t != null && t.isMet(perfectHits, avg)) {
+                    return star;
+                }
             }
+            return 0;
         }
 
-        return 0;
-    }
-
-    /**
-     * Calculates star rating using the traditional score-based method.
-     */
-    private int calculateStarRatingFromScore() {
-        double score = calculateFinalScore();
-
+        double score = Math.min(1.0, getAverageAccuracy() + recipe.getBias());
         if (score >= 0.95) return 5;
         if (score >= 0.85) return 4;
         if (score >= 0.70) return 3;
@@ -182,108 +199,34 @@ public class ForgeSession {
         return 0;
     }
 
-    /**
-     * Gets the result item based on the calculated star rating.
-     */
     public ForgeResult getResultItem() {
         return recipe.getResult(calculateStarRating());
     }
 
-    /**
-     * Cancels the forging session.
-     */
     public void cancel() {
-        this.active = false;
-    }
-
-    // ==================== GETTERS ====================
-
-    public UUID getSessionId() {
-        return sessionId;
-    }
-
-    public UUID getPlayerId() {
-        return playerId;
-    }
-
-    public ForgeRecipe getRecipe() {
-        return recipe;
-    }
-
-    public Location getAnvilLocation() {
-        return anvilLocation.clone();
-    }
-
-    public long getStartTime() {
-        return startTime;
-    }
-
-    public long getElapsedTime() {
-        return System.currentTimeMillis() - startTime;
-    }
-
-    public int getCurrentFrame() {
-        return currentFrame;
-    }
-
-    public int getHitsCompleted() {
-        return hitsCompleted;
-    }
-
-    public int getTotalHits() {
-        return recipe.getHits();
-    }
-
-    public int getPerfectHits() {
-        return perfectHits;
-    }
-
-    public double getCurrentTargetPosition() {
-        return currentTargetPosition;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public List<HitRecord> getHitRecords() {
-        return new ArrayList<>(hitRecords);
-    }
-
-    /**
-     * Gets session statistics as a formatted string.
-     */
-    public String getStats() {
-        return String.format(
-                "Hits: %d/%d, Perfect: %d, Avg Accuracy: %.1f%%, Score: %.2f",
-                hitsCompleted, recipe.getHits(), perfectHits,
-                getAverageAccuracy() * 100, calculateFinalScore()
-        );
-    }
-
-    // ==================== INNER CLASSES ====================
-
-    /**
-     * Record of a single hit during forging.
-     */
-    public record HitRecord(
-            double hitPosition,
-            double targetPosition,
-            double accuracy,
-            long timestamp
-    ) {
-        /**
-         * Checks if this was a perfect hit.
-         */
-        public boolean isPerfect() {
-            return accuracy >= PERFECT_HIT_THRESHOLD;
+        active = false;
+        for (ForgePoint point : activePoints) {
+            point.remove();
         }
-
-        /**
-         * Gets the distance from target.
-         */
-        public double getDistance() {
-            return Math.abs(hitPosition - targetPosition);
-        }
+        activePoints.clear();
     }
+
+    public void cleanup() {
+        for (ForgePoint point : activePoints) {
+            point.remove();
+        }
+        activePoints.clear();
+    }
+
+    // Getters
+    public UUID getPlayerId() { return playerId; }
+    public ForgeRecipe getRecipe() { return recipe; }
+    public Location getAnvilLocation() { return anvilLocation.clone(); }
+    public int getHitsCompleted() { return hitsCompleted; }
+    public int getTotalHits() { return recipe.getHits(); }
+    public int getPerfectHits() { return perfectHits; }
+    public int getMissedPoints() { return missedPoints; }
+    public int getCurrentFrame() { return currentFrame; }
+    public boolean isActive() { return active; }
+    public List<ForgePoint> getActivePoints() { return activePoints; }
 }

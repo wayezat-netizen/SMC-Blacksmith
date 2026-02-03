@@ -1,155 +1,102 @@
 package com.simmc.blacksmith.config;
 
-import com.simmc.blacksmith.util.ColorUtil;
 import org.bukkit.configuration.file.FileConfiguration;
 
 /**
- * Configuration handler for all plugin messages.
- * Supports color codes and placeholders.
+ * Handles all plugin messages with localization support.
  */
 public class MessageConfig {
 
-    //messages
+    // Furnace messages
     private String furnaceTitle;
-    private String anvilTitle;
-    private String vanillaAnvil;
-    private String repairFailed;
-    private String repairSuccess;
-    private String noPermission;
-    private String invalidItem;
-    private String missingMaterials;
+    private String bellowsUsed;
+    private String heatToolUsed;
+    private String furnaceCreated;
+    private String smeltingComplete;
+    private String smeltingFailed;
 
-    //Forge messages
+    // Forge messages
+    private String forgeStarted;
+    private String forgeComplete;
+    private String forgeRefunded;
     private String forgeSessionActive;
     private String forgeUnknownRecipe;
-    private String forgeStarted;
     private String forgePerfectHit;
     private String forgeGoodHit;
     private String forgeOkayHit;
     private String forgeMiss;
-    private String forgeComplete;
-    private String forgeRefunded;
+
+    // General messages
+    private String noPermission;
     private String conditionNotMet;
-
-    //Repair messages
-    private String itemNotDamaged;
-
-    //Furnace messages
-    private String bellowsUsed;
+    private String missingMaterials;
 
     public void load(FileConfiguration config) {
-        // Existing messages
-        furnaceTitle = config.getString("furnace_title", "Furnace");
-        anvilTitle = config.getString("anvil_title", "Anvil");
-        vanillaAnvil = config.getString("vanilla_anvil", "Shift click anvil to use normal anvil");
-        repairFailed = config.getString("grindstone_repair_failed", "Repair failed!");
-        repairSuccess = config.getString("grindstone_repair_success", "Repair Successful!");
-        noPermission = config.getString("grindstone_no_perms", "You do not have permission to do this!");
-        invalidItem = config.getString("grindstone_invalid", "This item cannot be repaired");
-        missingMaterials = config.getString("grindstone_materials", "Missing materials! You need %d %s");
+        // Furnace
+        furnaceTitle = color(config.getString("furnace.title", "&8Custom Furnace"));
+        bellowsUsed = color(config.getString("furnace.bellows_used", "&6Bellows pumped! Temperature rising..."));
+        heatToolUsed = color(config.getString("furnace.heat_tool_used", "&6Heat tool used! Temperature boosted!"));
+        furnaceCreated = color(config.getString("furnace.created", "&aFurnace created."));
+        smeltingComplete = color(config.getString("furnace.smelting_complete", "&aSmelting complete!"));
+        smeltingFailed = color(config.getString("furnace.smelting_failed", "&cSmelting failed - temperature was unstable."));
 
-        //Forge messages
-        forgeSessionActive = config.getString("forge_session_active", "§cYou already have an active forging session!");
-        forgeUnknownRecipe = config.getString("forge_unknown_recipe", "§cUnknown recipe: %s");
-        forgeStarted = config.getString("forge_started", "§aForging session started! Click the hammer to strike.");
-        forgePerfectHit = config.getString("forge_perfect_hit", "§aPerfect hit!");
-        forgeGoodHit = config.getString("forge_good_hit", "§eGood hit!");
-        forgeOkayHit = config.getString("forge_okay_hit", "§6Okay hit.");
-        forgeMiss = config.getString("forge_missed_hit", "§cMissed!");
-        forgeComplete = config.getString("forge_complete", "§aForging complete! Quality: %s");
-        forgeRefunded = config.getString("forge_refunded", "§eForging session cancelled. Materials refunded.");
-        conditionNotMet = config.getString("condition_not_met", "§cYou don't meet the requirements for this recipe.");
+        // Forge
+        forgeStarted = color(config.getString("forge.started", "&6Forging started! Strike the anvil!"));
+        forgeComplete = color(config.getString("forge.complete", "&aForging complete! %stars% Rating: %display%"));
+        forgeRefunded = color(config.getString("forge.refunded", "&eMaterials refunded."));
+        forgeSessionActive = color(config.getString("forge.session_active", "&cYou already have an active forging session."));
+        forgeUnknownRecipe = color(config.getString("forge.unknown_recipe", "&cUnknown recipe: %recipe%"));
+        forgePerfectHit = color(config.getString("forge.perfect_hit", "&a&l★ PERFECT! ★"));
+        forgeGoodHit = color(config.getString("forge.good_hit", "&aGood hit!"));
+        forgeOkayHit = color(config.getString("forge.okay_hit", "&eOkay hit."));
+        forgeMiss = color(config.getString("forge.miss", "&cMissed!"));
 
-        //Repair messages
-        itemNotDamaged = config.getString("item_not_damaged", "§eThis item doesn't need repair.");
-
-        //Furnace messages
-        bellowsUsed = config.getString("bellows_used", "§6You pump the bellows, increasing the temperature!");
+        // General
+        noPermission = color(config.getString("general.no_permission", "&cYou don't have permission to do this."));
+        conditionNotMet = color(config.getString("general.condition_not_met", "&cYou don't meet the requirements for this."));
+        missingMaterials = color(config.getString("general.missing_materials", "&cMissing materials: %amount%x %item%"));
     }
 
-    //EXISTING GETTERS
-
-    public String getFurnaceTitle() {
-        return ColorUtil.colorize(furnaceTitle);
+    private String color(String text) {
+        if (text == null) return "";
+        return text.replace("&", "§");
     }
 
-    public String getAnvilTitle() {
-        return ColorUtil.colorize(anvilTitle);
+    // ==================== GETTERS ====================
+
+    public String getFurnaceTitle() { return furnaceTitle; }
+    public String getBellowsUsed() { return bellowsUsed; }
+    public String getHeatToolUsed() { return heatToolUsed; }
+    public String getFurnaceCreated() { return furnaceCreated; }
+    public String getSmeltingComplete() { return smeltingComplete; }
+    public String getSmeltingFailed() { return smeltingFailed; }
+
+    public String getForgeStarted() { return forgeStarted; }
+
+    public String getForgeComplete(int stars, String display) {
+        return forgeComplete
+                .replace("%stars%", String.valueOf(stars))
+                .replace("%display%", display);
     }
 
-    public String getVanillaAnvil() {
-        return ColorUtil.colorize(vanillaAnvil);
-    }
-
-    public String getRepairFailed() {
-        return ColorUtil.colorize(repairFailed);
-    }
-
-    public String getRepairSuccess() {
-        return ColorUtil.colorize(repairSuccess);
-    }
-
-    public String getNoPermission() {
-        return ColorUtil.colorize(noPermission);
-    }
-
-    public String getInvalidItem() {
-        return ColorUtil.colorize(invalidItem);
-    }
-
-    public String getMissingMaterials(int count, String itemName) {
-        return ColorUtil.colorize(String.format(missingMaterials, count, itemName));
-    }
-
-    //FORGE GETTERS
-    public String getForgeSessionActive() {
-        return ColorUtil.colorize(forgeSessionActive);
-    }
+    public String getForgeRefunded() { return forgeRefunded; }
+    public String getForgeSessionActive() { return forgeSessionActive; }
 
     public String getForgeUnknownRecipe(String recipeId) {
-        return ColorUtil.colorize(String.format(forgeUnknownRecipe, recipeId));
+        return forgeUnknownRecipe.replace("%recipe%", recipeId);
     }
 
-    public String getForgeStarted() {
-        return ColorUtil.colorize(forgeStarted);
-    }
+    public String getForgePerfectHit() { return forgePerfectHit; }
+    public String getForgeGoodHit() { return forgeGoodHit; }
+    public String getForgeOkayHit() { return forgeOkayHit; }
+    public String getForgeMiss() { return forgeMiss; }
 
-    public String getForgePerfectHit() {
-        return ColorUtil.colorize(forgePerfectHit);
-    }
+    public String getNoPermission() { return noPermission; }
+    public String getConditionNotMet() { return conditionNotMet; }
 
-    public String getForgeGoodHit() {
-        return ColorUtil.colorize(forgeGoodHit);
-    }
-
-    public String getForgeOkayHit() {
-        return ColorUtil.colorize(forgeOkayHit);
-    }
-
-    public String getForgeMiss() {
-        return ColorUtil.colorize(forgeMiss);
-    }
-
-    public String getForgeComplete(int stars, String starDisplay) {
-        return ColorUtil.colorize(String.format(forgeComplete, starDisplay));
-    }
-
-    public String getForgeRefunded() {
-        return ColorUtil.colorize(forgeRefunded);
-    }
-
-    public String getConditionNotMet() {
-        return ColorUtil.colorize(conditionNotMet);
-    }
-
-    //REPAIR GETTERS
-    public String getItemNotDamaged() {
-        return ColorUtil.colorize(itemNotDamaged);
-    }
-
-    //FURNACE GETTERS
-
-    public String getBellowsUsed() {
-        return ColorUtil.colorize(bellowsUsed);
+    public String getMissingMaterials(int amount, String itemName) {
+        return missingMaterials
+                .replace("%amount%", String.valueOf(amount))
+                .replace("%item%", itemName);
     }
 }
