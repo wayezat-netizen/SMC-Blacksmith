@@ -4,11 +4,18 @@ version: 1.0.0
 # Language file to use from lang folder
 language: en_US.yml
 
+# Debug mode (enables extra logging)
+debug: false
+
 furnaces:
   # How often furnaces tick (in server ticks, 20 = 1 second)
   ticks: 20
   # Cooldown for bellows usage in ticks
   bellows_cooldown: 20
+  # Enable temperature bar display above furnaces
+  temperature_bar_enabled: true
+  # Height of temperature bar above furnace (in blocks)
+  temperature_bar_height: 1.5
 
 blacksmithing:
   # Format for smithed item lore, %s is player name

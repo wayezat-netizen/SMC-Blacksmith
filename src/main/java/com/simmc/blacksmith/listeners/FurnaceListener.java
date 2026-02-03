@@ -1,5 +1,7 @@
 package com.simmc.blacksmith.listeners;
 
+import com.simmc.blacksmith.SMCBlacksmith;
+import com.simmc.blacksmith.config.MessageConfig;
 import com.simmc.blacksmith.furnace.FurnaceGUI;
 import com.simmc.blacksmith.furnace.FurnaceInstance;
 import com.simmc.blacksmith.furnace.FurnaceManager;
@@ -37,7 +39,10 @@ public class FurnaceListener implements Listener {
             event.setCancelled(true);
             FurnaceInstance furnace = gui.getFurnace();
             furnace.applyBellows(furnace.getType().getTemperatureChange() * 2);
-            player.sendMessage("§6You pump the bellows, increasing the temperature!");
+
+            // Use configurable message
+            MessageConfig messages = SMCBlacksmith.getInstance().getConfigManager().getMessageConfig();
+            player.sendMessage(messages.getBellowsUsed());
             return;
         }
 
@@ -47,9 +52,7 @@ public class FurnaceListener implements Listener {
         }
 
         if (gui.isOutputSlot(slot)) {
-            if (event.isShiftClick() || event.getClick().isLeftClick() || event.getClick().isRightClick()) {
-                // Allow taking from output
-            }
+            // Allow taking from output
         }
     }
 

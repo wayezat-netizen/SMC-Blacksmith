@@ -7,31 +7,33 @@ furnace_title: "&8Furnace"
 anvil_title: "&8Anvil"
 
 # General Messages
-vanilla_anvil: "&7Shift click anvil to use normal anvil"
 no_permission: "&cYou do not have permission to do this!"
 
-# Repair System Messages
-grindstone_repair_failed: "&cRepair failed! Your materials were not consumed."
-grindstone_repair_success: "&aRepair Successful!"
-grindstone_invalid: "&cThis item cannot be repaired"
-grindstone_materials: "&cMissing materials! You need &e%d %s"
+# Furnace messages
+#furnace_title: "Furnace"
+#anvil_title: "Anvil"
+vanilla_anvil: "Shift click anvil to use normal anvil"
+bellows_used: "§6You pump the bellows, increasing the temperature!"
 
-# Forge System Messages
-forge_session_active: "&cYou already have an active forging session!"
-forge_unknown_recipe: "&cUnknown recipe: &e%s"
-forge_started: "&aForging session started! &7Click the hammer to strike."
-forge_perfect_hit: "&a&l✦ Perfect hit!"
-forge_good_hit: "&aGood hit!"
-forge_miss: "&cMiss!"
-forge_complete: "&a&lForging complete! &7Quality: &6%d stars"
+# Grindstone/Repair messages
+grindstone_repair_failed: "Repair failed!"
+grindstone_repair_success: "Repair Successful!"
+grindstone_no_perms: "You do not have permission to do this!"
+grindstone_invalid: "This item cannot be repaired"
+grindstone_materials: "Missing materials! You need %d %s"
+item_not_damaged: "§eThis item doesn't need repair."
 
-# Furnace Messages
-furnace_created: "&aFurnace created!"
-furnace_removed: "&cFurnace removed!"
-furnace_no_fuel: "&cNo fuel in furnace!"
-furnace_smelting: "&eSmelting in progress..."
-furnace_complete: "&aSmelting complete!"
-furnace_bad_output: "&cTemperature was not ideal - received lesser output"
+# Forge messages
+forge_session_active: "§cYou already have an active forging session!"
+forge_unknown_recipe: "§cUnknown recipe: %s"
+forge_started: "§aForging session started! Click the hammer to strike."
+forge_perfect_hit: "§aPerfect hit!"
+forge_good_hit: "§eGood hit!"
+forge_okay_hit: "§6Okay hit."
+forge_missed_hit: "§cMissed!"
+forge_complete: "§aForging complete! Quality: %s"
+forge_refunded: "§eForging session cancelled. Materials refunded."
+condition_not_met: "§cYou don't meet the requirements for this recipe."
 
 # Command Messages
 command_player_only: "&cThis command can only be used by players!"
@@ -57,3 +59,4 @@ progress_bar_empty: "&7░"
 # Star Rating Display
 star_filled: "&6★"
 star_empty: "&7☆"
+

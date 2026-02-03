@@ -34,22 +34,42 @@ public class FurnaceRecipe {
     public boolean matchesInputs(ItemStack[] slots, ItemProviderRegistry registry) {
         if (slots == null || registry == null) return false;
 
+        // Build a map of available items by type:id
         Map<String, Integer> available = new HashMap<>();
+
         for (ItemStack item : slots) {
             if (item == null || item.getType().isAir()) continue;
 
-            String key = getItemKey(item, registry);
-            if (key != null) {
-                available.merge(key, item.getAmount(), Integer::sum);
+            // Check each input to find matching type
+            for (RecipeInput input : inputs) {
+                if (registry.matches(item, input.type(), input.id())) {
+                    String key = input.type().toLowerCase() + ":" + input.id().toLowerCase();
+                    available.merge(key, item.getAmount(), Integer::sum);
+                    break; // Item matched, don't check other inputs
+                }
+            }
+
+            // Also check for vanilla minecraft items
+            String vanillaKey = "minecraft:" + item.getType().name().toLowerCase();
+            if (!available.containsKey(vanillaKey)) {
+                // Check if this vanilla item is needed
+                for (RecipeInput input : inputs) {
+                    if (input.type().equalsIgnoreCase("minecraft") &&
+                            input.id().equalsIgnoreCase(item.getType().name())) {
+                        available.merge(vanillaKey, item.getAmount(), Integer::sum);
+                        break;
+                    }
+                }
             }
         }
 
+        // Check if all required inputs are available
         for (RecipeInput input : inputs) {
-            String requiredKey = input.type().toLowerCase() + ":" + input.id().toLowerCase();
-            int requiredAmount = input.amount();
-            int availableAmount = available.getOrDefault(requiredKey, 0);
+            String key = input.type().toLowerCase() + ":" + input.id().toLowerCase();
+            int required = input.amount();
+            int found = available.getOrDefault(key, 0);
 
-            if (availableAmount < requiredAmount) {
+            if (found < required) {
                 return false;
             }
         }
@@ -58,78 +78,24 @@ public class FurnaceRecipe {
     }
 
     /**
-     * Gets a unique key for an item based on its provider type.
+     * Gets the total number of input item types required.
      */
-    private String getItemKey(ItemStack item, ItemProviderRegistry registry) {
-        if (item == null) return null;
-
-        // FIXED: Check each provider type properly
-        // Priority: nexo > smc > craftengine > minecraft
-
-        String[] providerTypes = {"nexo", "smc", "craftengine"};
-
-        for (String type : providerTypes) {
-            if (registry.hasProvider(type)) {
-                String id = getItemIdForType(item, type, registry);
-                if (id != null && !id.isEmpty()) {
-                    return type + ":" + id.toLowerCase();
-                }
-            }
-        }
-
-        // Fallback to minecraft
-        return "minecraft:" + item.getType().name().toLowerCase();
+    public int getInputCount() {
+        return inputs.size();
     }
 
     /**
-     * Gets the item ID for a specific provider type.
-     * FIXED: Now properly handles all provider types.
+     * Gets the total number of items required across all inputs.
      */
-    private String getItemIdForType(ItemStack item, String type, ItemProviderRegistry registry) {
-        if (item == null || type == null || registry == null) {
-            return null;
-        }
-
-        switch (type.toLowerCase()) {
-            case "minecraft":
-                return item.getType().name().toLowerCase();
-
-            case "nexo":
-                // Check if the item matches any Nexo item
-                // We need to iterate through known IDs or use the provider's getId method
-                return getCustomItemId(item, registry, "nexo");
-
-            case "smc":
-                return getCustomItemId(item, registry, "smc");
-
-            case "craftengine":
-                return getCustomItemId(item, registry, "craftengine");
-
-            default:
-                return null;
-        }
-    }
-
-    /**
-     * Attempts to get a custom item ID from the registry.
-     * This checks if the item matches any known custom item.
-     */
-    private String getCustomItemId(ItemStack item, ItemProviderRegistry registry, String type) {
-        // For custom items, we need to check against the inputs we're looking for
-        // This is a limitation - we can only match items we know about
-
+    public int getTotalInputAmount() {
+        int total = 0;
         for (RecipeInput input : inputs) {
-            if (input.type().equalsIgnoreCase(type)) {
-                if (registry.matches(item, type, input.id())) {
-                    return input.id();
-                }
-            }
+            total += input.amount();
         }
-
-        return null;
+        return total;
     }
 
-    // Getters
+    // ==================== GETTERS ====================
 
     public String getId() {
         return id;

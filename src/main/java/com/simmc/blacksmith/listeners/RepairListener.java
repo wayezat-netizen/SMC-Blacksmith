@@ -1,5 +1,7 @@
 package com.simmc.blacksmith.listeners;
 
+import com.simmc.blacksmith.SMCBlacksmith;
+import com.simmc.blacksmith.config.MessageConfig;
 import com.simmc.blacksmith.repair.RepairManager;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -32,6 +34,7 @@ public class RepairListener implements Listener {
 
         Player player = event.getPlayer();
 
+        // Allow vanilla grindstone if sneaking
         if (player.isSneaking()) {
             return;
         }
@@ -46,14 +49,16 @@ public class RepairListener implements Listener {
             return;
         }
 
+        // Get message config
+        MessageConfig messages = SMCBlacksmith.getInstance().getConfigManager().getMessageConfig();
+
         if (!repairManager.isDamaged(mainHand)) {
-            player.sendMessage("§eThis item doesn't need repair.");
+            player.sendMessage(messages.getItemNotDamaged());
             event.setCancelled(true);
             return;
         }
 
         event.setCancelled(true);
-
         repairManager.attemptRepair(player, mainHand);
     }
 }

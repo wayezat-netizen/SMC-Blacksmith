@@ -6,6 +6,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+/**
+ * Hook for SMCCore plugin integration.
+ * Uses reflection to access the ItemManager API.
+ */
 public class SMCCoreHook {
 
     private final JavaPlugin plugin;
@@ -26,7 +30,6 @@ public class SMCCoreHook {
 
     private void initializeAPI() {
         try {
-            // API path from client: com.execsuroot.smccore.item.ItemManager.itemManager
             Class<?> itemManagerClass = Class.forName("com.execsuroot.smccore.item.ItemManager");
 
             Field itemManagerField = itemManagerClass.getDeclaredField("itemManager");
@@ -40,7 +43,7 @@ public class SMCCoreHook {
 
             Class<?> instanceClass = itemManagerInstance.getClass();
 
-            // Find getItem method
+            // Find getItem method (String -> ItemStack)
             for (Method method : instanceClass.getMethods()) {
                 String name = method.getName();
                 Class<?>[] params = method.getParameterTypes();
@@ -49,28 +52,29 @@ public class SMCCoreHook {
                     if (name.toLowerCase().contains("item") || name.equals("get")) {
                         if (method.getReturnType() != void.class) {
                             getItemMethod = method;
-                            plugin.getLogger().info("SMCCore: Found getItem method - " + name);
                             break;
                         }
                     }
                 }
             }
 
-            // Find getId method
+            // Find getId method (ItemStack -> String)
             for (Method method : instanceClass.getMethods()) {
-                String name = method.getName();
                 Class<?>[] params = method.getParameterTypes();
 
                 if (params.length == 1 && ItemStack.class.isAssignableFrom(params[0])) {
                     if (method.getReturnType() == String.class) {
                         getIdMethod = method;
-                        plugin.getLogger().info("SMCCore: Found getId method - " + name);
                         break;
                     }
                 }
             }
 
-            plugin.getLogger().info("SMCCore API initialized successfully");
+            if (getItemMethod != null && getIdMethod != null) {
+                plugin.getLogger().info("SMCCore API initialized successfully");
+            } else {
+                plugin.getLogger().warning("SMCCore API partially initialized - some methods not found");
+            }
 
         } catch (ClassNotFoundException e) {
             plugin.getLogger().warning("SMCCore ItemManager class not found");
@@ -115,21 +119,17 @@ public class SMCCoreHook {
                 return str;
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Failed to get SMCCore item ID: " + e.getMessage());
+            // Silently fail - item might not be an SMC item
         }
 
         return null;
     }
 
     public boolean matches(ItemStack item, String id) {
-        if (!isAvailable() || item == null || id == null) {
+        if (!isAvailable() || item == null || id == null || id.isEmpty()) {
             return false;
         }
         String itemId = getItemId(item);
-        return id.equalsIgnoreCase(itemId);
-    }
-
-    public boolean isSmcItem(ItemStack item) {
-        return getItemId(item) != null;
+        return itemId != null && id.equalsIgnoreCase(itemId);
     }
 }

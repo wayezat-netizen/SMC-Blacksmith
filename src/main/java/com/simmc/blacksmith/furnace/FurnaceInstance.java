@@ -5,12 +5,12 @@ import com.simmc.blacksmith.items.ItemProviderRegistry;
 import org.bukkit.Location;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.List;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 /**
- * Represents an individual furnace instance in the world.
- * Manages temperature, smelting progress, and inventory.
+ * Represents an active furnace instance in the world.
+ * Handles smelting state, temperature, and item storage.
  */
 public class FurnaceInstance {
 
@@ -20,19 +20,26 @@ public class FurnaceInstance {
     private final FurnaceType type;
     private final Location location;
 
+    // Temperature state
     private int currentTemperature;
     private int targetTemperature;
+
+    // Burn state
     private boolean burning;
     private long burnTimeRemaining;
+
+    // Smelting state
     private long smeltProgress;
     private long smeltTimeTotal;
     private FurnaceRecipe currentRecipe;
     private long timeOutsideIdealRange;
 
+    // Inventory
     private ItemStack[] inputSlots;
     private ItemStack fuelSlot;
     private ItemStack outputSlot;
 
+    // Timing
     private long lastTickTime;
 
     public FurnaceInstance(FurnaceType type, Location location) {
@@ -57,30 +64,22 @@ public class FurnaceInstance {
     }
 
     /**
-     * Main tick method - updates furnace state.
-     * FIXED: Now wrapped in try-catch to prevent cascade failures.
+     * Synchronous tick method - used when async processing is disabled.
      */
     public void tick(ItemProviderRegistry registry, FuelConfig fuelConfig) {
-        try {
-            long now = System.currentTimeMillis();
-            long elapsed = now - lastTickTime;
-            lastTickTime = now;
+        long now = System.currentTimeMillis();
+        long elapsed = now - lastTickTime;
+        lastTickTime = now;
 
-            updateBurning(fuelConfig, registry);
-            updateTemperature();
+        updateBurning(fuelConfig, registry);
+        updateTemperature();
 
-            if (currentRecipe == null) {
-                findMatchingRecipe(registry);
-            }
+        if (currentRecipe == null) {
+            findMatchingRecipe(registry);
+        }
 
-            if (currentRecipe != null) {
-                processSmelting(elapsed, registry);
-            }
-        } catch (Exception e) {
-            // Log error but don't crash - reset smelting state
-            resetSmelting();
-            // Rethrow as runtime exception for the manager to log
-            throw new RuntimeException("Error in furnace tick", e);
+        if (currentRecipe != null) {
+            processSmelting(elapsed, registry);
         }
     }
 
@@ -119,6 +118,23 @@ public class FurnaceInstance {
         }
     }
 
+    /**
+     * Consumes one fuel item from the fuel slot.
+     * Called from main thread after async calculation determines fuel should be consumed.
+     */
+    public void consumeFuelItem() {
+        if (fuelSlot == null || fuelSlot.getType().isAir()) {
+            return;
+        }
+
+        int newAmount = fuelSlot.getAmount() - 1;
+        if (newAmount <= 0) {
+            fuelSlot = null;
+        } else {
+            fuelSlot.setAmount(newAmount);
+        }
+    }
+
     private void updateTemperature() {
         if (currentTemperature < targetTemperature) {
             currentTemperature = Math.min(currentTemperature + type.getTemperatureChange(), targetTemperature);
@@ -139,8 +155,6 @@ public class FurnaceInstance {
     }
 
     private void processSmelting(long elapsedMs, ItemProviderRegistry registry) {
-        if (currentRecipe == null) return;
-
         if (!currentRecipe.matchesInputs(inputSlots, registry)) {
             resetSmelting();
             return;
@@ -162,7 +176,12 @@ public class FurnaceInstance {
         }
     }
 
-    private void completeSmelting(boolean success, ItemProviderRegistry registry) {
+    /**
+     * Completes the smelting process.
+     * @param success true for normal outputs, false for bad outputs
+     * @param registry the item provider registry
+     */
+    public void completeSmelting(boolean success, ItemProviderRegistry registry) {
         if (currentRecipe == null) return;
 
         consumeInputs(registry);
@@ -201,7 +220,7 @@ public class FurnaceInstance {
         }
     }
 
-    private void giveOutputs(java.util.List<RecipeOutput> outputs, ItemProviderRegistry registry) {
+    private void giveOutputs(List<RecipeOutput> outputs, ItemProviderRegistry registry) {
         if (outputs == null) return;
 
         for (RecipeOutput output : outputs) {
@@ -218,36 +237,122 @@ public class FurnaceInstance {
         }
     }
 
-    private void resetSmelting() {
+    /**
+     * Resets smelting state.
+     */
+    public void resetSmelting() {
         currentRecipe = null;
         smeltProgress = 0;
         smeltTimeTotal = 0;
         timeOutsideIdealRange = 0;
     }
 
+    /**
+     * Applies bellows temperature boost.
+     */
     public void applyBellows(int temperatureBoost) {
         targetTemperature = Math.min(targetTemperature + temperatureBoost, type.getMaxTemperature());
     }
 
-    // Getters and setters...
+    // ==================== GETTERS ====================
 
-    public UUID getId() { return id; }
-    public FurnaceType getType() { return type; }
-    public Location getLocation() { return location.clone(); }
-    public int getCurrentTemperature() { return currentTemperature; }
-    public int getTargetTemperature() { return targetTemperature; }
-    public boolean isBurning() { return burning; }
-    public long getBurnTimeRemaining() { return burnTimeRemaining; }
+    public UUID getId() {
+        return id;
+    }
+
+    public FurnaceType getType() {
+        return type;
+    }
+
+    public Location getLocation() {
+        return location.clone();
+    }
+
+    public int getCurrentTemperature() {
+        return currentTemperature;
+    }
+
+    public int getTargetTemperature() {
+        return targetTemperature;
+    }
+
+    public boolean isBurning() {
+        return burning;
+    }
+
+    public long getBurnTimeRemaining() {
+        return burnTimeRemaining;
+    }
 
     public double getSmeltProgress() {
         if (smeltTimeTotal <= 0) return 0.0;
         return Math.min(1.0, (double) smeltProgress / smeltTimeTotal);
     }
 
-    public long getSmeltProgressMs() { return smeltProgress; }
-    public long getSmeltTimeTotal() { return smeltTimeTotal; }
-    public FurnaceRecipe getCurrentRecipe() { return currentRecipe; }
-    public ItemStack[] getInputSlots() { return inputSlots; }
+    public long getSmeltProgressMs() {
+        return smeltProgress;
+    }
+
+    public long getSmeltTimeTotal() {
+        return smeltTimeTotal;
+    }
+
+    public FurnaceRecipe getCurrentRecipe() {
+        return currentRecipe;
+    }
+
+    public long getTimeOutsideIdealRange() {
+        return timeOutsideIdealRange;
+    }
+
+    public ItemStack[] getInputSlots() {
+        return inputSlots;
+    }
+
+    public ItemStack getFuelSlot() {
+        return fuelSlot;
+    }
+
+    public ItemStack getOutputSlot() {
+        return outputSlot;
+    }
+
+    // ==================== SETTERS ====================
+
+    public void setCurrentTemperature(int temperature) {
+        this.currentTemperature = Math.max(0, Math.min(temperature, type.getMaxTemperature()));
+    }
+
+    public void setTargetTemperature(int temperature) {
+        this.targetTemperature = Math.max(0, Math.min(temperature, type.getMaxTemperature()));
+    }
+
+    public void setBurning(boolean burning) {
+        this.burning = burning;
+    }
+
+    public void setBurnTimeRemaining(long burnTimeRemaining) {
+        this.burnTimeRemaining = Math.max(0, burnTimeRemaining);
+    }
+
+    public void setSmeltProgress(long smeltProgress) {
+        this.smeltProgress = Math.max(0, smeltProgress);
+    }
+
+    public void setSmeltTimeTotal(long smeltTimeTotal) {
+        this.smeltTimeTotal = Math.max(0, smeltTimeTotal);
+    }
+
+    public void setCurrentRecipe(FurnaceRecipe recipe) {
+        this.currentRecipe = recipe;
+        if (recipe != null) {
+            this.smeltTimeTotal = recipe.getSmeltTimeMs();
+        }
+    }
+
+    public void setTimeOutsideIdealRange(long timeOutsideIdealRange) {
+        this.timeOutsideIdealRange = Math.max(0, timeOutsideIdealRange);
+    }
 
     public void setInputSlots(ItemStack[] slots) {
         if (slots == null) {
@@ -260,16 +365,11 @@ public class FurnaceInstance {
         }
     }
 
-    public ItemStack getFuelSlot() { return fuelSlot; }
-    public void setFuelSlot(ItemStack fuel) { this.fuelSlot = fuel != null ? fuel.clone() : null; }
-    public ItemStack getOutputSlot() { return outputSlot; }
-    public void setOutputSlot(ItemStack output) { this.outputSlot = output != null ? output.clone() : null; }
-
-    public void setCurrentTemperature(int temperature) {
-        this.currentTemperature = Math.max(0, Math.min(temperature, type.getMaxTemperature()));
+    public void setFuelSlot(ItemStack fuel) {
+        this.fuelSlot = fuel != null ? fuel.clone() : null;
     }
 
-    public void setTargetTemperature(int temperature) {
-        this.targetTemperature = Math.max(0, Math.min(temperature, type.getMaxTemperature()));
+    public void setOutputSlot(ItemStack output) {
+        this.outputSlot = output != null ? output.clone() : null;
     }
 }

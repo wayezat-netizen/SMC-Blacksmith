@@ -146,3 +146,41 @@ longsword:
        id: mythril_blade_legendary
        type: smc
        amount: 1
+
+
+test_sword:
+  permission: ""
+  condition: ""
+  hits: 5
+  bias: 0.0
+  target_size: 0.4
+
+  frames:
+    frame_0:
+      material: IRON_INGOT
+      cmd: 0
+    frame_1:
+      material: IRON_NUGGET
+      cmd: 0
+    frame_2:
+      material: IRON_SWORD
+      cmd: 0
+
+  input:
+    type: minecraft
+    id: IRON_INGOT
+    amount: 2
+
+  results:
+    result_0:
+      type: minecraft
+      id: IRON_NUGGET
+      amount: 1
+    result_3:
+      type: minecraft
+      id: IRON_SWORD
+      amount: 1
+    result_5:
+      type: minecraft
+      id: DIAMOND_SWORD
+      amount: 1

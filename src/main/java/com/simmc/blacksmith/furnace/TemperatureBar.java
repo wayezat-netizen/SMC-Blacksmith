@@ -8,6 +8,9 @@ import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
+/**
+ * Displays a temperature bar above a furnace using TextDisplay entities.
+ */
 public class TemperatureBar {
 
     private final FurnaceInstance furnace;
@@ -19,6 +22,9 @@ public class TemperatureBar {
         this.spawned = false;
     }
 
+    /**
+     * Spawns the temperature bar display entity.
+     */
     public void spawn() {
         if (spawned) return;
 
@@ -43,12 +49,18 @@ public class TemperatureBar {
         spawned = true;
     }
 
+    /**
+     * Updates the temperature bar display text.
+     */
     public void update() {
         if (displayEntity == null || displayEntity.isDead()) return;
 
         displayEntity.setText(formatTemperature());
     }
 
+    /**
+     * Removes the temperature bar display entity.
+     */
     public void remove() {
         if (displayEntity != null && !displayEntity.isDead()) {
             displayEntity.remove();
@@ -57,7 +69,10 @@ public class TemperatureBar {
         spawned = false;
     }
 
-    public String formatTemperature() {
+    /**
+     * Formats the temperature display string with colors.
+     */
+    private String formatTemperature() {
         int temp = furnace.getCurrentTemperature();
         int max = furnace.getType().getMaxTemperature();
         boolean isIdeal = furnace.getType().isIdealTemperature(temp);
