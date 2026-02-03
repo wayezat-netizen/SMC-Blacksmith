@@ -13,6 +13,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 
 import java.util.Map;
 
@@ -24,24 +25,24 @@ public class ForgeGUIListener implements Listener {
         this.forgeManager = forgeManager;
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
         Inventory inv = event.getInventory();
+        InventoryHolder holder = inv.getHolder();
 
-        if (inv.getHolder() instanceof ForgeCategoryGUI gui) {
-            handleCategoryClick(event, player, gui);
-        } else if (inv.getHolder() instanceof ForgeRecipeGUI gui) {
-            handleRecipeClick(event, player, gui);
+        // Fast type dispatch
+        if (holder instanceof ForgeCategoryGUI gui) {
+            event.setCancelled(true);
+            handleCategoryClick(player, gui, event.getRawSlot());
+        } else if (holder instanceof ForgeRecipeGUI gui) {
+            event.setCancelled(true);
+            handleRecipeClick(player, gui, event.getRawSlot());
         }
     }
 
-    private void handleCategoryClick(InventoryClickEvent event, Player player, ForgeCategoryGUI gui) {
-        event.setCancelled(true);
-
-        int slot = event.getRawSlot();
-
+    private void handleCategoryClick(Player player, ForgeCategoryGUI gui, int slot) {
         if (gui.isCloseSlot(slot)) {
             player.closeInventory();
             return;
@@ -49,30 +50,26 @@ public class ForgeGUIListener implements Listener {
 
         ForgeCategory category = gui.getCategoryAtSlot(slot);
         if (category != null) {
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+            playClickSound(player);
             openRecipeGUI(player, category, 0);
         }
     }
 
-    private void handleRecipeClick(InventoryClickEvent event, Player player, ForgeRecipeGUI gui) {
-        event.setCancelled(true);
-
-        int slot = event.getRawSlot();
-
+    private void handleRecipeClick(Player player, ForgeRecipeGUI gui, int slot) {
         if (gui.isBackSlot(slot)) {
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+            playClickSound(player);
             openCategoryGUI(player);
             return;
         }
 
         if (gui.isPrevPageSlot(slot)) {
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+            playClickSound(player);
             openRecipeGUI(player, gui.getCategory(), gui.getPage() - 1);
             return;
         }
 
         if (gui.isNextPageSlot(slot)) {
-            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+            playClickSound(player);
             openRecipeGUI(player, gui.getCategory(), gui.getPage() + 1);
             return;
         }
@@ -85,16 +82,18 @@ public class ForgeGUIListener implements Listener {
         }
     }
 
+    private void playClickSound(Player player) {
+        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.0f);
+    }
+
     private void openCategoryGUI(Player player) {
         BlacksmithConfig config = SMCBlacksmith.getInstance().getConfigManager().getBlacksmithConfig();
         Map<String, ForgeCategory> categories = config.getCategories();
-        ForgeCategoryGUI gui = new ForgeCategoryGUI(categories);
-        gui.open(player);
+        new ForgeCategoryGUI(categories).open(player);
     }
 
     private void openRecipeGUI(Player player, ForgeCategory category, int page) {
         BlacksmithConfig config = SMCBlacksmith.getInstance().getConfigManager().getBlacksmithConfig();
-        ForgeRecipeGUI gui = new ForgeRecipeGUI(category, config.getRecipes(), page);
-        gui.open(player);
+        new ForgeRecipeGUI(category, config.getRecipes(), page).open(player);
     }
 }

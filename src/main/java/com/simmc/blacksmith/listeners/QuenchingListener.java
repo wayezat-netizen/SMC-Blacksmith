@@ -12,20 +12,28 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
+import java.util.EnumSet;
 import java.util.Set;
+import java.util.UUID;
 
 public class QuenchingListener implements Listener {
 
     private final QuenchingManager quenchingManager;
 
-    private static final Set<Material> CONTAINER_BLOCKS = Set.of(
+    private static final Set<Material> CONTAINER_BLOCKS = EnumSet.of(
             Material.CAULDRON,
             Material.WATER_CAULDRON,
             Material.BARREL,
             Material.CHEST
+    );
+
+    private static final Set<Material> ANVIL_BLOCKS = EnumSet.of(
+            Material.ANVIL,
+            Material.CHIPPED_ANVIL,
+            Material.DAMAGED_ANVIL,
+            Material.BARRIER
     );
 
     public QuenchingListener(QuenchingManager quenchingManager) {
@@ -38,38 +46,30 @@ public class QuenchingListener implements Listener {
         if (event.getHand() != EquipmentSlot.HAND) return;
 
         Player player = event.getPlayer();
-        Block block = event.getClickedBlock();
+        UUID playerId = player.getUniqueId();
 
+        if (!quenchingManager.hasActiveSession(playerId)) return;
+
+        Block block = event.getClickedBlock();
         if (block == null) return;
-        if (!quenchingManager.hasActiveSession(player.getUniqueId())) return;
+
         if (!quenchingManager.isHoldingTongs(player)) return;
 
+        Material blockType = block.getType();
         Location targetLoc = block.getLocation();
 
-        if (isAnvilBlock(block.getType())) {
-            event.setCancelled(true);
-            quenchingManager.handleTongsUse(player, targetLoc);
-            return;
-        }
-
-        if (CONTAINER_BLOCKS.contains(block.getType())) {
+        if (ANVIL_BLOCKS.contains(blockType) || CONTAINER_BLOCKS.contains(blockType)) {
             event.setCancelled(true);
             quenchingManager.handleTongsUse(player, targetLoc);
         }
-    }
-
-    private boolean isAnvilBlock(Material material) {
-        return material == Material.ANVIL
-                || material == Material.CHIPPED_ANVIL
-                || material == Material.DAMAGED_ANVIL
-                || material == Material.BARRIER;
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
 
-        if (!quenchingManager.isAwaitingName(player.getUniqueId())) return;
+        if (!quenchingManager.isAwaitingName(playerId)) return;
 
         event.setCancelled(true);
 
@@ -79,12 +79,5 @@ public class QuenchingListener implements Listener {
                 SMCBlacksmith.getInstance(),
                 () -> quenchingManager.handleChatInput(player, message)
         );
-    }
-
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        if (quenchingManager.hasActiveSession(event.getPlayer().getUniqueId())) {
-            quenchingManager.cancelSession(event.getPlayer().getUniqueId(), "Player disconnected.");
-        }
     }
 }

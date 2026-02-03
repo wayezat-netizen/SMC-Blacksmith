@@ -2,69 +2,74 @@
 # SMCBlacksmith Language File - English (US)
 # ==========================================
 
-# GUI Titles
-furnace_title: "&8Furnace"
-anvil_title: "&8Anvil"
-
-# General Messages
-no_permission: "&cYou do not have permission to do this!"
-
-# Furnace messages
-#furnace_title: "Furnace"
-#anvil_title: "Anvil"
-vanilla_anvil: "Shift click anvil to use normal anvil"
-bellows_used: "§6You pump the bellows, increasing the temperature!"
-
+# ==========================================
+# GUI TITLES
+# ==========================================
 furnace:
-  title: "&8Custom Furnace"
+  title: "&8Furnace"
   bellows_used: "&6Bellows pumped! Temperature rising..."
   heat_tool_used: "&6Heat tool used! Temperature boosted!"
   created: "&aFurnace created."
   smelting_complete: "&aSmelting complete!"
   smelting_failed: "&cSmelting failed - temperature was unstable."
 
-# Grindstone/Repair messages
-grindstone_repair_failed: "Repair failed!"
-grindstone_repair_success: "Repair Successful!"
-grindstone_no_perms: "You do not have permission to do this!"
-grindstone_invalid: "This item cannot be repaired"
-grindstone_materials: "Missing materials! You need %d %s"
-item_not_damaged: "§eThis item doesn't need repair."
+# ==========================================
+# FORGE MESSAGES
+# ==========================================
+forge:
+  session_active: "&cYou already have an active forging session!"
+  unknown_recipe: "&cUnknown recipe: %s"
+  started: "&aForging session started!"
+  instruction: "&e&lRIGHT CLICK &7the glowing points to strike!"
+  perfect_hit: "&a&l✦ Perfect!"
+  good_hit: "&eGood hit!"
+  okay_hit: "&6Okay hit."
+  missed_hit: "&cMissed!"
+  complete: "&aForging complete! Quality: %s"
+  refunded: "&eForging cancelled. Materials refunded."
+  condition_not_met: "&cYou don't meet the requirements for this recipe."
 
-# Forge messages
-forge_session_active: "§cYou already have an active forging session!"
-forge_unknown_recipe: "§cUnknown recipe: %s"
-forge_started: "§aForging session started! Click the hammer to strike."
-forge_perfect_hit: "§aPerfect hit!"
-forge_good_hit: "§eGood hit!"
-forge_okay_hit: "§6Okay hit."
-forge_missed_hit: "§cMissed!"
-forge_complete: "§aForging complete! Quality: %s"
-forge_refunded: "§eForging session cancelled. Materials refunded."
-condition_not_met: "§cYou don't meet the requirements for this recipe."
+# ==========================================
+# QUENCHING MESSAGES
+# ==========================================
+quenching:
+  started: "&6&l⚒ QUENCHING"
+  pickup_instruction: "&7Use &etongs &7to pick up your item from the anvil."
+  picked_up: "&aItem picked up with tongs!"
+  place_instruction: "&7Now place it in a &equenching container&7."
+  name_prompt: "&6&l⚒ NAME YOUR CREATION"
+  name_instruction: "&7Type a name in chat, or type &eskip &7to use default."
+  complete: "&a&l✓ Quenching complete!"
+  result: "&7Your %s &7item is ready."
+  cancelled: "&cQuenching cancelled: %s"
+  returned: "&7Your item has been returned."
 
-# Command Messages
-command_player_only: "&cThis command can only be used by players!"
-command_no_permission: "&cYou don't have permission to use this command!"
-command_usage: "&cUsage: &e%s"
-command_reload_success: "&aConfiguration reloaded successfully!"
-command_reload_failed: "&cFailed to reload configuration! Check console for errors."
-command_help_header: "&6&l=== SMCBlacksmith Help ==="
-command_help_reload: "&e/bs reload &7- Reload configuration"
-command_help_furnace: "&e/bs furnace <create|remove> <type> &7- Manage furnaces"
-command_help_forge: "&e/bs forge <recipe> &7- Start forging"
+# ==========================================
+# REPAIR MESSAGES
+# ==========================================
+repair:
+  success: "&aRepair successful!"
+  failed: "&cRepair failed!"
+  no_permission: "&cYou don't have permission to repair this item."
+  invalid_item: "&cThis item cannot be repaired."
+  not_damaged: "&eThis item doesn't need repair."
+  missing_materials: "&cMissing materials! You need &e%d %s"
+  vanilla_hint: "&7Sneak + right-click for vanilla grindstone."
 
-# Temperature Display
-temperature_cold: "&b❄ Cold"
-temperature_warming: "&eWarming up..."
-temperature_ideal: "&a✓ Ideal temperature"
-temperature_hot: "&c⚠ Too hot!"
+# ==========================================
+# GENERAL MESSAGES
+# ==========================================
+general:
+  no_permission: "&cYou don't have permission to do this!"
+  player_only: "&cThis command can only be used by players!"
 
-# Progress Display
-progress_bar_filled: "&a█"
-progress_bar_empty: "&7░"
-
-# Star Rating Display
-star_filled: "&6★"
-star_empty: "&7☆"
-
+# ==========================================
+# COMMAND MESSAGES
+# ==========================================
+commands:
+  reload_success: "&aConfiguration reloaded successfully!"
+  reload_failed: "&cFailed to reload configuration! Check console."
+  help_header: "&6&l=== SMCBlacksmith Help ==="
+  help_reload: "&e/bs reload &7- Reload configuration"
+  help_forge: "&e/bs forge [recipe] &7- Open forge menu or start recipe"
+  help_stats: "&e/bs stats &7- Show performance stats"

@@ -27,6 +27,17 @@ public class ForgeDisplay {
     private TextDisplay progressText;
     private boolean spawned;
     private int tick;
+    private int lastFrame = -1;
+    private int lastHits = -1;
+
+    // Cached transformation components
+    private final Vector3f translationVector = new Vector3f();
+    private final Vector3f scaleVector = new Vector3f();
+    private final AxisAngle4f rotationX = new AxisAngle4f();
+    private final AxisAngle4f rotationY = new AxisAngle4f();
+
+    // Cached text builder
+    private final StringBuilder textBuilder = new StringBuilder(128);
 
     public ForgeDisplay(UUID playerId, Location anvilLocation, ForgeRecipe recipe) {
         this.playerId = playerId;
@@ -43,9 +54,14 @@ public class ForgeDisplay {
         if (world == null) return;
 
         Location center = anvilLocation.clone().add(0.5, 1.0, 0.5);
-        spawnItemDisplay(center);
-        spawnProgressText(center);
-        spawned = true;
+
+        try {
+            spawnItemDisplay(center);
+            spawnProgressText(center);
+            spawned = true;
+        } catch (Exception e) {
+            remove();
+        }
     }
 
     private void spawnItemDisplay(Location center) {
@@ -87,33 +103,40 @@ public class ForgeDisplay {
         tick++;
 
         updateItemDisplay(session);
-        updateProgressText(session);
+
+        // Only update text every 5 ticks or when hits change
+        int currentHits = session.getHitsCompleted();
+        if (tick % 5 == 0 || currentHits != lastHits) {
+            updateProgressText(session);
+            lastHits = currentHits;
+        }
     }
 
     private void updateItemDisplay(ForgeSession session) {
         if (itemDisplay == null || itemDisplay.isDead()) return;
 
-        // Update frame based on progress
-        ForgeFrame frame = recipe.getFrame(session.getCurrentFrame());
-        if (frame != null) {
-            ItemStack current = itemDisplay.getItemStack();
-            ItemStack frameItem = frame.createDisplayItem();
-            if (current == null || current.getType() != frameItem.getType()) {
-                itemDisplay.setItemStack(frameItem);
+        // Update frame only if changed
+        int currentFrame = session.getCurrentFrame();
+        if (currentFrame != lastFrame) {
+            ForgeFrame frame = recipe.getFrame(currentFrame);
+            if (frame != null) {
+                itemDisplay.setItemStack(frame.createDisplayItem());
             }
+            lastFrame = currentFrame;
         }
 
-        // Subtle animation
+        // Animation
         float bounce = (float) Math.sin(tick * 0.1) * 0.03f;
         float rotation = (tick * 0.5f) % 360;
         float progress = (float) session.getProgress();
+        float scale = 1.5f + progress * 0.3f;
 
-        Transformation t = new Transformation(
-                new Vector3f(0, bounce, 0),
-                new AxisAngle4f((float) Math.toRadians(-90), 1, 0, 0),
-                new Vector3f(1.5f + progress * 0.3f, 1.5f + progress * 0.3f, 1.5f + progress * 0.3f),
-                new AxisAngle4f((float) Math.toRadians(rotation * 0.2f), 0, 1, 0)
-        );
+        translationVector.set(0, bounce, 0);
+        rotationX.set((float) Math.toRadians(-90), 1, 0, 0);
+        scaleVector.set(scale, scale, scale);
+        rotationY.set((float) Math.toRadians(rotation * 0.2f), 0, 1, 0);
+
+        Transformation t = new Transformation(translationVector, rotationX, scaleVector, rotationY);
         itemDisplay.setTransformation(t);
         itemDisplay.setInterpolationDuration(3);
     }
@@ -125,37 +148,50 @@ public class ForgeDisplay {
         int total = session.getTotalHits();
         int perfect = session.getPerfectHits();
 
-        StringBuilder text = new StringBuilder();
-        text.append("§6§l⚒ FORGING ⚒\n");
-        text.append("§7Hits: §f").append(hits).append("§7/§f").append(total);
+        textBuilder.setLength(0);
+        textBuilder.append("§6§l⚒ FORGING ⚒\n");
+        textBuilder.append("§7Hits: §f").append(hits).append("§7/§f").append(total);
 
         if (hits > 0) {
             double acc = session.getAverageAccuracy() * 100;
             String accColor = acc >= 80 ? "§a" : acc >= 50 ? "§e" : "§c";
-            text.append("\n§7Accuracy: ").append(accColor).append(String.format("%.0f%%", acc));
-            text.append("\n§7Perfect: §a").append(perfect);
+            textBuilder.append("\n§7Accuracy: ").append(accColor);
+            appendFormattedPercent(textBuilder, acc);
+            textBuilder.append("\n§7Perfect: §a").append(perfect);
         }
 
-        progressText.setText(text.toString());
+        progressText.setText(textBuilder.toString());
+    }
+
+    private void appendFormattedPercent(StringBuilder sb, double value) {
+        int intPart = (int) value;
+        sb.append(intPart).append("%");
     }
 
     public void showCompletion(int stars) {
         if (progressText == null || progressText.isDead()) return;
 
-        StringBuilder starDisplay = new StringBuilder();
+        textBuilder.setLength(0);
+        textBuilder.append("§a§l✓ COMPLETE! ✓\n");
         for (int i = 0; i < 5; i++) {
-            starDisplay.append(i < stars ? "§6★" : "§7☆");
+            textBuilder.append(i < stars ? "§6★" : "§7☆");
         }
 
-        progressText.setText("§a§l✓ COMPLETE! ✓\n" + starDisplay);
+        progressText.setText(textBuilder.toString());
     }
 
     public void remove() {
-        if (itemDisplay != null && !itemDisplay.isDead()) {
-            itemDisplay.remove();
+        if (itemDisplay != null) {
+            try {
+                if (!itemDisplay.isDead()) itemDisplay.remove();
+            } catch (Exception ignored) {}
+            itemDisplay = null;
         }
-        if (progressText != null && !progressText.isDead()) {
-            progressText.remove();
+        if (progressText != null) {
+            try {
+                if (!progressText.isDead()) progressText.remove();
+            } catch (Exception ignored) {}
+            progressText = null;
         }
         spawned = false;
     }

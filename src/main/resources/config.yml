@@ -1,4 +1,7 @@
+# ==========================================
 # SMCBlacksmith Configuration
+# ==========================================
+
 version: 1.0.0
 
 # Language file to use from lang folder
@@ -7,16 +10,52 @@ language: en_US.yml
 # Debug mode (enables extra logging)
 debug: false
 
+# ==========================================
+# FURNACE SETTINGS
+# ==========================================
 furnaces:
   # How often furnaces tick (in server ticks, 20 = 1 second)
-  ticks: 20
+  tick_rate: 20
   # Cooldown for bellows usage in ticks
-  bellows_cooldown: 20
+  bellows_cooldown: 40
   # Enable temperature bar display above furnaces
   temperature_bar_enabled: true
-  # Height of temperature bar above furnace (in blocks)
+  # Height offset for temperature bar (blocks above furnace)
   temperature_bar_height: 1.5
 
-blacksmithing:
-  # Format for smithed item lore, %s is player name
-  name_format: "Smithed by %s"
+# ==========================================
+# FORGE SETTINGS
+# ==========================================
+forge:
+  # Session timeout in seconds
+  session_timeout: 120
+  # Enable forge sounds
+  sounds_enabled: true
+  # Enable forge particles
+  particles_enabled: true
+
+# ==========================================
+# QUENCHING SETTINGS
+# ==========================================
+quenching:
+  # Session timeout in seconds
+  session_timeout: 120
+  # Default tongs item ID (SMCCore)
+  tongs_item_id: "blacksmith_tongs"
+
+# ==========================================
+# REPAIR SETTINGS
+# ==========================================
+repair:
+  # Sneak + right-click for vanilla grindstone
+  sneak_for_vanilla: true
+
+# ==========================================
+# DISPLAY SETTINGS
+# ==========================================
+display:
+  # Format for forger name on items
+  forger_format: "&7Forged by &e%player%"
+  # Star display characters
+  star_filled: "§6★"
+  star_empty: "§7☆"

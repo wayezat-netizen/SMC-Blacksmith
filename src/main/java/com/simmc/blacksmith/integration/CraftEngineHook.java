@@ -3,58 +3,74 @@ package com.simmc.blacksmith.integration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CraftEngineHook {
 
     private final JavaPlugin plugin;
     private final boolean available;
+    private boolean initialized;
 
-    // CraftEngine uses a different structure
+    // Cached reflection objects
     private Object itemManagerInstance;
     private Method buildItemMethod;
     private Method getCustomIdMethod;
+    private boolean isStaticBuild;
+    private boolean isStaticGetId;
+
+    // Item ID cache to reduce reflection calls
+    private final Map<Integer, String> itemIdCache;
+    private static final int MAX_CACHE_SIZE = 500;
 
     public CraftEngineHook(JavaPlugin plugin) {
         this.plugin = plugin;
         this.available = plugin.getServer().getPluginManager().getPlugin("CraftEngine") != null;
+        this.itemIdCache = new ConcurrentHashMap<>();
+        this.initialized = false;
+    }
 
-        if (available) {
-            initializeAPI();
-        }
+    private void ensureInitialized() {
+        if (initialized || !available) return;
+        initialized = true;
+        initializeAPI();
     }
 
     private void initializeAPI() {
-        try {
-            // Try to get the BukkitCraftEngine instance first
-            Class<?> bukkitCraftEngineClass = Class.forName("net.momirealms.craftengine.bukkit.plugin.BukkitCraftEngine");
-            Method getInstanceMethod = bukkitCraftEngineClass.getMethod("instance");
-            Object craftEngineInstance = getInstanceMethod.invoke(null);
+        // Try BukkitCraftEngine first
+        if (tryBukkitCraftEngine()) return;
 
-            if (craftEngineInstance != null) {
-                plugin.getLogger().info("CraftEngine: Got BukkitCraftEngine instance");
+        // Try utility classes
+        if (tryUtilityClasses()) return;
 
-                // Get ItemManager from the instance
-                Method itemManagerMethod = bukkitCraftEngineClass.getMethod("itemManager");
-                itemManagerInstance = itemManagerMethod.invoke(craftEngineInstance);
+        // Try direct manager access
+        tryManagerClasses();
 
-                if (itemManagerInstance != null) {
-                    plugin.getLogger().info("CraftEngine: Got ItemManager instance");
-                    findMethods(itemManagerInstance.getClass());
-                }
-            }
-        } catch (Exception e) {
-            plugin.getLogger().info("CraftEngine: BukkitCraftEngine not found, trying alternative...");
-            tryAlternativeAPI();
-        }
-
-        plugin.getLogger().info("CraftEngine API initialized - buildItem: " + (buildItemMethod != null) +
-                ", getCustomId: " + (getCustomIdMethod != null));
+        logInitResult();
     }
 
-    private void tryAlternativeAPI() {
-        // Try CraftEngineItems utility class
+    private boolean tryBukkitCraftEngine() {
+        try {
+            Class<?> bukkitCEClass = Class.forName("net.momirealms.craftengine.bukkit.plugin.BukkitCraftEngine");
+            Method getInstance = bukkitCEClass.getMethod("instance");
+            Object ceInstance = getInstance.invoke(null);
+
+            if (ceInstance != null) {
+                Method itemManagerMethod = bukkitCEClass.getMethod("itemManager");
+                itemManagerInstance = itemManagerMethod.invoke(ceInstance);
+
+                if (itemManagerInstance != null) {
+                    findMethods(itemManagerInstance.getClass());
+                    return buildItemMethod != null || getCustomIdMethod != null;
+                }
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    private boolean tryUtilityClasses() {
         String[] utilityClasses = {
                 "net.momirealms.craftengine.bukkit.util.CraftEngineItems",
                 "net.momirealms.craftengine.bukkit.item.CraftEngineItems",
@@ -64,16 +80,16 @@ public class CraftEngineHook {
         for (String className : utilityClasses) {
             try {
                 Class<?> itemsClass = Class.forName(className);
-                plugin.getLogger().info("CraftEngine: Found utility class - " + className);
                 findStaticMethods(itemsClass);
                 if (buildItemMethod != null || getCustomIdMethod != null) {
-                    return;
+                    return true;
                 }
-            } catch (ClassNotFoundException ignored) {
-            }
+            } catch (ClassNotFoundException ignored) {}
         }
+        return false;
+    }
 
-        // Try direct ItemManager access
+    private void tryManagerClasses() {
         String[] managerClasses = {
                 "net.momirealms.craftengine.core.item.ItemManager",
                 "net.momirealms.craftengine.bukkit.item.BukkitItemManager"
@@ -82,21 +98,6 @@ public class CraftEngineHook {
         for (String className : managerClasses) {
             try {
                 Class<?> managerClass = Class.forName(className);
-                plugin.getLogger().info("CraftEngine: Found manager class - " + className);
-
-                // Try to get singleton instance
-                for (Field field : managerClass.getDeclaredFields()) {
-                    if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) &&
-                            managerClass.isAssignableFrom(field.getType())) {
-                        field.setAccessible(true);
-                        itemManagerInstance = field.get(null);
-                        if (itemManagerInstance != null) {
-                            plugin.getLogger().info("CraftEngine: Got manager instance from field");
-                            findMethods(itemManagerInstance.getClass());
-                            return;
-                        }
-                    }
-                }
 
                 // Try getInstance method
                 try {
@@ -104,118 +105,91 @@ public class CraftEngineHook {
                     itemManagerInstance = getInstance.invoke(null);
                     if (itemManagerInstance != null) {
                         findMethods(itemManagerInstance.getClass());
-                        return;
+                        if (buildItemMethod != null || getCustomIdMethod != null) {
+                            return;
+                        }
                     }
-                } catch (NoSuchMethodException ignored) {
-                }
+                } catch (NoSuchMethodException ignored) {}
 
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
     }
 
     private void findMethods(Class<?> clazz) {
-        // Log all available methods for debugging
-        plugin.getLogger().info("CraftEngine: Searching methods in " + clazz.getName());
-
         for (Method method : clazz.getMethods()) {
             String name = method.getName().toLowerCase();
             Class<?>[] params = method.getParameterTypes();
             Class<?> returnType = method.getReturnType();
 
-            // Look for build/create item method (takes String id, returns ItemStack or wrapper)
-            if (buildItemMethod == null) {
-                if ((name.contains("build") || name.contains("create") || name.contains("get")) &&
-                        name.contains("item")) {
-                    if (params.length >= 1 && params[0] == String.class) {
-                        buildItemMethod = method;
-                        plugin.getLogger().info("CraftEngine: Found build method - " + method.getName() +
-                                " returns " + returnType.getSimpleName());
-                    }
+            // Find build method
+            if (buildItemMethod == null && params.length >= 1 && params[0] == String.class) {
+                if (name.contains("build") || name.contains("create") || name.contains("item")) {
+                    buildItemMethod = method;
+                    isStaticBuild = Modifier.isStatic(method.getModifiers());
                 }
             }
 
-            // Look for getId method (takes ItemStack, returns String)
-            if (getCustomIdMethod == null) {
-                if ((name.contains("id") || name.contains("key") || name.contains("custom"))) {
-                    if (params.length == 1 && ItemStack.class.isAssignableFrom(params[0])) {
-                        if (returnType == String.class || returnType.getName().contains("Optional") ||
-                                returnType.getName().contains("Key")) {
-                            getCustomIdMethod = method;
-                            plugin.getLogger().info("CraftEngine: Found getId method - " + method.getName() +
-                                    " returns " + returnType.getSimpleName());
-                        }
-                    }
+            // Find getId method
+            if (getCustomIdMethod == null && params.length == 1 &&
+                    ItemStack.class.isAssignableFrom(params[0])) {
+                if (returnType == String.class ||
+                        returnType.getName().contains("Optional") ||
+                        returnType.getName().contains("Key")) {
+                    getCustomIdMethod = method;
+                    isStaticGetId = Modifier.isStatic(method.getModifiers());
                 }
             }
-        }
 
-        // If still no methods, try broader search
-        if (buildItemMethod == null || getCustomIdMethod == null) {
-            for (Method method : clazz.getMethods()) {
-                Class<?>[] params = method.getParameterTypes();
-                Class<?> returnType = method.getReturnType();
-
-                // Any method that takes String and returns something item-like
-                if (buildItemMethod == null && params.length == 1 && params[0] == String.class) {
-                    String returnName = returnType.getName().toLowerCase();
-                    if (returnName.contains("item") || returnName.contains("stack")) {
-                        buildItemMethod = method;
-                        plugin.getLogger().info("CraftEngine: Found potential build method - " + method.getName());
-                    }
-                }
-
-                // Any method that takes ItemStack and returns String/Optional<String>
-                if (getCustomIdMethod == null && params.length == 1 &&
-                        ItemStack.class.isAssignableFrom(params[0])) {
-                    if (returnType == String.class) {
-                        getCustomIdMethod = method;
-                        plugin.getLogger().info("CraftEngine: Found potential getId method - " + method.getName());
-                    }
-                }
-            }
+            if (buildItemMethod != null && getCustomIdMethod != null) break;
         }
     }
 
     private void findStaticMethods(Class<?> clazz) {
         for (Method method : clazz.getMethods()) {
-            if (!java.lang.reflect.Modifier.isStatic(method.getModifiers())) continue;
+            if (!Modifier.isStatic(method.getModifiers())) continue;
 
-            String name = method.getName().toLowerCase();
             Class<?>[] params = method.getParameterTypes();
             Class<?> returnType = method.getReturnType();
 
-            // Static getItem/buildItem method
+            // Static getItem/buildItem
             if (buildItemMethod == null && params.length >= 1 && params[0] == String.class) {
                 if (ItemStack.class.isAssignableFrom(returnType)) {
                     buildItemMethod = method;
-                    plugin.getLogger().info("CraftEngine: Found static build method - " + method.getName());
+                    isStaticBuild = true;
                 }
             }
 
-            // Static getId method
+            // Static getId
             if (getCustomIdMethod == null && params.length == 1 &&
                     ItemStack.class.isAssignableFrom(params[0])) {
                 if (returnType == String.class) {
                     getCustomIdMethod = method;
-                    plugin.getLogger().info("CraftEngine: Found static getId method - " + method.getName());
+                    isStaticGetId = true;
                 }
             }
         }
     }
 
+    private void logInitResult() {
+        plugin.getLogger().info("CraftEngine API initialized - buildItem: " +
+                (buildItemMethod != null) + ", getCustomId: " + (getCustomIdMethod != null));
+    }
+
     public boolean isAvailable() {
+        ensureInitialized();
         return available && (buildItemMethod != null || getCustomIdMethod != null);
     }
 
     public ItemStack getItem(String id, int amount) {
+        ensureInitialized();
+
         if (!available || id == null || id.isEmpty() || buildItemMethod == null) {
             return null;
         }
 
         try {
             Object result;
-            if (java.lang.reflect.Modifier.isStatic(buildItemMethod.getModifiers())) {
+            if (isStaticBuild) {
                 result = buildItemMethod.invoke(null, id);
             } else if (itemManagerInstance != null) {
                 result = buildItemMethod.invoke(itemManagerInstance, id);
@@ -236,30 +210,23 @@ public class CraftEngineHook {
         return null;
     }
 
-    /**
-     * Extracts ItemStack from various wrapper types CraftEngine might use.
-     */
     private ItemStack extractItemStack(Object result) {
         if (result == null) return null;
+        if (result instanceof ItemStack) return (ItemStack) result;
 
-        if (result instanceof ItemStack) {
-            return (ItemStack) result;
-        }
-
-        // Try to call load(), build(), or getItemStack() on wrapper objects
-        String[] extractMethods = {"load", "build", "getItemStack", "get", "toItemStack"};
-        for (String methodName : extractMethods) {
+        // Try common extraction methods
+        String[] methods = {"load", "build", "getItemStack", "get", "toItemStack"};
+        for (String methodName : methods) {
             try {
                 Method method = result.getClass().getMethod(methodName);
                 Object extracted = method.invoke(result);
                 if (extracted instanceof ItemStack) {
                     return (ItemStack) extracted;
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
 
-        // Try no-arg methods that return ItemStack
+        // Try any no-arg method returning ItemStack
         for (Method method : result.getClass().getMethods()) {
             if (method.getParameterCount() == 0 &&
                     ItemStack.class.isAssignableFrom(method.getReturnType())) {
@@ -268,8 +235,7 @@ public class CraftEngineHook {
                     if (extracted instanceof ItemStack) {
                         return (ItemStack) extracted;
                     }
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) {}
             }
         }
 
@@ -277,13 +243,22 @@ public class CraftEngineHook {
     }
 
     public String getItemId(ItemStack item) {
+        ensureInitialized();
+
         if (!available || item == null || getCustomIdMethod == null) {
             return null;
         }
 
+        // Check cache first
+        int hashCode = System.identityHashCode(item);
+        String cached = itemIdCache.get(hashCode);
+        if (cached != null) {
+            return cached.isEmpty() ? null : cached;
+        }
+
         try {
             Object result;
-            if (java.lang.reflect.Modifier.isStatic(getCustomIdMethod.getModifiers())) {
+            if (isStaticGetId) {
                 result = getCustomIdMethod.invoke(null, item);
             } else if (itemManagerInstance != null) {
                 result = getCustomIdMethod.invoke(itemManagerInstance, item);
@@ -291,53 +266,41 @@ public class CraftEngineHook {
                 return null;
             }
 
-            return extractString(result);
-        } catch (Exception e) {
-            // Silent fail - getId is optional
-        }
+            String id = extractString(result);
 
-        return null;
+            // Cache result (empty string for null)
+            if (itemIdCache.size() < MAX_CACHE_SIZE) {
+                itemIdCache.put(hashCode, id != null ? id : "");
+            }
+
+            return id;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
-    /**
-     * Extracts String from various types (Optional, Key objects, etc.)
-     */
     private String extractString(Object result) {
         if (result == null) return null;
+        if (result instanceof String) return (String) result;
 
-        if (result instanceof String) {
-            return (String) result;
-        }
-
-        // Handle Optional<String>
+        // Handle Optional
         if (result.getClass().getName().contains("Optional")) {
             try {
                 Method isPresent = result.getClass().getMethod("isPresent");
-                Method get = result.getClass().getMethod("get");
                 if ((Boolean) isPresent.invoke(result)) {
+                    Method get = result.getClass().getMethod("get");
                     Object value = get.invoke(result);
-                    if (value instanceof String) {
-                        return (String) value;
-                    }
-                    return value != null ? value.toString() : null;
+                    return value instanceof String ? (String) value : value.toString();
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
             return null;
         }
 
-        // Handle Key objects (namespace:value format)
+        // Handle Key objects
         try {
             Method asString = result.getClass().getMethod("asString");
             return (String) asString.invoke(result);
-        } catch (Exception ignored) {
-        }
-
-        try {
-            Method toString = result.getClass().getMethod("toString");
-            return (String) toString.invoke(result);
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
 
         return result.toString();
     }
@@ -348,31 +311,19 @@ public class CraftEngineHook {
         }
 
         String itemId = getItemId(item);
-        if (itemId != null) {
-            // Handle both "namespace:id" and just "id" formats
-            if (id.equalsIgnoreCase(itemId)) {
-                return true;
-            }
-            // Check if id matches the value part of "namespace:id"
-            if (itemId.contains(":")) {
-                String valueOnly = itemId.substring(itemId.indexOf(':') + 1);
-                if (id.equalsIgnoreCase(valueOnly)) {
-                    return true;
-                }
-            }
-            // Check if itemId matches the value part of "namespace:id" in input
-            if (id.contains(":")) {
-                String valueOnly = id.substring(id.indexOf(':') + 1);
-                if (itemId.equalsIgnoreCase(valueOnly)) {
-                    return true;
-                }
-            }
-        }
+        if (itemId == null) return false;
 
-        // Fallback: compare by getting the item and checking equality
-        ItemStack compareItem = getItem(id, 1);
-        if (compareItem != null) {
-            return compareItem.isSimilar(item);
+        // Direct match
+        if (id.equalsIgnoreCase(itemId)) return true;
+
+        // Match without namespace
+        if (itemId.contains(":")) {
+            String valueOnly = itemId.substring(itemId.indexOf(':') + 1);
+            if (id.equalsIgnoreCase(valueOnly)) return true;
+        }
+        if (id.contains(":")) {
+            String valueOnly = id.substring(id.indexOf(':') + 1);
+            if (itemId.equalsIgnoreCase(valueOnly)) return true;
         }
 
         return false;
@@ -380,5 +331,9 @@ public class CraftEngineHook {
 
     public boolean isCraftEngineItem(ItemStack item) {
         return getItemId(item) != null;
+    }
+
+    public void clearCache() {
+        itemIdCache.clear();
     }
 }

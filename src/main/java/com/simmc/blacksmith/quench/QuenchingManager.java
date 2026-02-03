@@ -5,7 +5,6 @@ import com.simmc.blacksmith.config.ConfigManager;
 import com.simmc.blacksmith.forge.ForgeRecipe;
 import com.simmc.blacksmith.forge.ItemModifierService;
 import com.simmc.blacksmith.integration.SMCCoreHook;
-import com.simmc.blacksmith.items.ItemProviderRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -14,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,8 +30,14 @@ public class QuenchingManager {
     private final Map<UUID, QuenchingSession> sessions;
     private final Map<UUID, Boolean> awaitingName;
 
+    private BukkitTask timeoutTask;
+
     private static final String TONGS_ITEM_ID = "blacksmith_tongs";
     private static final long SESSION_TIMEOUT_MS = 120000;
+    private static final long TIMEOUT_CHECK_INTERVAL = 200L;
+
+    // Reusable list for timeout checking
+    private final List<UUID> expiredSessions = new ArrayList<>();
 
     public QuenchingManager(JavaPlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
@@ -43,15 +49,28 @@ public class QuenchingManager {
     }
 
     private void startTimeoutChecker() {
-        Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            long now = System.currentTimeMillis();
-            for (UUID playerId : new ArrayList<>(sessions.keySet())) {
-                QuenchingSession session = sessions.get(playerId);
-                if (session != null && session.getElapsedTime() > SESSION_TIMEOUT_MS) {
-                    cancelSession(playerId, "Session timed out.");
-                }
+        timeoutTask = Bukkit.getScheduler().runTaskTimer(plugin, this::checkTimeouts,
+                TIMEOUT_CHECK_INTERVAL, TIMEOUT_CHECK_INTERVAL);
+    }
+
+    private void checkTimeouts() {
+        if (sessions.isEmpty()) return;
+
+        long now = System.currentTimeMillis();
+        expiredSessions.clear();
+
+        // Find expired sessions
+        for (Map.Entry<UUID, QuenchingSession> entry : sessions.entrySet()) {
+            QuenchingSession session = entry.getValue();
+            if (session != null && session.getElapsedTime() > SESSION_TIMEOUT_MS) {
+                expiredSessions.add(entry.getKey());
             }
-        }, 200L, 200L);
+        }
+
+        // Cancel expired sessions
+        for (UUID playerId : expiredSessions) {
+            cancelSession(playerId, "Session timed out.");
+        }
     }
 
     public void startQuenching(Player player, ItemStack forgedItem, int starRating,
@@ -86,7 +105,8 @@ public class QuenchingManager {
             return handleContainerPlace(player, targetLocation);
         }
 
-        if (session.getAnvilLocation().distanceSquared(targetLocation) > 4) {
+        Location anvilLoc = session.getAnvilLocation();
+        if (anvilLoc.distanceSquared(targetLocation) > 4) {
             player.sendMessage("§cClick on the anvil to pick up your item.");
             return false;
         }
@@ -105,7 +125,7 @@ public class QuenchingManager {
 
         if (session == null || !session.isPickedUp()) return false;
 
-        awaitingName.put(playerId, true);
+        awaitingName.put(playerId, Boolean.TRUE);
 
         player.sendMessage("§6§l⚒ NAME YOUR CREATION");
         player.sendMessage("§7Type a name in chat, or type §eskip §7to use default.");
@@ -117,7 +137,8 @@ public class QuenchingManager {
     public boolean handleChatInput(Player player, String message) {
         UUID playerId = player.getUniqueId();
 
-        if (!awaitingName.getOrDefault(playerId, false)) {
+        Boolean awaiting = awaitingName.get(playerId);
+        if (awaiting == null || !awaiting) {
             return false;
         }
 
@@ -126,7 +147,7 @@ public class QuenchingManager {
 
         if (session == null) return false;
 
-        String customName = message.equalsIgnoreCase("skip") ? null : message;
+        String customName = "skip".equalsIgnoreCase(message) ? null : message;
         session.setCustomName(customName);
 
         completeQuenching(player);
@@ -147,27 +168,24 @@ public class QuenchingManager {
         // Apply star modifiers if recipe has them
         if (recipe != null && recipe.hasStarModifiers()) {
             result = modifierService.applyStarModifiers(
-                    result,
-                    stars,
-                    recipe.getStarModifiers(),
-                    player.getName()
+                    result, stars, recipe.getStarModifiers(), player.getName()
             );
         } else {
-            // Fallback: manually add lore
-            result = addBasicLore(result, stars, player.getName(), session.getCustomName());
+            result = addBasicLore(result, stars, player.getName());
         }
 
         // Apply custom name if provided
-        if (session.getCustomName() != null && !session.getCustomName().isEmpty()) {
+        String customName = session.getCustomName();
+        if (customName != null && !customName.isEmpty()) {
             ItemMeta meta = result.getItemMeta();
             if (meta != null) {
-                meta.setDisplayName("§f" + session.getCustomName());
+                meta.setDisplayName("§f" + customName);
                 result.setItemMeta(meta);
             }
         }
 
         // Give item
-        var overflow = player.getInventory().addItem(result);
+        Map<Integer, ItemStack> overflow = player.getInventory().addItem(result);
         for (ItemStack leftover : overflow.values()) {
             player.getWorld().dropItemNaturally(player.getLocation(), leftover);
         }
@@ -178,12 +196,11 @@ public class QuenchingManager {
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 0.6f, 0.8f);
     }
 
-    private ItemStack addBasicLore(ItemStack item, int stars, String forgerName, String customName) {
+    private ItemStack addBasicLore(ItemStack item, int stars, String forgerName) {
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
 
-        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>(3);
         lore.add("");
         lore.add(formatStars(stars));
         lore.add("§7Forged by §e" + forgerName);
@@ -208,8 +225,8 @@ public class QuenchingManager {
         if (session == null) return;
 
         Player player = Bukkit.getPlayer(playerId);
-        if (player != null) {
-            var overflow = player.getInventory().addItem(session.getForgedItem());
+        if (player != null && player.isOnline()) {
+            Map<Integer, ItemStack> overflow = player.getInventory().addItem(session.getForgedItem());
             for (ItemStack leftover : overflow.values()) {
                 player.getWorld().dropItemNaturally(player.getLocation(), leftover);
             }
@@ -223,8 +240,9 @@ public class QuenchingManager {
         if (mainHand.getType().isAir()) return false;
 
         SMCBlacksmith instance = SMCBlacksmith.getInstance();
-        SMCCoreHook smcHook = instance.getSmcCoreHook();
+        if (instance == null) return mainHand.getType() == Material.SHEARS;
 
+        SMCCoreHook smcHook = instance.getSmcCoreHook();
         if (smcHook != null && smcHook.isAvailable()) {
             String itemId = smcHook.getItemId(mainHand);
             return TONGS_ITEM_ID.equalsIgnoreCase(itemId);
@@ -238,13 +256,23 @@ public class QuenchingManager {
     }
 
     public boolean isAwaitingName(UUID playerId) {
-        return awaitingName.getOrDefault(playerId, false);
+        Boolean awaiting = awaitingName.get(playerId);
+        return awaiting != null && awaiting;
     }
 
     public void cancelAllSessions() {
-        for (UUID playerId : new ArrayList<>(sessions.keySet())) {
+        List<UUID> playerIds = new ArrayList<>(sessions.keySet());
+        for (UUID playerId : playerIds) {
             cancelSession(playerId, "Plugin shutting down.");
         }
+    }
+
+    public void shutdown() {
+        if (timeoutTask != null && !timeoutTask.isCancelled()) {
+            timeoutTask.cancel();
+            timeoutTask = null;
+        }
+        cancelAllSessions();
     }
 
     public void reload() {

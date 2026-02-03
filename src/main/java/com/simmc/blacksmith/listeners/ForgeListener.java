@@ -1,8 +1,6 @@
 package com.simmc.blacksmith.listeners;
 
 import com.simmc.blacksmith.forge.ForgeManager;
-import com.simmc.blacksmith.forge.ForgePoint;
-import com.simmc.blacksmith.forge.ForgeSession;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Player;
@@ -11,7 +9,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+
+import java.util.UUID;
 
 public class ForgeListener implements Listener {
 
@@ -21,32 +20,31 @@ public class ForgeListener implements Listener {
         this.forgeManager = forgeManager;
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInteractEntity(PlayerInteractEntityEvent event) {
-        Player player = event.getPlayer();
         Entity clicked = event.getRightClicked();
 
         if (!(clicked instanceof Interaction)) return;
-        if (!forgeManager.hasActiveSession(player.getUniqueId())) return;
+
+        Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
+
+        if (!forgeManager.hasActiveSession(playerId)) return;
 
         event.setCancelled(true);
         forgeManager.processPointHit(player, clicked.getUniqueId());
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityDamage(EntityDamageByEntityEvent event) {
-        if (!(event.getDamager() instanceof Player player)) return;
         if (!(event.getEntity() instanceof Interaction)) return;
-        if (!forgeManager.hasActiveSession(player.getUniqueId())) return;
+        if (!(event.getDamager() instanceof Player player)) return;
+
+        UUID playerId = player.getUniqueId();
+
+        if (!forgeManager.hasActiveSession(playerId)) return;
 
         event.setCancelled(true);
         forgeManager.processPointHit(player, event.getEntity().getUniqueId());
-    }
-
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        if (forgeManager.hasActiveSession(event.getPlayer().getUniqueId())) {
-            forgeManager.cancelSession(event.getPlayer().getUniqueId());
-        }
     }
 }

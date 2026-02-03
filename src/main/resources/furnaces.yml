@@ -1,59 +1,130 @@
+# ==========================================
+# SMCBlacksmith - Furnace Types Configuration
+# ==========================================
+# Defines furnace types with temperature settings and recipes
+# Actual furnace locations are saved in data/furnaces.yml
+
 basic_furnace:
+  # CraftEngine furniture ID or block identifier
   item_id: "basic_furnace"
+  # Maximum temperature this furnace can reach
   max_temperature: 100
-  display_material: "STICK"
-  display_cmd: 1401
-  temperature_change: 10
-  min_ideal_temperature: 80
+  # Display item when showing furnace in GUI
+  display_material: "FURNACE"
+  display_cmd: 0
+  # How fast temperature changes per tick
+  temperature_change: 2
+  # Ideal temperature range for smelting
+  min_ideal_temperature: 70
   max_ideal_temperature: 100
-  max_temperature_gain_from_fuel_percentage: 0.2
+  # Max temp boost from fuel (percentage of max_temperature)
+  max_fuel_temperature: 80
+  # Recipes for this furnace type
   recipes:
     iron_ingot:
       smelt_time: 8000
+      min_ideal_temperature: 70
+      max_ideal_temperature: 100
       inputs:
-        a:
+        input_0:
           id: raw_iron
           type: minecraft
           amount: 1
       outputs:
-        a:
+        output_0:
           id: iron_ingot
           type: minecraft
           amount: 1
       bad_outputs:
-        a:
+        output_0:
           id: iron_nugget
           type: minecraft
           amount: 3
 
+    copper_ingot:
+      smelt_time: 6000
+      min_ideal_temperature: 60
+      max_ideal_temperature: 90
+      inputs:
+        input_0:
+          id: raw_copper
+          type: minecraft
+          amount: 1
+      outputs:
+        output_0:
+          id: copper_ingot
+          type: minecraft
+          amount: 1
+      bad_outputs:
+        output_0:
+          id: copper_ingot
+          type: minecraft
+          amount: 0
+
+advanced_furnace:
+  item_id: "advanced_furnace"
+  max_temperature: 500
+  display_material: "BLAST_FURNACE"
+  display_cmd: 0
+  temperature_change: 5
+  min_ideal_temperature: 350
+  max_ideal_temperature: 500
+  max_fuel_temperature: 400
+  recipes:
+    steel_ingot:
+      smelt_time: 12000
+      min_ideal_temperature: 350
+      max_ideal_temperature: 450
+      inputs:
+        input_0:
+          id: iron_ingot
+          type: minecraft
+          amount: 2
+        input_1:
+          id: coal
+          type: minecraft
+          amount: 1
+      outputs:
+        output_0:
+          id: steel_ingot
+          type: smc
+          amount: 1
+      bad_outputs:
+        output_0:
+          id: iron_nugget
+          type: minecraft
+          amount: 4
+
 stellar_furnace:
   item_id: "stellar_furnace"
   max_temperature: 1000
-  display_material: "STICK"
+  display_material: "CRYING_OBSIDIAN"
   display_cmd: 1402
-  temperature_change: 100
+  temperature_change: 10
   min_ideal_temperature: 800
   max_ideal_temperature: 1000
-  max_temperature_gain_from_fuel_percentage: 0.4
+  max_fuel_temperature: 900
   recipes:
-    netherite:
-      smelt_time: 16000
+    netherite_ingot:
+      smelt_time: 20000
+      min_ideal_temperature: 850
+      max_ideal_temperature: 1000
       inputs:
-        a:
+        input_0:
           id: ancient_debris
           type: minecraft
           amount: 4
-        b:
+        input_1:
           id: gold_ingot
           type: minecraft
           amount: 4
       outputs:
-        a:
+        output_0:
           id: netherite_ingot
           type: minecraft
           amount: 1
       bad_outputs:
-        a:
+        output_0:
           id: netherite_scrap
           type: minecraft
           amount: 2

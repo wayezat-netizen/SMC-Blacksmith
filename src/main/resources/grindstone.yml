@@ -1,10 +1,25 @@
-# Repair configuration using PAPI placeholders
-# condition: PAPI condition to check (format: "%placeholder% operator value")
-# success_chance: PAPI placeholder returning 0-100 success percentage
-# repair_amount: PAPI placeholder returning 0-100 repair percentage
+# ==========================================
+# SMCBlacksmith - Grindstone Repair Configuration
+# ==========================================
+# Uses PAPI placeholders for conditions and chances
+# Format:
+#   condition: "%placeholder% operator value" (>=, <=, >, <, ==, !=)
+#   success_chance: "%placeholder%" returning 0-100
+#   repair_amount: "%placeholder%" returning 0-100
 
 iron_sword:
   id: iron_sword
+  type: minecraft
+  condition: "%svalues_repair_skill% >= 1"
+  success_chance: "%svalues_repair_chance%"
+  repair_amount: "%svalues_repair_amount%"
+  input:
+    id: iron_ingot
+    type: minecraft
+    amount: 1
+
+iron_pickaxe:
+  id: iron_pickaxe
   type: minecraft
   condition: "%svalues_repair_skill% >= 1"
   success_chance: "%svalues_repair_chance%"
@@ -25,6 +40,17 @@ diamond_sword:
     type: minecraft
     amount: 1
 
+diamond_pickaxe:
+  id: diamond_pickaxe
+  type: minecraft
+  condition: "%svalues_repair_skill% >= 10"
+  success_chance: "%svalues_repair_chance%"
+  repair_amount: "%svalues_repair_amount%"
+  input:
+    id: diamond
+    type: minecraft
+    amount: 1
+
 netherite_sword:
   id: netherite_sword
   type: minecraft
@@ -36,7 +62,7 @@ netherite_sword:
     type: minecraft
     amount: 1
 
-# SMCCore item example
+# SMCCore custom item example
 custom_blade:
   id: custom_blade
   type: smc
@@ -44,6 +70,6 @@ custom_blade:
   success_chance: "%svalues_repair_chance%"
   repair_amount: "%svalues_repair_amount%"
   input:
-    id: smc:repair_kit
-    type: craftengine
+    id: repair_kit
+    type: smc
     amount: 1

@@ -9,7 +9,11 @@ import com.simmc.blacksmith.furnace.FurnaceType;
 import com.simmc.blacksmith.integration.CraftEngineHook;
 import com.simmc.blacksmith.integration.SMCCoreHook;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -19,126 +23,123 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
-/**
- * Handles block/furniture interactions for the furnace system.
- * Detects CraftEngine furniture clicks and SMCCore heat tool usage.
- */
+import java.util.Collection;
+
 public class BlockInteractListener implements Listener {
 
     private final FurnaceManager furnaceManager;
     private final ConfigManager configManager;
 
-    // SMCCore heat tool item ID (configurable)
+    // Configurable constants
     private static final String HEAT_TOOL_ID = "heat_tool";
     private static final int HEAT_TOOL_BOOST = 50;
+    private static final double FURNITURE_SEARCH_RADIUS = 1.0;
+
+    // Cached references (lazy loaded)
+    private SMCCoreHook smcHookCache;
+    private CraftEngineHook ceHookCache;
+    private boolean hooksInitialized;
 
     public BlockInteractListener(FurnaceManager furnaceManager, ConfigManager configManager) {
         this.furnaceManager = furnaceManager;
         this.configManager = configManager;
+        this.hooksInitialized = false;
+    }
+
+    private void ensureHooksInitialized() {
+        if (hooksInitialized) return;
+        hooksInitialized = true;
+
+        SMCBlacksmith plugin = SMCBlacksmith.getInstance();
+        if (plugin != null) {
+            smcHookCache = plugin.getSmcCoreHook();
+            ceHookCache = plugin.getCraftEngineHook();
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        // Only handle right-click
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
-            return;
-        }
+        // Fast rejection checks
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        if (event.getHand() != EquipmentSlot.HAND) return;
 
-        // Only handle main hand to prevent double firing
-        if (event.getHand() != EquipmentSlot.HAND) {
-            return;
-        }
+        Block block = event.getClickedBlock();
+        if (block == null) return;
 
         Player player = event.getPlayer();
-        Block block = event.getClickedBlock();
-
-        if (block == null) {
-            return;
-        }
-
         Location location = block.getLocation();
         ItemStack itemInHand = player.getInventory().getItemInMainHand();
 
-        // Check if this location is already a registered furnace
+        // Check existing furnace first (most common case)
         if (furnaceManager.isFurnace(location)) {
-            // Check for SMCCore heat tool usage
-            if (isHeatTool(itemInHand)) {
-                handleHeatToolUse(player, location, event);
-                return;
-            }
-
-            // Open existing furnace GUI
-            event.setCancelled(true);
-            furnaceManager.openFurnaceGUI(player, location);
+            handleExistingFurnace(player, location, itemInHand, event);
             return;
         }
 
-        // Check if this is a CraftEngine furniture that should become a furnace
-        String furnitureId = getCraftEngineFurnitureId(block, location);
-        if (furnitureId != null) {
-            FurnaceType type = getFurnaceTypeForFurniture(furnitureId);
-            if (type != null) {
-                // Check for heat tool on new furnace
-                if (isHeatTool(itemInHand)) {
-                    // Create furnace first, then apply heat
-                    FurnaceInstance instance = furnaceManager.createFurnace(type.getId(), location);
-                    if (instance != null) {
-                        handleHeatToolUse(player, location, event);
-                    }
-                    return;
-                }
-
-                // Create and open furnace
-                event.setCancelled(true);
-                FurnaceInstance instance = furnaceManager.createFurnace(type.getId(), location);
-                if (instance != null) {
-                    furnaceManager.openFurnaceGUI(player, location);
-                }
-            }
-        }
+        // Check for CraftEngine furniture
+        handlePotentialFurniture(player, block, location, itemInHand, event);
     }
 
-    /**
-     * Checks if the item is an SMCCore heat tool.
-     */
+    private void handleExistingFurnace(Player player, Location location,
+                                       ItemStack itemInHand, PlayerInteractEvent event) {
+        // Check for heat tool usage
+        if (isHeatTool(itemInHand)) {
+            event.setCancelled(true);
+            applyHeatTool(player, location);
+            return;
+        }
+
+        // Open furnace GUI
+        event.setCancelled(true);
+        furnaceManager.openFurnaceGUI(player, location);
+    }
+
+    private void handlePotentialFurniture(Player player, Block block, Location location,
+                                          ItemStack itemInHand, PlayerInteractEvent event) {
+        String furnitureId = getCraftEngineFurnitureId(block, location);
+        if (furnitureId == null) return;
+
+        FurnaceType type = getFurnaceTypeForFurniture(furnitureId);
+        if (type == null) return;
+
+        event.setCancelled(true);
+
+        // Create furnace
+        FurnaceInstance instance = furnaceManager.createFurnace(type.getId(), location);
+        if (instance == null) return;
+
+        // Check for heat tool on new furnace
+        if (isHeatTool(itemInHand)) {
+            applyHeatTool(player, location);
+            return;
+        }
+
+        // Open GUI
+        furnaceManager.openFurnaceGUI(player, location);
+    }
+
     private boolean isHeatTool(ItemStack item) {
-        if (item == null || item.getType().isAir()) {
-            return false;
-        }
+        if (item == null || item.getType().isAir()) return false;
 
-        SMCBlacksmith plugin = SMCBlacksmith.getInstance();
-        if (plugin == null) {
-            return false;
-        }
+        ensureHooksInitialized();
 
-        SMCCoreHook smcHook = plugin.getSmcCoreHook();
-        if (smcHook == null || !smcHook.isAvailable()) {
-            return false;
-        }
+        if (smcHookCache == null || !smcHookCache.isAvailable()) return false;
 
-        String itemId = smcHook.getItemId(item);
+        String itemId = smcHookCache.getItemId(item);
         return HEAT_TOOL_ID.equalsIgnoreCase(itemId);
     }
 
-    /**
-     * Handles using the SMCCore heat tool on a furnace.
-     */
-    private void handleHeatToolUse(Player player, Location location, PlayerInteractEvent event) {
-        event.setCancelled(true);
-
+    private void applyHeatTool(Player player, Location location) {
         FurnaceInstance furnace = furnaceManager.getFurnace(location);
-        if (furnace == null) {
-            return;
-        }
+        if (furnace == null) return;
 
-        // Apply temperature boost beyond fuel limit
         int maxTemp = furnace.getType().getMaxTemperature();
         int currentTarget = furnace.getTargetTemperature();
         int newTarget = Math.min(currentTarget + HEAT_TOOL_BOOST, maxTemp);
 
         furnace.setTargetTemperature(newTarget);
 
-        // Send feedback
+        // Feedback
         String message = configManager.getMessageConfig().getHeatToolUsed();
         if (message != null && !message.isEmpty()) {
             player.sendMessage(message);
@@ -146,50 +147,37 @@ public class BlockInteractListener implements Listener {
             player.sendMessage("§6Temperature boosted to " + newTarget + "°C!");
         }
 
-        // Play sound effect
-        player.playSound(location, org.bukkit.Sound.BLOCK_FIRE_AMBIENT, 1.0f, 1.5f);
+        player.playSound(location, Sound.BLOCK_FIRE_AMBIENT, 1.0f, 1.5f);
     }
 
-    /**
-     * Gets the CraftEngine furniture ID at the given location.
-     */
     private String getCraftEngineFurnitureId(Block block, Location location) {
-        SMCBlacksmith plugin = SMCBlacksmith.getInstance();
-        if (plugin == null) {
-            return null;
-        }
+        ensureHooksInitialized();
 
-        CraftEngineHook ceHook = plugin.getCraftEngineHook();
-        if (ceHook == null || !ceHook.isAvailable()) {
-            return null;
-        }
+        if (ceHookCache == null || !ceHookCache.isAvailable()) return null;
 
-        // CraftEngine furniture detection
-        // This needs to be implemented based on CraftEngine's actual API
-        // For now, we use a placeholder that checks block metadata or nearby entities
-        return getCraftEngineFurnitureIdFromBlock(block, ceHook);
-    }
+        // CraftEngine furniture uses barrier blocks
+        if (block.getType() != Material.BARRIER) return null;
 
-    /**
-     * Gets furniture ID from block using CraftEngine API.
-     * This method should be updated based on actual CraftEngine API.
-     */
-    private String getCraftEngineFurnitureIdFromBlock(Block block, CraftEngineHook ceHook) {
-        // TODO: Implement based on CraftEngine's furniture API
-        // CraftEngine typically uses entities (armor stands/item displays) for furniture
-        // We need to check for nearby entities with custom tags
+        // Search for item display entities
+        Location center = location.clone().add(0.5, 0.5, 0.5);
+        Collection<Entity> nearby = location.getWorld().getNearbyEntities(
+                center, FURNITURE_SEARCH_RADIUS, FURNITURE_SEARCH_RADIUS, FURNITURE_SEARCH_RADIUS,
+                entity -> entity instanceof ItemDisplay
+        );
 
-        // Placeholder implementation - check for barrier blocks (common for CE furniture)
-        if (block.getType() == org.bukkit.Material.BARRIER) {
-            // Look for nearby item display entities that might be CE furniture
-            for (org.bukkit.entity.Entity entity : block.getWorld().getNearbyEntities(
-                    block.getLocation().add(0.5, 0.5, 0.5), 1.0, 1.0, 1.0)) {
-                if (entity instanceof org.bukkit.entity.ItemDisplay) {
-                    // Check entity custom name or persistent data for CE furniture ID
-                    // This is a simplified check - actual implementation depends on CE version
-                    String customName = entity.getCustomName();
-                    if (customName != null && customName.startsWith("ce:")) {
-                        return customName.substring(3);
+        for (Entity entity : nearby) {
+            String customName = entity.getCustomName();
+            if (customName != null && customName.startsWith("ce:")) {
+                return customName.substring(3);
+            }
+
+            // Try to get ID from entity's item
+            if (entity instanceof ItemDisplay itemDisplay) {
+                ItemStack displayItem = itemDisplay.getItemStack();
+                if (displayItem != null) {
+                    String ceId = ceHookCache.getItemId(displayItem);
+                    if (ceId != null) {
+                        return ceId;
                     }
                 }
             }
@@ -198,19 +186,14 @@ public class BlockInteractListener implements Listener {
         return null;
     }
 
-    /**
-     * Gets the furnace type that corresponds to a CraftEngine furniture ID.
-     */
     private FurnaceType getFurnaceTypeForFurniture(String furnitureId) {
-        if (furnitureId == null || furnitureId.isEmpty()) {
-            return null;
-        }
+        if (furnitureId == null || furnitureId.isEmpty()) return null;
 
         FurnaceConfig furnaceConfig = configManager.getFurnaceConfig();
 
-        // Check all furnace types for matching item_id
         for (FurnaceType type : furnaceConfig.getFurnaceTypes().values()) {
-            if (furnitureId.equalsIgnoreCase(type.getItemId())) {
+            String typeItemId = type.getItemId();
+            if (typeItemId != null && furnitureId.equalsIgnoreCase(typeItemId)) {
                 return type;
             }
         }

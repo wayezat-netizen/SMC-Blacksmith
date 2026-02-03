@@ -3,102 +3,154 @@ package com.simmc.blacksmith.integration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Hook for SMCCore plugin integration.
- * Uses reflection to access the ItemManager API.
- */
 public class SMCCoreHook {
 
     private final JavaPlugin plugin;
     private final boolean available;
+    private boolean initialized;
 
+    // Cached reflection objects
     private Object itemManagerInstance;
     private Method getItemMethod;
-    private Method getIdMethod;
+    private Method getItemIdMethod;
+    private Method matchesMethod;
+    private boolean isStaticGetItem;
+    private boolean isStaticGetId;
+
+    // Item ID cache
+    private final Map<Integer, String> itemIdCache;
+    private static final int MAX_CACHE_SIZE = 500;
 
     public SMCCoreHook(JavaPlugin plugin) {
         this.plugin = plugin;
         this.available = plugin.getServer().getPluginManager().getPlugin("SMCCore") != null;
+        this.itemIdCache = new ConcurrentHashMap<>();
+        this.initialized = false;
+    }
 
-        if (available) {
-            initializeAPI();
-        }
+    private void ensureInitialized() {
+        if (initialized || !available) return;
+        initialized = true;
+        initializeAPI();
     }
 
     private void initializeAPI() {
-        try {
-            Class<?> itemManagerClass = Class.forName("com.execsuroot.smccore.item.ItemManager");
+        String[] apiClasses = {
+                "com.simmc.core.api.SMCCoreAPI",
+                "com.simmc.core.SMCCore",
+                "com.simmc.core.item.ItemManager"
+        };
 
-            Field itemManagerField = itemManagerClass.getDeclaredField("itemManager");
-            itemManagerField.setAccessible(true);
-            itemManagerInstance = itemManagerField.get(null);
+        for (String className : apiClasses) {
+            try {
+                Class<?> apiClass = Class.forName(className);
 
-            if (itemManagerInstance == null) {
-                plugin.getLogger().warning("SMCCore ItemManager instance is null");
-                return;
+                // Try to get instance
+                try {
+                    Method getInstance = apiClass.getMethod("getInstance");
+                    itemManagerInstance = getInstance.invoke(null);
+                } catch (NoSuchMethodException e) {
+                    // Try static methods
+                }
+
+                findMethods(apiClass);
+
+                if (getItemMethod != null || getItemIdMethod != null) {
+                    plugin.getLogger().info("SMCCore hooked via " + className);
+                    return;
+                }
+            } catch (ClassNotFoundException ignored) {}
+            catch (Exception e) {
+                plugin.getLogger().warning("Failed to hook SMCCore via " + className + ": " + e.getMessage());
             }
+        }
 
-            Class<?> instanceClass = itemManagerInstance.getClass();
+        plugin.getLogger().info("SMCCore API initialized - getItem: " +
+                (getItemMethod != null) + ", getItemId: " + (getItemIdMethod != null));
+    }
 
-            // Find getItem method (String -> ItemStack)
-            for (Method method : instanceClass.getMethods()) {
-                String name = method.getName();
-                Class<?>[] params = method.getParameterTypes();
+    private void findMethods(Class<?> clazz) {
+        for (Method method : clazz.getMethods()) {
+            String name = method.getName().toLowerCase();
+            Class<?>[] params = method.getParameterTypes();
+            Class<?> returnType = method.getReturnType();
 
-                if (params.length == 1 && params[0] == String.class) {
-                    if (name.toLowerCase().contains("item") || name.equals("get")) {
-                        if (method.getReturnType() != void.class) {
-                            getItemMethod = method;
-                            break;
-                        }
+            // Find getItem(String id) or getItem(String id, int amount)
+            if (getItemMethod == null) {
+                if ((name.equals("getitem") || name.equals("builditem") || name.equals("createitem"))) {
+                    if (params.length >= 1 && params[0] == String.class &&
+                            ItemStack.class.isAssignableFrom(returnType)) {
+                        getItemMethod = method;
+                        isStaticGetItem = Modifier.isStatic(method.getModifiers());
                     }
                 }
             }
 
-            // Find getId method (ItemStack -> String)
-            for (Method method : instanceClass.getMethods()) {
-                Class<?>[] params = method.getParameterTypes();
-
-                if (params.length == 1 && ItemStack.class.isAssignableFrom(params[0])) {
-                    if (method.getReturnType() == String.class) {
-                        getIdMethod = method;
-                        break;
+            // Find getItemId(ItemStack) or getId(ItemStack)
+            if (getItemIdMethod == null) {
+                if ((name.equals("getitemid") || name.equals("getid") || name.equals("getcustomid"))) {
+                    if (params.length == 1 && ItemStack.class.isAssignableFrom(params[0]) &&
+                            returnType == String.class) {
+                        getItemIdMethod = method;
+                        isStaticGetId = Modifier.isStatic(method.getModifiers());
                     }
                 }
             }
 
-            if (getItemMethod != null && getIdMethod != null) {
-                plugin.getLogger().info("SMCCore API initialized successfully");
-            } else {
-                plugin.getLogger().warning("SMCCore API partially initialized - some methods not found");
+            // Find matches method
+            if (matchesMethod == null && name.equals("matches")) {
+                if (params.length == 2 &&
+                        ItemStack.class.isAssignableFrom(params[0]) &&
+                        params[1] == String.class &&
+                        returnType == boolean.class) {
+                    matchesMethod = method;
+                }
             }
-
-        } catch (ClassNotFoundException e) {
-            plugin.getLogger().warning("SMCCore ItemManager class not found");
-        } catch (NoSuchFieldException e) {
-            plugin.getLogger().warning("SMCCore itemManager field not found");
-        } catch (Exception e) {
-            plugin.getLogger().warning("Failed to initialize SMCCore API: " + e.getMessage());
         }
     }
 
     public boolean isAvailable() {
-        return available && itemManagerInstance != null;
+        ensureInitialized();
+        return available && (getItemMethod != null || getItemIdMethod != null);
     }
 
     public ItemStack getItem(String id, int amount) {
-        if (!isAvailable() || id == null || id.isEmpty() || getItemMethod == null) {
+        ensureInitialized();
+
+        if (!available || id == null || id.isEmpty() || getItemMethod == null) {
             return null;
         }
 
         try {
-            Object result = getItemMethod.invoke(itemManagerInstance, id);
+            Object result;
+            Class<?>[] params = getItemMethod.getParameterTypes();
+
+            if (isStaticGetItem) {
+                if (params.length >= 2 && params[1] == int.class) {
+                    result = getItemMethod.invoke(null, id, amount);
+                } else {
+                    result = getItemMethod.invoke(null, id);
+                }
+            } else if (itemManagerInstance != null) {
+                if (params.length >= 2 && params[1] == int.class) {
+                    result = getItemMethod.invoke(itemManagerInstance, id, amount);
+                } else {
+                    result = getItemMethod.invoke(itemManagerInstance, id);
+                }
+            } else {
+                return null;
+            }
+
             if (result instanceof ItemStack item) {
                 ItemStack clone = item.clone();
-                clone.setAmount(Math.max(1, amount));
+                if (params.length < 2) {
+                    clone.setAmount(Math.max(1, amount));
+                }
                 return clone;
             }
         } catch (Exception e) {
@@ -109,27 +161,75 @@ public class SMCCoreHook {
     }
 
     public String getItemId(ItemStack item) {
-        if (!isAvailable() || item == null || getIdMethod == null) {
+        ensureInitialized();
+
+        if (!available || item == null || getItemIdMethod == null) {
             return null;
         }
 
-        try {
-            Object result = getIdMethod.invoke(itemManagerInstance, item);
-            if (result instanceof String str) {
-                return str;
-            }
-        } catch (Exception e) {
-            // Silently fail - item might not be an SMC item
+        // Check cache
+        int hashCode = System.identityHashCode(item);
+        String cached = itemIdCache.get(hashCode);
+        if (cached != null) {
+            return cached.isEmpty() ? null : cached;
         }
 
-        return null;
+        try {
+            Object result;
+            if (isStaticGetId) {
+                result = getItemIdMethod.invoke(null, item);
+            } else if (itemManagerInstance != null) {
+                result = getItemIdMethod.invoke(itemManagerInstance, item);
+            } else {
+                return null;
+            }
+
+            String id = result instanceof String ? (String) result : null;
+
+            // Cache result
+            if (itemIdCache.size() < MAX_CACHE_SIZE) {
+                itemIdCache.put(hashCode, id != null ? id : "");
+            }
+
+            return id;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public boolean matches(ItemStack item, String id) {
-        if (!isAvailable() || item == null || id == null || id.isEmpty()) {
+        if (!available || item == null || id == null) {
             return false;
         }
+
+        // Try native matches method first
+        if (matchesMethod != null) {
+            try {
+                Object result;
+                if (Modifier.isStatic(matchesMethod.getModifiers())) {
+                    result = matchesMethod.invoke(null, item, id);
+                } else if (itemManagerInstance != null) {
+                    result = matchesMethod.invoke(itemManagerInstance, item, id);
+                } else {
+                    result = null;
+                }
+
+                if (result instanceof Boolean) {
+                    return (Boolean) result;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Fallback to ID comparison
         String itemId = getItemId(item);
-        return itemId != null && id.equalsIgnoreCase(itemId);
+        return itemId != null && itemId.equalsIgnoreCase(id);
+    }
+
+    public boolean isSMCCoreItem(ItemStack item) {
+        return getItemId(item) != null;
+    }
+
+    public void clearCache() {
+        itemIdCache.clear();
     }
 }

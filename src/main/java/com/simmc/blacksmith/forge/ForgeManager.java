@@ -16,7 +16,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,6 +32,9 @@ public class ForgeManager {
     private final Map<UUID, ForgeSession> sessions;
     private final Map<UUID, ForgeDisplay> displays;
     private BukkitTask tickTask;
+
+    // Cached list for iteration to avoid ConcurrentModificationException
+    private final List<UUID> tickIterationList = new ArrayList<>();
 
     public ForgeManager(JavaPlugin plugin, ConfigManager configManager, ItemProviderRegistry itemRegistry) {
         this.plugin = plugin;
@@ -45,22 +50,34 @@ public class ForgeManager {
     }
 
     private void tick() {
-        for (UUID playerId : sessions.keySet()) {
-            ForgeSession session = sessions.get(playerId);
-            ForgeDisplay display = displays.get(playerId);
+        if (sessions.isEmpty()) return;
 
-            if (session == null || !session.isActive()) continue;
+        // Copy keys to avoid CME
+        tickIterationList.clear();
+        tickIterationList.addAll(sessions.keySet());
+
+        for (UUID playerId : tickIterationList) {
+            ForgeSession session = sessions.get(playerId);
+            if (session == null) continue;
+
+            if (!session.isActive()) {
+                cleanup(playerId);
+                continue;
+            }
 
             session.tick();
 
+            ForgeDisplay display = displays.get(playerId);
             if (display != null && display.isValid()) {
                 display.tick(session);
             }
 
             if (session.isComplete()) {
                 Player player = Bukkit.getPlayer(playerId);
-                if (player != null) {
+                if (player != null && player.isOnline()) {
                     completeSession(player);
+                } else {
+                    cleanup(playerId);
                 }
             }
         }
@@ -152,10 +169,8 @@ public class ForgeManager {
         ItemStack resultItem = null;
 
         if (recipe.usesBaseItem()) {
-            // Single item mode - get base item
             resultItem = itemRegistry.getItem(recipe.getBaseItemType(), recipe.getBaseItemId(), 1);
         } else {
-            // Multi-item mode - get star-specific result
             ForgeResult result = recipe.getResult(stars);
             if (result != null) {
                 resultItem = itemRegistry.getItem(result.type(), result.id(), result.amount());
@@ -179,11 +194,12 @@ public class ForgeManager {
             }
         }
 
+        // Delayed cleanup
         Bukkit.getScheduler().runTaskLater(plugin, () -> cleanup(playerId), 40L);
     }
 
     private void giveItem(Player player, ItemStack item) {
-        var overflow = player.getInventory().addItem(item);
+        Map<Integer, ItemStack> overflow = player.getInventory().addItem(item);
         for (ItemStack leftover : overflow.values()) {
             player.getWorld().dropItemNaturally(player.getLocation(), leftover);
         }
@@ -218,7 +234,7 @@ public class ForgeManager {
         if (session == null) return;
 
         Player player = Bukkit.getPlayer(playerId);
-        if (player != null) {
+        if (player != null && player.isOnline()) {
             refundMaterials(player, session.getRecipe());
             player.sendMessage(configManager.getMessageConfig().getForgeRefunded());
             player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 0.5f, 1.0f);
@@ -258,18 +274,20 @@ public class ForgeManager {
         String id = recipe.getInputId();
         int required = recipe.getInputAmount();
 
+        // First pass: count available
         int found = 0;
-        for (ItemStack item : player.getInventory().getContents()) {
+        ItemStack[] contents = player.getInventory().getContents();
+        for (ItemStack item : contents) {
             if (item != null && itemRegistry.matches(item, type, id)) {
                 found += item.getAmount();
+                if (found >= required) break;
             }
         }
 
         if (found < required) return false;
 
+        // Second pass: consume
         int remaining = required;
-        ItemStack[] contents = player.getInventory().getContents();
-
         for (int i = 0; i < contents.length && remaining > 0; i++) {
             ItemStack item = contents[i];
             if (item == null) continue;
@@ -278,10 +296,11 @@ public class ForgeManager {
                 int take = Math.min(remaining, item.getAmount());
                 remaining -= take;
 
-                if (item.getAmount() - take <= 0) {
+                int newAmount = item.getAmount() - take;
+                if (newAmount <= 0) {
                     player.getInventory().setItem(i, null);
                 } else {
-                    item.setAmount(item.getAmount() - take);
+                    item.setAmount(newAmount);
                 }
             }
         }
@@ -295,21 +314,24 @@ public class ForgeManager {
         ItemStack refund = itemRegistry.getItem(recipe.getInputType(), recipe.getInputId(), recipe.getInputAmount());
         if (refund == null) return;
 
-        HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(refund);
+        Map<Integer, ItemStack> overflow = player.getInventory().addItem(refund);
         for (ItemStack leftover : overflow.values()) {
             player.getWorld().dropItemNaturally(player.getLocation(), leftover);
         }
     }
 
     public void cancelAllSessions() {
-        for (UUID playerId : new HashMap<>(sessions).keySet()) {
+        // Create copy to avoid CME
+        List<UUID> playerIds = new ArrayList<>(sessions.keySet());
+        for (UUID playerId : playerIds) {
             cancelSession(playerId);
         }
     }
 
     public void shutdown() {
-        if (tickTask != null) {
+        if (tickTask != null && !tickTask.isCancelled()) {
             tickTask.cancel();
+            tickTask = null;
         }
         cancelAllSessions();
     }
