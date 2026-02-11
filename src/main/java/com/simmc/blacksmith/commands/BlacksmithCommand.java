@@ -22,9 +22,14 @@ import java.util.stream.Collectors;
 
 /**
  * Main command handler for SMCBlacksmith.
- * Provides commands for furnace management, forging, configuration, and debugging.
  */
 public class BlacksmithCommand implements CommandExecutor, TabCompleter {
+
+    private static final List<String> MAIN_COMMANDS = List.of("reload", "furnace", "forge", "list", "info");
+    private static final List<String> ADMIN_COMMANDS = List.of("debug", "stats");
+    private static final List<String> FURNACE_ACTIONS = List.of("create", "open", "remove");
+    private static final List<String> LIST_TYPES = List.of("furnaces", "recipes", "active");
+    private static final List<String> DEBUG_TYPES = List.of("furnace", "session", "hooks", "config");
 
     private final SMCBlacksmith plugin;
 
@@ -39,9 +44,7 @@ public class BlacksmithCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        String subCommand = args[0].toLowerCase();
-
-        switch (subCommand) {
+        switch (args[0].toLowerCase()) {
             case "reload" -> handleReload(sender);
             case "furnace" -> handleFurnace(sender, args);
             case "forge" -> handleForge(sender, args);
@@ -55,127 +58,118 @@ public class BlacksmithCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    // ==================== HELP ====================
+
     private void sendHelp(CommandSender sender) {
         sender.sendMessage("§6§lSMCBlacksmith Commands:");
-        sender.sendMessage("§e/blacksmith reload §7- Reload configuration");
-        sender.sendMessage("§e/blacksmith furnace create <type> §7- Create furnace at location");
-        sender.sendMessage("§e/blacksmith furnace open §7- Open furnace GUI");
-        sender.sendMessage("§e/blacksmith forge <recipe> §7- Start forging session");
-        sender.sendMessage("§e/blacksmith list furnaces §7- List furnace types");
-        sender.sendMessage("§e/blacksmith list recipes §7- List forge recipes");
-        sender.sendMessage("§e/blacksmith info §7- Show plugin info");
+        sender.sendMessage("§e/bs reload §7- Reload configuration");
+        sender.sendMessage("§e/bs furnace create <type> §7- Create furnace");
+        sender.sendMessage("§e/bs furnace open §7- Open furnace GUI");
+        sender.sendMessage("§e/bs forge [recipe] §7- Start forging");
+        sender.sendMessage("§e/bs list <furnaces|recipes> §7- List items");
+        sender.sendMessage("§e/bs info §7- Show plugin info");
 
         if (sender.hasPermission("blacksmith.admin")) {
-            sender.sendMessage("§c§lAdmin Commands:");
-            sender.sendMessage("§e/blacksmith debug §7- Toggle debug mode");
-            sender.sendMessage("§e/blacksmith debug furnace §7- Debug furnace at location");
-            sender.sendMessage("§e/blacksmith debug session §7- Debug active forge session");
-            sender.sendMessage("§e/blacksmith stats §7- Show performance statistics");
+            sender.sendMessage("§c§lAdmin:");
+            sender.sendMessage("§e/bs debug <type> §7- Debug info");
+            sender.sendMessage("§e/bs stats §7- Performance stats");
         }
     }
+
+    // ==================== RELOAD ====================
 
     private void handleReload(CommandSender sender) {
-        if (!sender.hasPermission("blacksmith.admin")) {
-            sender.sendMessage("§cYou don't have permission to do this.");
-            return;
-        }
+        if (!checkPermission(sender, "blacksmith.admin")) return;
 
         plugin.reload();
-        sender.sendMessage("§aConfiguration reloaded successfully.");
+        sender.sendMessage("§aConfiguration reloaded.");
     }
+
+    // ==================== FURNACE ====================
 
     private void handleFurnace(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cThis command can only be used by players.");
+            sender.sendMessage("§cPlayers only.");
             return;
         }
 
         if (args.length < 2) {
-            sender.sendMessage("§cUsage: /blacksmith furnace <create|open|remove> [type]");
+            sender.sendMessage("§cUsage: /bs furnace <create|open|remove> [type]");
             return;
         }
 
-        String action = args[1].toLowerCase();
-
-        switch (action) {
-            case "create" -> {
-                if (args.length < 3) {
-                    sender.sendMessage("§cUsage: /blacksmith furnace create <type>");
-                    return;
-                }
-
-                if (!player.hasPermission("blacksmith.furnace.create")) {
-                    sender.sendMessage("§cYou don't have permission to do this.");
-                    return;
-                }
-
-                String typeId = args[2];
-                FurnaceType type = plugin.getConfigManager().getFurnaceConfig().getFurnaceType(typeId);
-
-                if (type == null) {
-                    sender.sendMessage("§cUnknown furnace type: " + typeId);
-                    return;
-                }
-
-                Block targetBlock = player.getTargetBlockExact(5);
-                if (targetBlock == null) {
-                    sender.sendMessage("§cLook at a block to create furnace.");
-                    return;
-                }
-
-                Location loc = targetBlock.getLocation();
-                FurnaceInstance instance = plugin.getFurnaceManager().createFurnace(typeId, loc);
-
-                if (instance != null) {
-                    sender.sendMessage("§aCreated " + typeId + " furnace at target block.");
-                } else {
-                    sender.sendMessage("§cFailed to create furnace.");
-                }
-            }
-
-            case "open" -> {
-                Block targetBlock = player.getTargetBlockExact(5);
-                if (targetBlock == null) {
-                    sender.sendMessage("§cLook at a block.");
-                    return;
-                }
-
-                Location loc = targetBlock.getLocation();
-
-                if (!plugin.getFurnaceManager().isFurnace(loc)) {
-                    sender.sendMessage("§cNo furnace found at this location.");
-                    return;
-                }
-
-                plugin.getFurnaceManager().openFurnaceGUI(player, loc);
-            }
-
-            case "remove" -> {
-                if (!player.hasPermission("blacksmith.admin")) {
-                    sender.sendMessage("§cYou don't have permission to do this.");
-                    return;
-                }
-
-                Block targetBlock = player.getTargetBlockExact(5);
-                if (targetBlock == null) {
-                    sender.sendMessage("§cLook at a block.");
-                    return;
-                }
-
-                Location loc = targetBlock.getLocation();
-
-                if (!plugin.getFurnaceManager().isFurnace(loc)) {
-                    sender.sendMessage("§cNo furnace found at this location.");
-                    return;
-                }
-
-                plugin.getFurnaceManager().removeFurnace(loc);
-                sender.sendMessage("§aFurnace removed.");
-            }
-
-            default -> sender.sendMessage("§cUnknown action: " + action);
+        switch (args[1].toLowerCase()) {
+            case "create" -> handleFurnaceCreate(player, args);
+            case "open" -> handleFurnaceOpen(player);
+            case "remove" -> handleFurnaceRemove(player);
+            default -> sender.sendMessage("§cUnknown action: " + args[1]);
         }
     }
+
+    private void handleFurnaceCreate(Player player, String[] args) {
+        if (!checkPermission(player, "blacksmith.furnace.create")) return;
+
+        if (args.length < 3) {
+            player.sendMessage("§cUsage: /bs furnace create <type>");
+            return;
+        }
+
+        String typeId = args[2];
+        Optional<FurnaceType> typeOpt = plugin.getConfigManager().getFurnaceConfig().getFurnaceType(typeId);
+
+        if (typeOpt.isEmpty()) {
+            player.sendMessage("§cUnknown furnace type: " + typeId);
+            return;
+        }
+
+        Block targetBlock = player.getTargetBlockExact(5);
+        if (targetBlock == null) {
+            player.sendMessage("§cLook at a block to create furnace.");
+            return;
+        }
+
+        FurnaceInstance instance = plugin.getFurnaceManager().createFurnace(typeId, targetBlock.getLocation());
+        player.sendMessage(instance != null
+                ? "§aCreated " + typeId + " furnace."
+                : "§cFailed to create furnace.");
+    }
+
+    private void handleFurnaceOpen(Player player) {
+        Block targetBlock = player.getTargetBlockExact(5);
+        if (targetBlock == null) {
+            player.sendMessage("§cLook at a block.");
+            return;
+        }
+
+        Location loc = targetBlock.getLocation();
+        if (!plugin.getFurnaceManager().isFurnace(loc)) {
+            player.sendMessage("§cNo furnace at this location.");
+            return;
+        }
+
+        plugin.getFurnaceManager().openFurnaceGUI(player, loc);
+    }
+
+    private void handleFurnaceRemove(Player player) {
+        if (!checkPermission(player, "blacksmith.admin")) return;
+
+        Block targetBlock = player.getTargetBlockExact(5);
+        if (targetBlock == null) {
+            player.sendMessage("§cLook at a block.");
+            return;
+        }
+
+        Location loc = targetBlock.getLocation();
+        if (!plugin.getFurnaceManager().isFurnace(loc)) {
+            player.sendMessage("§cNo furnace at this location.");
+            return;
+        }
+
+        plugin.getFurnaceManager().removeFurnace(loc);
+        player.sendMessage("§aFurnace removed.");
+    }
+
+    // ==================== FORGE ====================
 
     private void handleForge(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
@@ -183,123 +177,103 @@ public class BlacksmithCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        // No args = open category GUI
         if (args.length < 2) {
             openCategoryGUI(player);
             return;
         }
 
-        String recipeId = args[1];
-        plugin.getForgeManager().startSession(player, recipeId, player.getLocation());
+        plugin.getForgeManager().startSession(player, args[1], player.getLocation());
     }
 
     private void openCategoryGUI(Player player) {
-        BlacksmithConfig config = plugin.getConfigManager().getBlacksmithConfig();
-        Map<String, ForgeCategory> categories = config.getCategories();
-        ForgeCategoryGUI gui = new ForgeCategoryGUI(categories);
-        gui.open(player);
+        Map<String, ForgeCategory> categories = plugin.getConfigManager().getBlacksmithConfig().getCategories();
+        new ForgeCategoryGUI(categories).open(player);
     }
+
+    // ==================== LIST ====================
 
     private void handleList(CommandSender sender, String[] args) {
         if (args.length < 2) {
-            sender.sendMessage("§cUsage: /blacksmith list <furnaces|recipes|active>");
+            sender.sendMessage("§cUsage: /bs list <furnaces|recipes|active>");
             return;
         }
 
-        String listType = args[1].toLowerCase();
-
-        switch (listType) {
-            case "furnaces" -> {
-                Map<String, FurnaceType> types = plugin.getConfigManager().getFurnaceConfig().getFurnaceTypes();
-                sender.sendMessage("§6§lFurnace Types (" + types.size() + "):");
-                for (FurnaceType type : types.values()) {
-                    sender.sendMessage("§e- " + type.getId() + " §7(Max Temp: " + type.getMaxTemperature() +
-                            "°C, Ideal: " + type.getMinIdealTemperature() + "-" + type.getMaxIdealTemperature() +
-                            "°C, Recipes: " + type.getRecipeCount() + ")");
-                }
-            }
-
-            case "recipes" -> {
-                BlacksmithConfig config = plugin.getConfigManager().getBlacksmithConfig();
-                Map<String, ForgeRecipe> recipes = config.getRecipes();
-                sender.sendMessage("§6§lForge Recipes (" + recipes.size() + "):");
-                for (ForgeRecipe recipe : recipes.values()) {
-                    String perm = recipe.hasPermission() ? recipe.getPermission() : "none";
-                    String cond = recipe.hasCondition() ? "yes" : "no";
-                    String thresholds = recipe.hasStarThresholds() ? "custom" : "default";
-                    sender.sendMessage("§e- " + recipe.getId() +
-                            " §7(Hits: " + recipe.getHits() +
-                            ", Perm: " + perm +
-                            ", Condition: " + cond +
-                            ", Thresholds: " + thresholds + ")");
-                }
-            }
-
-            case "active" -> {
-                if (!sender.hasPermission("blacksmith.admin")) {
-                    sender.sendMessage("§cYou don't have permission to do this.");
-                    return;
-                }
-
-                int furnaceCount = plugin.getFurnaceManager().getFurnaceCount();
-                int forgeCount = plugin.getForgeManager().getActiveSessionCount();
-                int guiCount = plugin.getFurnaceManager().getOpenGUICount();
-
-                sender.sendMessage("§6§lActive Sessions:");
-                sender.sendMessage("§e- Active Furnaces: §f" + furnaceCount);
-                sender.sendMessage("§e- Open Furnace GUIs: §f" + guiCount);
-                sender.sendMessage("§e- Active Forge Sessions: §f" + forgeCount);
-            }
-
-            default -> sender.sendMessage("§cUnknown list type: " + listType);
+        switch (args[1].toLowerCase()) {
+            case "furnaces" -> listFurnaces(sender);
+            case "recipes" -> listRecipes(sender);
+            case "active" -> listActive(sender);
+            default -> sender.sendMessage("§cUnknown list type: " + args[1]);
         }
     }
+
+    private void listFurnaces(CommandSender sender) {
+        Map<String, FurnaceType> types = plugin.getConfigManager().getFurnaceConfig().getFurnaceTypes();
+        sender.sendMessage("§6§lFurnace Types (" + types.size() + "):");
+
+        types.values().forEach(type -> sender.sendMessage(String.format(
+                "§e- %s §7(Max: %d°C, Ideal: %d-%d°C, Recipes: %d)",
+                type.getId(), type.getMaxTemperature(),
+                type.getMinIdealTemperature(), type.getMaxIdealTemperature(),
+                type.getRecipeCount()
+        )));
+    }
+
+    private void listRecipes(CommandSender sender) {
+        Map<String, ForgeRecipe> recipes = plugin.getConfigManager().getBlacksmithConfig().getRecipes();
+        sender.sendMessage("§6§lForge Recipes (" + recipes.size() + "):");
+
+        recipes.values().forEach(recipe -> sender.sendMessage(String.format(
+                "§e- %s §7(Hits: %d, Perm: %s)",
+                recipe.getId(), recipe.getHits(),
+                recipe.hasPermission() ? recipe.getPermission() : "none"
+        )));
+    }
+
+    private void listActive(CommandSender sender) {
+        if (!checkPermission(sender, "blacksmith.admin")) return;
+
+        sender.sendMessage("§6§lActive Sessions:");
+        sender.sendMessage("§e- Furnaces: §f" + plugin.getFurnaceManager().getFurnaceCount());
+        sender.sendMessage("§e- Open GUIs: §f" + plugin.getFurnaceManager().getOpenGUICount());
+        sender.sendMessage("§e- Forge Sessions: §f" + plugin.getForgeManager().getActiveSessionCount());
+    }
+
+    // ==================== INFO ====================
 
     private void handleInfo(CommandSender sender) {
-        sender.sendMessage("§6§lSMCBlacksmith Info:");
-        sender.sendMessage("§7Version: §f" + plugin.getDescription().getVersion());
+        sender.sendMessage("§6§lSMCBlacksmith v" + plugin.getDescription().getVersion());
         sender.sendMessage("§7Furnaces: §f" + plugin.getFurnaceManager().getFurnaceCount());
-        sender.sendMessage("§7Active Forge Sessions: §f" + plugin.getForgeManager().getActiveSessionCount());
-        sender.sendMessage("§7");
+        sender.sendMessage("§7Forge Sessions: §f" + plugin.getForgeManager().getActiveSessionCount());
+        sender.sendMessage("");
         sender.sendMessage("§7§lIntegrations:");
-        sender.sendMessage("§7SMCCore: " + (plugin.hasSMCCore() ? "§aEnabled" : "§cDisabled"));
-        sender.sendMessage("§7CraftEngine: " + (plugin.hasCraftEngine() ? "§aEnabled" : "§cDisabled"));
-        sender.sendMessage("§7Nexo: " + (plugin.hasNexo() ? "§aEnabled" : "§cDisabled"));
-        sender.sendMessage("§7PlaceholderAPI: " + (plugin.hasPAPI() ? "§aEnabled" : "§cDisabled"));
+        sender.sendMessage("§7SMCCore: " + formatEnabled(plugin.hasSMCCore()));
+        sender.sendMessage("§7CraftEngine: " + formatEnabled(plugin.hasCraftEngine()));
+        sender.sendMessage("§7Nexo: " + formatEnabled(plugin.hasNexo()));
+        sender.sendMessage("§7PlaceholderAPI: " + formatEnabled(plugin.hasPAPI()));
     }
 
-    /**
-     * Handles debug commands for administrators.
-     */
+    // ==================== DEBUG ====================
+
     private void handleDebug(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("blacksmith.admin")) {
-            sender.sendMessage("§cYou don't have permission to do this.");
-            return;
-        }
+        if (!checkPermission(sender, "blacksmith.admin")) return;
 
         if (args.length < 2) {
-            // Toggle debug mode
-            boolean debug = plugin.getConfigManager().getMainConfig().isDebugMode();
-            sender.sendMessage("§7Debug mode is currently: " + (debug ? "§aENABLED" : "§cDISABLED"));
-            sender.sendMessage("§7Debug subcommands: furnace, session, hooks, config");
+            sender.sendMessage("§7Debug types: furnace, session, hooks, config");
             return;
         }
 
-        String debugType = args[1].toLowerCase();
-
-        switch (debugType) {
+        switch (args[1].toLowerCase()) {
             case "furnace" -> debugFurnace(sender);
             case "session" -> debugSession(sender);
             case "hooks" -> debugHooks(sender);
             case "config" -> debugConfig(sender);
-            case "cache" -> debugCache(sender);
-            default -> sender.sendMessage("§cUnknown debug type: " + debugType);
+            default -> sender.sendMessage("§cUnknown debug type.");
         }
     }
 
     private void debugFurnace(CommandSender sender) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cThis command can only be used by players.");
+            sender.sendMessage("§cPlayers only.");
             return;
         }
 
@@ -309,28 +283,22 @@ public class BlacksmithCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        Location loc = targetBlock.getLocation();
-        FurnaceInstance furnace = plugin.getFurnaceManager().getFurnace(loc);
-
+        FurnaceInstance furnace = plugin.getFurnaceManager().getFurnace(targetBlock.getLocation());
         if (furnace == null) {
-            sender.sendMessage("§cNo furnace found at this location.");
+            sender.sendMessage("§cNo furnace found.");
             return;
         }
 
-        sender.sendMessage("§6§lFurnace Debug Info:");
-        sender.sendMessage("§7ID: §f" + furnace.getId());
-        sender.sendMessage("§7Type: §f" + furnace.getType().getId());
-        sender.sendMessage("§7Location: §f" + formatLocation(loc));
-        sender.sendMessage("§7Temperature: §f" + furnace.getCurrentTemperature() + "°C / " +
-                furnace.getType().getMaxTemperature() + "°C");
-        sender.sendMessage("§7Target Temp: §f" + furnace.getTargetTemperature() + "°C");
-        sender.sendMessage("§7Ideal Range: §f" + furnace.getType().getMinIdealTemperature() + "-" +
-                furnace.getType().getMaxIdealTemperature() + "°C");
+        FurnaceType type = furnace.getType();
+        sender.sendMessage("§6§lFurnace Debug:");
+        sender.sendMessage("§7Type: §f" + type.getId());
+        sender.sendMessage("§7Temp: §f" + furnace.getCurrentTemperature() + "/" + type.getMaxTemperature() + "°C");
+        sender.sendMessage("§7Target: §f" + furnace.getTargetTemperature() + "°C");
+        sender.sendMessage("§7Bellows Boost: §f" + furnace.getBellowsBoost() + "°C");
+        sender.sendMessage("§7Ideal: §f" + type.getMinIdealTemperature() + "-" + type.getMaxIdealTemperature() + "°C");
         sender.sendMessage("§7Burning: §f" + furnace.isBurning());
-        sender.sendMessage("§7Burn Time Left: §f" + furnace.getBurnTimeRemaining() + " ticks");
-        sender.sendMessage("§7Current Recipe: §f" + (furnace.getCurrentRecipe() != null ?
-                furnace.getCurrentRecipe().getId() : "none"));
-        sender.sendMessage("§7Smelt Progress: §f" + String.format("%.1f%%", furnace.getSmeltProgress() * 100));
+        sender.sendMessage("§7Recipe: §f" + (furnace.getCurrentRecipe() != null ? furnace.getCurrentRecipe().getId() : "none"));
+        sender.sendMessage("§7Progress: §f" + formatPercent(furnace.getSmeltProgress()));
     }
 
     private void debugSession(CommandSender sender) {
@@ -339,8 +307,7 @@ public class BlacksmithCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        var session = plugin.getForgeManager().getSession(player.getUniqueId());
-
+        ForgeSession session = plugin.getForgeManager().getSession(player.getUniqueId());
         if (session == null) {
             sender.sendMessage("§cNo active forge session.");
             return;
@@ -349,150 +316,109 @@ public class BlacksmithCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§6§lForge Session Debug:");
         sender.sendMessage("§7Recipe: §f" + session.getRecipe().getId());
         sender.sendMessage("§7Hits: §f" + session.getHitsCompleted() + "/" + session.getTotalHits());
-        sender.sendMessage("§7Perfect Hits: §f" + session.getPerfectHits());
-        sender.sendMessage("§7Missed Points: §f" + session.getMissedPoints());
-        sender.sendMessage("§7Average Accuracy: §f" + String.format("%.1f%%", session.getAverageAccuracy() * 100));
-        sender.sendMessage("§7Current Star Rating: §f" + session.calculateStarRating() + " stars");
-        sender.sendMessage("§7Progress: §f" + String.format("%.1f%%", session.getProgress() * 100));
-        sender.sendMessage("§7Active Points: §f" + session.getActivePoints().size());
-        sender.sendMessage("§7Active: §f" + session.isActive());
-
-        if (session.getRecipe().hasStarThresholds()) {
-            sender.sendMessage("§7§lCustom Thresholds:");
-            for (int i = 5; i >= 0; i--) {
-                var threshold = session.getRecipe().getStarThreshold(i);
-                if (threshold != null) {
-                    sender.sendMessage("§7  " + i + "★: §fHits≥" + threshold.getMinPerfectHits() +
-                            ", Acc≥" + String.format("%.0f%%", threshold.getMinAccuracy() * 100));
-                }
-            }
-        }
+        sender.sendMessage("§7Perfect: §f" + session.getPerfectHits());
+        sender.sendMessage("§7Accuracy: §f" + formatPercent(session.getAverageAccuracy()));
+        sender.sendMessage("§7Star Rating: §f" + session.calculateStarRating() + "★");
     }
 
     private void debugHooks(CommandSender sender) {
-        sender.sendMessage("§6§lIntegration Hooks Debug:");
-        sender.sendMessage("§7PlaceholderAPI: " + (plugin.hasPAPI() ? "§aAvailable" : "§cNot Available"));
-        sender.sendMessage("§7SMCCore: " + (plugin.hasSMCCore() ? "§aAvailable" : "§cNot Available"));
-        sender.sendMessage("§7CraftEngine: " + (plugin.hasCraftEngine() ? "§aAvailable" : "§cNot Available"));
-        sender.sendMessage("§7Nexo: " + (plugin.hasNexo() ? "§aAvailable" : "§cNot Available"));
+        sender.sendMessage("§6§lIntegration Hooks:");
+        sender.sendMessage("§7PlaceholderAPI: " + formatEnabled(plugin.hasPAPI()));
+        sender.sendMessage("§7SMCCore: " + formatEnabled(plugin.hasSMCCore()));
+        sender.sendMessage("§7CraftEngine: " + formatEnabled(plugin.hasCraftEngine()));
+        sender.sendMessage("§7Nexo: " + formatEnabled(plugin.hasNexo()));
         sender.sendMessage("§7Item Providers: §f" + plugin.getItemRegistry().getProviderCount());
     }
 
     private void debugConfig(CommandSender sender) {
-        sender.sendMessage("§6§lConfiguration Debug:");
-        sender.sendMessage("§7Furnace Types: §f" + plugin.getConfigManager().getFurnaceConfig().getFurnaceTypeCount());
-        sender.sendMessage("§7Forge Recipes: §f" + plugin.getConfigManager().getBlacksmithConfig().getRecipeCount());
-        sender.sendMessage("§7Repair Configs: §f" + plugin.getConfigManager().getGrindstoneConfig().getRepairConfigCount());
-        sender.sendMessage("§7Fuel Types: §f" + plugin.getConfigManager().getFuelConfig().getFuelCount());
-        sender.sendMessage("§7Language: §f" + plugin.getConfigManager().getMainConfig().getLanguage());
-        sender.sendMessage("§7Tick Rate: §f" + plugin.getConfigManager().getFurnaceTickRate() + " ticks");
-        sender.sendMessage("§7Bellows Cooldown: §f" + plugin.getConfigManager().getBellowsCooldown() + " ticks");
+        var cm = plugin.getConfigManager();
+        sender.sendMessage("§6§lConfiguration:");
+        sender.sendMessage("§7Furnace Types: §f" + cm.getFurnaceConfig().getFurnaceTypeCount());
+        sender.sendMessage("§7Forge Recipes: §f" + cm.getBlacksmithConfig().getRecipeCount());
+        sender.sendMessage("§7Categories: §f" + cm.getBlacksmithConfig().getCategoryCount());
+        sender.sendMessage("§7Bellows: §f" + cm.getBellowsConfig().getBellowsTypeCount());
+        sender.sendMessage("§7Hammers: §f" + cm.getHammerConfig().getHammerTypeCount());
 
-        if (plugin.getConfigManager().hasConfigErrors()) {
-            sender.sendMessage("§c§lConfiguration has errors! Check console.");
-        }
-        if (plugin.getConfigManager().hasConfigWarnings()) {
-            sender.sendMessage("§e§lConfiguration has warnings. Check console.");
+        if (cm.hasConfigErrors()) {
+            sender.sendMessage("§c§lConfiguration has errors!");
         }
     }
 
-    private void debugCache(CommandSender sender) {
-        FurnaceManager fm = plugin.getFurnaceManager();
-        sender.sendMessage("§6§lCache Debug:");
-        sender.sendMessage("§7Recipe Cache: §f" + fm.getRecipeCache().getStats());
-    }
+    // ==================== STATS ====================
 
-    /**
-     * Handles stats command showing performance metrics.
-     */
     private void handleStats(CommandSender sender) {
-        if (!sender.hasPermission("blacksmith.admin")) {
-            sender.sendMessage("§cNo permission.");
-            return;
-        }
+        if (!checkPermission(sender, "blacksmith.admin")) return;
 
-        sender.sendMessage("§6§l=== SMCBlacksmith Stats ===");
-
-        // Memory
         Runtime rt = Runtime.getRuntime();
         long usedMB = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
         long maxMB = rt.maxMemory() / 1024 / 1024;
-        sender.sendMessage("§7Memory: §f" + usedMB + "MB / " + maxMB + "MB");
 
-        // Furnace
-        FurnaceManager fm = plugin.getFurnaceManager();
-        sender.sendMessage("§e§lFurnace:");
-        sender.sendMessage("§7  Active: §f" + fm.getFurnaceCount());
-        sender.sendMessage("§7  Temp Bars: §f" + fm.getTemperatureBarCount());
-        sender.sendMessage("§7  Open GUIs: §f" + fm.getOpenGUICount());
-        sender.sendMessage("§7  Async: §f" + fm.isAsyncEnabled());
-
-        var cache = fm.getRecipeCache();
-        if (cache != null) {
-            sender.sendMessage("§7  Cache: §f" + cache.getStats());
-        }
-
-        // Forge
-        sender.sendMessage("§e§lForge:");
-        sender.sendMessage("§7  Sessions: §f" + plugin.getForgeManager().getActiveSessionCount());
-
-        // Quenching
-        sender.sendMessage("§e§lQuenching:");
-        sender.sendMessage("§7  Sessions: §f" + plugin.getQuenchingManager().getActiveSessionCount());
-
-        // Hooks
-        sender.sendMessage("§e§lHooks:");
-        sender.sendMessage("§7  PAPI: §f" + plugin.hasPAPI());
-        sender.sendMessage("§7  SMCCore: §f" + plugin.hasSMCCore());
-        sender.sendMessage("§7  CraftEngine: §f" + plugin.hasCraftEngine());
-        sender.sendMessage("§7  Nexo: §f" + plugin.hasNexo());
-
-        sender.sendMessage("§6§l===========================");
+        sender.sendMessage("§6§l=== SMCBlacksmith Stats ===");
+        sender.sendMessage("§7Memory: §f" + usedMB + "/" + maxMB + "MB");
+        sender.sendMessage("§7Furnaces: §f" + plugin.getFurnaceManager().getFurnaceCount());
+        sender.sendMessage("§7Forge Sessions: §f" + plugin.getForgeManager().getActiveSessionCount());
+        sender.sendMessage("§7Quench Sessions: §f" + plugin.getQuenchingManager().getActiveSessionCount());
     }
+
+    // ==================== TAB COMPLETION ====================
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
-            completions.addAll(Arrays.asList("reload", "furnace", "forge", "list", "info"));
+            completions.addAll(MAIN_COMMANDS);
             if (sender.hasPermission("blacksmith.admin")) {
-                completions.addAll(Arrays.asList("debug", "stats"));
+                completions.addAll(ADMIN_COMMANDS);
             }
         } else if (args.length == 2) {
-            String sub = args[0].toLowerCase();
-            switch (sub) {
-                case "furnace" -> completions.addAll(Arrays.asList("create", "open", "remove"));
-                case "forge" -> {
-                    Map<String, ForgeRecipe> recipes = plugin.getConfigManager().getBlacksmithConfig().getRecipes();
-                    completions.addAll(recipes.keySet());
-                }
-                case "list" -> completions.addAll(Arrays.asList("furnaces", "recipes", "active"));
-                case "debug" -> {
-                    if (sender.hasPermission("blacksmith.admin")) {
-                        completions.addAll(Arrays.asList("furnace", "session", "hooks", "config", "cache"));
-                    }
-                }
-            }
+            completions.addAll(getSecondArgCompletions(sender, args[0]));
         } else if (args.length == 3) {
-            if (args[0].equalsIgnoreCase("furnace") && args[1].equalsIgnoreCase("create")) {
-                Map<String, FurnaceType> types = plugin.getConfigManager().getFurnaceConfig().getFurnaceTypes();
-                completions.addAll(types.keySet());
-            }
+            completions.addAll(getThirdArgCompletions(args));
         }
 
-        String lastArg = args[args.length - 1].toLowerCase();
-        return completions.stream()
-                .filter(s -> s.toLowerCase().startsWith(lastArg))
+        return filterStartsWith(completions, args[args.length - 1]);
+    }
+
+    private List<String> getSecondArgCompletions(CommandSender sender, String firstArg) {
+        return switch (firstArg.toLowerCase()) {
+            case "furnace" -> new ArrayList<>(FURNACE_ACTIONS);
+            case "forge" -> new ArrayList<>(plugin.getConfigManager().getBlacksmithConfig().getRecipeIds());
+            case "list" -> new ArrayList<>(LIST_TYPES);
+            case "debug" -> sender.hasPermission("blacksmith.admin") ? new ArrayList<>(DEBUG_TYPES) : List.of();
+            default -> List.of();
+        };
+    }
+
+    private List<String> getThirdArgCompletions(String[] args) {
+        if (args[0].equalsIgnoreCase("furnace") && args[1].equalsIgnoreCase("create")) {
+            return new ArrayList<>(plugin.getConfigManager().getFurnaceConfig().getTypeIds());
+        }
+        return List.of();
+    }
+
+    private List<String> filterStartsWith(List<String> options, String prefix) {
+        String lowerPrefix = prefix.toLowerCase();
+        return options.stream()
+                .filter(s -> s.toLowerCase().startsWith(lowerPrefix))
                 .collect(Collectors.toList());
     }
 
-    private String formatLocation(Location loc) {
-        if (loc == null) return "null";
-        return String.format("%s: %d, %d, %d",
-                loc.getWorld() != null ? loc.getWorld().getName() : "unknown",
-                loc.getBlockX(),
-                loc.getBlockY(),
-                loc.getBlockZ());
+    // ==================== UTILITIES ====================
+
+    private boolean checkPermission(CommandSender sender, String permission) {
+        if (!sender.hasPermission(permission)) {
+            sender.sendMessage("§cNo permission.");
+            return false;
+        }
+        return true;
+    }
+
+    private String formatEnabled(boolean enabled) {
+        return enabled ? "§aEnabled" : "§cDisabled";
+    }
+
+    private String formatPercent(double value) {
+        return String.format("%.1f%%", value * 100);
     }
 }

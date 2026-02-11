@@ -6,9 +6,10 @@ description: Complete blacksmithing system with furnaces, forging minigame, and 
 authors:
   - SimMC
 
+# FIXED: Use correct plugin names (case-sensitive!)
 softdepend:
   - PlaceholderAPI
-  - SMCCore
+  - SmcCore          # <-- FIXED: was "SMCCore"
   - CraftEngine
   - Nexo
 

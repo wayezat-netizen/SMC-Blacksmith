@@ -17,12 +17,14 @@ furnaces:
   # How often furnaces tick (in server ticks, 20 = 1 second)
   tick_rate: 20
   # Cooldown for bellows usage in ticks
-  bellows_cooldown: 40
+  bellows_cooldown: 5
   # Enable temperature bar display above furnaces
   temperature_bar_enabled: true
   # Height offset for temperature bar (blocks above furnace)
   temperature_bar_height: 1.5
 
+bellows:
+  no_fuel: "&c&l⚠ &cAdd fuel first! Bellows need heat to work."
 # ==========================================
 # FORGE SETTINGS
 # ==========================================

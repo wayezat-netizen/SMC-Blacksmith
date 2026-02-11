@@ -5,6 +5,9 @@ import org.bukkit.Material;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Represents a category of forge recipes in the GUI.
+ */
 public class ForgeCategory {
 
     private final String id;
@@ -19,12 +22,14 @@ public class ForgeCategory {
                          List<String> description, List<String> recipeIds, int guiSlot) {
         this.id = id;
         this.displayName = displayName;
-        this.iconMaterial = iconMaterial;
+        this.iconMaterial = iconMaterial != null ? iconMaterial : Material.IRON_INGOT;
         this.iconCmd = iconCmd;
-        this.description = description != null ? description : new ArrayList<>();
-        this.recipeIds = recipeIds != null ? recipeIds : new ArrayList<>();
+        this.description = description != null ? new ArrayList<>(description) : new ArrayList<>();
+        this.recipeIds = recipeIds != null ? new ArrayList<>(recipeIds) : new ArrayList<>();
         this.guiSlot = guiSlot;
     }
+
+    // ==================== GETTERS ====================
 
     public String getId() { return id; }
     public String getDisplayName() { return displayName; }
@@ -40,5 +45,9 @@ public class ForgeCategory {
 
     public int getRecipeCount() {
         return recipeIds.size();
+    }
+
+    public boolean isEmpty() {
+        return recipeIds.isEmpty();
     }
 }

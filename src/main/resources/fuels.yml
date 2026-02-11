@@ -1,29 +1,69 @@
+# ==========================================
+# SMCBlacksmith - Fuel Configuration
+# ==========================================
+# burn_time: Duration in ticks (20 ticks = 1 second)
+# temperature_boost: Base temperature provided by this fuel
+
+# === BASIC FUELS ===
 coal:
-  id: coal
   type: minecraft
-  burn_time: 1600
-  temperature_boost: 20
+  id: COAL
+  burn_time: 1600                   # 80 seconds
+  temperature_boost: 400            # +400°C base
 
 charcoal:
-  id: charcoal
   type: minecraft
+  id: CHARCOAL
   burn_time: 1600
-  temperature_boost: 20
+  temperature_boost: 380
 
+# === WOOD FUELS (low heat) ===
+oak_planks:
+  type: minecraft
+  id: OAK_PLANKS
+  burn_time: 300
+  temperature_boost: 200
+
+stick:
+  type: minecraft
+  id: STICK
+  burn_time: 100
+  temperature_boost: 150
+
+# === ADVANCED FUELS ===
 coal_block:
-  id: coal_block
   type: minecraft
-  burn_time: 16000
-  temperature_boost: 25
-
-blaze_rod:
-  id: blaze_rod
-  type: minecraft
-  burn_time: 2400
-  temperature_boost: 40
+  id: COAL_BLOCK
+  burn_time: 16000                  # 10x coal duration
+  temperature_boost: 550
 
 lava_bucket:
-  id: lava_bucket
   type: minecraft
-  burn_time: 20000
-  temperature_boost: 60
+  id: LAVA_BUCKET
+  burn_time: 20000                  # 1000 seconds
+  temperature_boost: 700
+
+blaze_rod:
+  type: minecraft
+  id: BLAZE_ROD
+  burn_time: 2400
+  temperature_boost: 600
+
+blaze_powder:
+  type: minecraft
+  id: BLAZE_POWDER
+  burn_time: 1200
+  temperature_boost: 500
+
+# === SMCCORE FUELS ===
+magical_coal:
+  type: smc
+  id: magical_coal
+  burn_time: 3200
+  temperature_boost: 800
+
+dragon_coal:
+  type: smc
+  id: dragon_coal
+  burn_time: 6400
+  temperature_boost: 1000

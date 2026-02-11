@@ -1,23 +1,31 @@
 package com.simmc.blacksmith.forge;
 
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.Particle;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import org.bukkit.*;
+import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Interaction;
-import org.bukkit.entity.TextDisplay;
 import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 import java.util.UUID;
+import java.util.logging.Level;
 
 /**
- * Professional forge hit point with ring indicator and timing feedback.
+ * A clickable hit target that appears during forging minigame.
  */
 public class ForgePoint {
+
+    // Timing windows (percentage of duration)
+    private static final double PERFECT_WINDOW = 0.30;
+    private static final double GREAT_WINDOW = 0.50;
+    private static final double GOOD_WINDOW = 0.70;
+
+    // Accuracy scores for each window
+    private static final double PERFECT_ACCURACY = 1.0;
+    private static final double GREAT_ACCURACY = 0.85;
+    private static final double GOOD_ACCURACY = 0.65;
+    private static final double POOR_ACCURACY = 0.35;
 
     private final UUID id;
     private final Location location;
@@ -25,16 +33,11 @@ public class ForgePoint {
     private final long duration;
 
     private Interaction hitbox;
-    private TextDisplay ringDisplay;
+    private BlockDisplay targetDisplay;
     private boolean hit;
     private boolean expired;
     private boolean removed;
     private int tickCount;
-
-    // Timing windows
-    private static final double PERFECT_WINDOW = 0.25;
-    private static final double GREAT_WINDOW = 0.45;
-    private static final double GOOD_WINDOW = 0.65;
 
     public ForgePoint(Location location, long durationMs) {
         this.id = UUID.randomUUID();
@@ -47,42 +50,44 @@ public class ForgePoint {
         this.tickCount = 0;
     }
 
+    // ==================== LIFECYCLE ====================
+
     public void spawn() {
         World world = location.getWorld();
         if (world == null) return;
 
         try {
-            // Larger hitbox for easier clicking
-            hitbox = world.spawn(location, Interaction.class, entity -> {
-                entity.setInteractionWidth(0.7f);
-                entity.setInteractionHeight(0.7f);
-                entity.setResponsive(true);
-            });
-
-            // Ring indicator using text display with special character
-            ringDisplay = world.spawn(location.clone().add(0, 0.1, 0), TextDisplay.class, display -> {
-                display.setText("§e●");  // Start yellow
-                display.setBillboard(Display.Billboard.CENTER);
-                display.setAlignment(TextDisplay.TextAlignment.CENTER);
-                display.setDefaultBackground(false);
-                display.setSeeThrough(true);
-
-                Transformation t = new Transformation(
-                        new Vector3f(0, 0, 0),
-                        new AxisAngle4f(0, 0, 0, 1),
-                        new Vector3f(2.0f, 2.0f, 2.0f),
-                        new AxisAngle4f(0, 0, 0, 1)
-                );
-                display.setTransformation(t);
-            });
-
-            // Spawn effect
-            world.spawnParticle(Particle.ELECTRIC_SPARK, location, 5, 0.1, 0.05, 0.1, 0.02);
-            world.playSound(location, Sound.BLOCK_NOTE_BLOCK_BELL, 0.5f, 2.0f);
-
+            spawnHitbox(world);
+            spawnTargetDisplay(world);
+            playSpawnEffects(world);
         } catch (Exception e) {
+            Bukkit.getLogger().log(Level.WARNING, "[SMCBlacksmith] Failed to spawn forge point", e);
             remove();
         }
+    }
+
+    private void spawnHitbox(World world) {
+        hitbox = world.spawn(location.clone().add(0, 0.15, 0), Interaction.class, entity -> {
+            entity.setInteractionWidth(0.4f);
+            entity.setInteractionHeight(0.4f);
+            entity.setResponsive(true);
+        });
+    }
+
+    private void spawnTargetDisplay(World world) {
+        targetDisplay = world.spawn(location, BlockDisplay.class, display -> {
+            display.setBlock(Bukkit.createBlockData(Material.RED_CONCRETE));
+            display.setBrightness(new Display.Brightness(15, 15));
+            display.setGlowing(true);
+            display.setGlowColorOverride(Color.RED);
+            display.setTransformation(createTransformation(0.3f));
+        });
+    }
+
+    private void playSpawnEffects(World world) {
+        Location effectLoc = location.clone().add(0, 0.1, 0);
+        world.spawnParticle(Particle.ELECTRIC_SPARK, effectLoc, 5, 0.1, 0.05, 0.1, 0.02);
+        world.playSound(location, Sound.BLOCK_NOTE_BLOCK_HAT, 0.4f, 1.5f);
     }
 
     public void tick() {
@@ -96,69 +101,30 @@ public class ForgePoint {
             return;
         }
 
-        World world = location.getWorld();
-        if (world == null) return;
-
         double progress = (double) elapsed / duration;
-
-        // Update ring color and size based on timing
-        updateRingDisplay(progress);
-
-        // Particle effects
-        spawnTimingParticles(progress);
+        updateTargetDisplay(progress);
+        spawnBeaconParticle();
     }
 
-    private void updateRingDisplay(double progress) {
-        if (ringDisplay == null || ringDisplay.isDead()) return;
+    public void remove() {
+        if (removed) return;
+        removed = true;
 
-        String color;
-        float scale;
-
-        if (progress < PERFECT_WINDOW) {
-            color = "§a";  // Green - perfect window
-            scale = 2.5f - (float) (progress / PERFECT_WINDOW) * 0.5f;
-        } else if (progress < GREAT_WINDOW) {
-            color = "§e";  // Yellow - great window
-            scale = 2.0f - (float) ((progress - PERFECT_WINDOW) / (GREAT_WINDOW - PERFECT_WINDOW)) * 0.3f;
-        } else if (progress < GOOD_WINDOW) {
-            color = "§6";  // Orange - good window
-            scale = 1.7f - (float) ((progress - GREAT_WINDOW) / (GOOD_WINDOW - GREAT_WINDOW)) * 0.2f;
-        } else {
-            color = "§c";  // Red - late
-            scale = 1.5f - (float) ((progress - GOOD_WINDOW) / (1.0 - GOOD_WINDOW)) * 0.3f;
-
-            // Pulsing effect when late
-            if (tickCount % 4 < 2) {
-                color = "§4";
-            }
-        }
-
-        ringDisplay.setText(color + "●");
-
-        Transformation t = new Transformation(
-                new Vector3f(0, 0, 0),
-                new AxisAngle4f(0, 0, 0, 1),
-                new Vector3f(scale, scale, scale),
-                new AxisAngle4f(0, 0, 0, 1)
-        );
-        ringDisplay.setTransformation(t);
-        ringDisplay.setInterpolationDuration(2);
+        safeRemove(hitbox);
+        safeRemove(targetDisplay);
+        hitbox = null;
+        targetDisplay = null;
     }
 
-    private void spawnTimingParticles(double progress) {
-        World world = location.getWorld();
-        if (world == null) return;
-
-        // Ambient heat particles
-        if (tickCount % 3 == 0) {
-            world.spawnParticle(Particle.SMALL_FLAME, location, 1, 0.08, 0.03, 0.08, 0.003);
-        }
-
-        // Urgency particles when running out of time
-        if (progress > 0.7 && tickCount % 2 == 0) {
-            world.spawnParticle(Particle.SMOKE, location, 1, 0.05, 0.02, 0.05, 0.01);
+    private void safeRemove(org.bukkit.entity.Entity entity) {
+        if (entity != null && !entity.isDead()) {
+            try {
+                entity.remove();
+            } catch (Exception ignored) {}
         }
     }
+
+    // ==================== HIT PROCESSING ====================
 
     public double hit() {
         if (hit || expired || removed) return 0.0;
@@ -167,52 +133,87 @@ public class ForgePoint {
         long elapsed = System.currentTimeMillis() - spawnTime;
         double progress = (double) elapsed / duration;
 
-        // Calculate accuracy based on timing window
-        double accuracy;
-        String rating;
-
-        if (progress < PERFECT_WINDOW) {
-            accuracy = 1.0;
-            rating = "PERFECT";
-        } else if (progress < GREAT_WINDOW) {
-            accuracy = 0.85;
-            rating = "GREAT";
-        } else if (progress < GOOD_WINDOW) {
-            accuracy = 0.65;
-            rating = "GOOD";
-        } else {
-            accuracy = 0.35;
-            rating = "LATE";
-        }
-
-        playHitEffect(accuracy, rating);
+        double accuracy = calculateAccuracy(progress);
+        playHitEffect(accuracy);
         return accuracy;
     }
 
-    private void playHitEffect(double accuracy, String rating) {
+    private double calculateAccuracy(double progress) {
+        if (progress < PERFECT_WINDOW) return PERFECT_ACCURACY;
+        if (progress < GREAT_WINDOW) return GREAT_ACCURACY;
+        if (progress < GOOD_WINDOW) return GOOD_ACCURACY;
+        return POOR_ACCURACY;
+    }
+
+    // ==================== VISUAL UPDATES ====================
+
+    private void updateTargetDisplay(double progress) {
+        if (targetDisplay == null || targetDisplay.isDead()) return;
+
+        TargetState state = getTargetState(progress);
+
+        targetDisplay.setBlock(Bukkit.createBlockData(state.material));
+        targetDisplay.setGlowColorOverride(state.color);
+        targetDisplay.setTransformation(createTransformation(state.scale));
+        targetDisplay.setInterpolationDuration(2);
+    }
+
+    private TargetState getTargetState(double progress) {
+        if (progress < PERFECT_WINDOW) {
+            return new TargetState(Material.RED_CONCRETE, Color.RED, 0.35f);
+        } else if (progress < GREAT_WINDOW) {
+            return new TargetState(Material.ORANGE_CONCRETE, Color.ORANGE, 0.30f);
+        } else if (progress < GOOD_WINDOW) {
+            return new TargetState(Material.YELLOW_CONCRETE, Color.YELLOW, 0.25f);
+        } else {
+            // Pulse when almost expired
+            float scale = (tickCount % 3 < 2) ? 0.15f : 0.20f;
+            return new TargetState(Material.GRAY_CONCRETE, Color.GRAY, scale);
+        }
+    }
+
+    private record TargetState(Material material, Color color, float scale) {}
+
+    private Transformation createTransformation(float scale) {
+        return new Transformation(
+                new Vector3f(-scale / 2, 0.0f, -scale / 2),
+                new AxisAngle4f(0, 0, 0, 1),
+                new Vector3f(scale, 0.05f, scale),
+                new AxisAngle4f(0, 0, 0, 1)
+        );
+    }
+
+    private void spawnBeaconParticle() {
+        if (tickCount % 4 != 0) return;
+        if (targetDisplay == null || targetDisplay.isDead()) return;
+
+        World world = location.getWorld();
+        if (world != null) {
+            world.spawnParticle(Particle.SMALL_FLAME, location.clone().add(0, 0.15, 0),
+                    1, 0.02, 0.05, 0.02, 0.001);
+        }
+    }
+
+    // ==================== EFFECTS ====================
+
+    private void playHitEffect(double accuracy) {
         World world = location.getWorld();
         if (world == null) return;
 
+        Location effectLoc = location.clone().add(0, 0.1, 0);
+
         if (accuracy >= 0.9) {
-            // Perfect - big satisfying effect
-            world.spawnParticle(Particle.ELECTRIC_SPARK, location, 20, 0.2, 0.15, 0.2, 0.08);
-            world.spawnParticle(Particle.FLAME, location, 8, 0.15, 0.1, 0.15, 0.03);
-            world.spawnParticle(Particle.ENCHANTED_HIT, location, 10, 0.2, 0.2, 0.2, 0.1);
-            world.playSound(location, Sound.BLOCK_ANVIL_USE, 1.0f, 1.4f);
-            world.playSound(location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.8f);
+            world.spawnParticle(Particle.ELECTRIC_SPARK, effectLoc, 15, 0.12, 0.08, 0.12, 0.05);
+            world.playSound(location, Sound.BLOCK_ANVIL_USE, 1.0f, 1.3f);
         } else if (accuracy >= 0.7) {
-            // Great
-            world.spawnParticle(Particle.ELECTRIC_SPARK, location, 12, 0.15, 0.1, 0.15, 0.05);
-            world.spawnParticle(Particle.FLAME, location, 5, 0.1, 0.08, 0.1, 0.02);
-            world.playSound(location, Sound.BLOCK_ANVIL_USE, 0.9f, 1.2f);
+            world.spawnParticle(Particle.ELECTRIC_SPARK, effectLoc, 10, 0.1, 0.06, 0.1, 0.03);
+            world.playSound(location, Sound.BLOCK_ANVIL_USE, 0.8f, 1.1f);
         } else if (accuracy >= 0.5) {
-            // Good
-            world.spawnParticle(Particle.CRIT, location, 8, 0.12, 0.08, 0.12, 0.04);
-            world.playSound(location, Sound.BLOCK_ANVIL_USE, 0.7f, 1.0f);
+            world.spawnParticle(Particle.CRIT, effectLoc, 6, 0.08, 0.05, 0.08, 0.02);
+            world.playSound(location, Sound.BLOCK_ANVIL_USE, 0.6f, 0.9f);
         } else {
-            // Late/weak
-            world.spawnParticle(Particle.SMOKE, location, 6, 0.1, 0.08, 0.1, 0.02);
-            world.playSound(location, Sound.BLOCK_ANVIL_LAND, 0.5f, 0.8f);
+            world.spawnParticle(Particle.SMOKE, effectLoc, 4, 0.06, 0.04, 0.06, 0.01);
+            world.playSound(location, Sound.BLOCK_ANVIL_LAND, 0.5f, 0.7f);
         }
     }
 
@@ -220,25 +221,11 @@ public class ForgePoint {
         World world = location.getWorld();
         if (world == null) return;
 
-        world.spawnParticle(Particle.SMOKE, location, 8, 0.15, 0.1, 0.15, 0.03);
-        world.spawnParticle(Particle.LARGE_SMOKE, location, 2, 0.1, 0.05, 0.1, 0.01);
-        world.playSound(location, Sound.BLOCK_FIRE_EXTINGUISH, 0.4f, 1.2f);
+        world.spawnParticle(Particle.SMOKE, location.clone().add(0, 0.1, 0), 6, 0.1, 0.06, 0.1, 0.02);
+        world.playSound(location, Sound.BLOCK_FIRE_EXTINGUISH, 0.3f, 1.0f);
     }
 
-    public void remove() {
-        if (removed) return;
-        removed = true;
-
-        if (hitbox != null) {
-            try { if (!hitbox.isDead()) hitbox.remove(); } catch (Exception ignored) {}
-            hitbox = null;
-        }
-
-        if (ringDisplay != null) {
-            try { if (!ringDisplay.isDead()) ringDisplay.remove(); } catch (Exception ignored) {}
-            ringDisplay = null;
-        }
-    }
+    // ==================== GETTERS ====================
 
     public UUID getId() { return id; }
     public Location getLocation() { return location.clone(); }

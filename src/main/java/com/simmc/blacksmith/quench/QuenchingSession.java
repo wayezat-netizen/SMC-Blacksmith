@@ -6,7 +6,17 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.UUID;
 
+/**
+ * Represents an active quenching/naming session.
+ * Tracks the forged item, star rating, and naming state.
+ */
 public class QuenchingSession {
+
+    public enum State {
+        GUI_OPEN,       // Player viewing the naming GUI
+        AWAITING_NAME,  // Player typing name in chat
+        COMPLETED       // Session complete
+    }
 
     private final UUID playerId;
     private final ItemStack forgedItem;
@@ -15,39 +25,96 @@ public class QuenchingSession {
     private final ForgeRecipe recipe;
     private final long startTime;
 
-    private boolean pickedUp;
+    private State state;
     private String customName;
 
     public QuenchingSession(UUID playerId, ItemStack forgedItem, int starRating,
                             Location anvilLocation, ForgeRecipe recipe) {
         this.playerId = playerId;
         this.forgedItem = forgedItem.clone();
-        this.starRating = starRating;
-        this.anvilLocation = anvilLocation.clone();
+        this.starRating = Math.max(0, Math.min(5, starRating));
+        this.anvilLocation = anvilLocation != null ? anvilLocation.clone() : null;
         this.recipe = recipe;
         this.startTime = System.currentTimeMillis();
-        this.pickedUp = false;
+        this.state = State.GUI_OPEN;
         this.customName = null;
     }
 
-    public void pickup() {
-        this.pickedUp = true;
+    // ==================== STATE TRANSITIONS ====================
+
+    /**
+     * Transitions to awaiting name input state.
+     */
+    public void awaitNameInput() {
+        if (state != State.COMPLETED) {
+            this.state = State.AWAITING_NAME;
+        }
     }
 
-    public void setCustomName(String name) {
-        this.customName = name;
+    /**
+     * Returns to GUI state from chat input.
+     */
+    public void returnToGui() {
+        if (state == State.AWAITING_NAME) {
+            this.state = State.GUI_OPEN;
+        }
     }
+
+    /**
+     * Sets the custom name.
+     */
+    public void setCustomName(String name) {
+        this.customName = name != null ? name.trim() : null;
+    }
+
+    /**
+     * Marks the session as completed.
+     */
+    public void complete() {
+        this.state = State.COMPLETED;
+    }
+
+    // ==================== STATE CHECKS ====================
+
+    public boolean isAwaitingName() {
+        return state == State.AWAITING_NAME;
+    }
+
+    public boolean isGuiOpen() {
+        return state == State.GUI_OPEN;
+    }
+
+    public boolean isCompleted() {
+        return state == State.COMPLETED;
+    }
+
+    public boolean isActive() {
+        return state != State.COMPLETED;
+    }
+
+    public boolean hasCustomName() {
+        return customName != null && !customName.isEmpty();
+    }
+
+    // ==================== GETTERS ====================
 
     public UUID getPlayerId() { return playerId; }
     public ItemStack getForgedItem() { return forgedItem.clone(); }
     public int getStarRating() { return starRating; }
-    public Location getAnvilLocation() { return anvilLocation.clone(); }
     public ForgeRecipe getRecipe() { return recipe; }
     public long getStartTime() { return startTime; }
-    public boolean isPickedUp() { return pickedUp; }
+    public State getState() { return state; }
     public String getCustomName() { return customName; }
+
+    public Location getAnvilLocation() {
+        return anvilLocation != null ? anvilLocation.clone() : null;
+    }
 
     public long getElapsedTime() {
         return System.currentTimeMillis() - startTime;
+    }
+
+    public long getElapsedSeconds() {
+        return getElapsedTime() / 1000;
     }
 }

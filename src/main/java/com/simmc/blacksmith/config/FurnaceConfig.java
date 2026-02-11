@@ -4,247 +4,248 @@ import com.simmc.blacksmith.furnace.FurnaceRecipe;
 import com.simmc.blacksmith.furnace.FurnaceType;
 import com.simmc.blacksmith.furnace.RecipeInput;
 import com.simmc.blacksmith.furnace.RecipeOutput;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Level;
+import java.util.*;
 
 /**
- * Configuration handler for furnace types and smelting recipes.
- * Parses furnaces.yml configuration file.
+ * Configuration for furnace types and their recipes.
  */
 public class FurnaceConfig {
 
     private final Map<String, FurnaceType> furnaceTypes;
     private final List<String> loadErrors;
-    private final List<String> loadWarnings;
 
     public FurnaceConfig() {
-        this.furnaceTypes = new HashMap<>();
+        this.furnaceTypes = new LinkedHashMap<>();
         this.loadErrors = new ArrayList<>();
-        this.loadWarnings = new ArrayList<>();
     }
 
     public void load(FileConfiguration config) {
         furnaceTypes.clear();
         loadErrors.clear();
-        loadWarnings.clear();
 
         for (String typeId : config.getKeys(false)) {
             ConfigurationSection section = config.getConfigurationSection(typeId);
             if (section == null) continue;
 
-            try {
-                FurnaceType type = parseFurnaceType(typeId, section);
-                if (type != null) {
-                    furnaceTypes.put(typeId, type);
+            parseFurnaceType(typeId, section).ifPresent(type -> {
+                furnaceTypes.put(typeId, type);
+                Bukkit.getLogger().info("[FurnaceConfig] Loaded furnace type: " + typeId +
+                        " with " + type.getRecipeCount() + " recipes");
+            });
+        }
+    }
+
+    private Optional<FurnaceType> parseFurnaceType(String id, ConfigurationSection section) {
+        try {
+            FurnaceType.Builder builder = FurnaceType.builder(id);
+
+            // Basic settings
+            builder.itemId(section.getString("item_id", id));
+            builder.displayMaterial(parseMaterial(section.getString("display_material", "FURNACE")));
+            builder.displayCmd(section.getInt("display_cmd", 0));
+
+            // Temperature settings
+            int maxTemp = Math.max(100, section.getInt("max_temperature", 1000));
+            builder.maxTemperature(maxTemp);
+
+            int minIdeal = section.getInt("min_ideal_temperature", 600);
+            int maxIdeal = section.getInt("max_ideal_temperature", 900);
+            builder.idealTemperatureRange(minIdeal, maxIdeal);
+
+            // Heating/Cooling rates
+            builder.temperatureChange(Math.max(1, section.getInt("temperature_change", 10)));
+            builder.coolingRate(Math.max(1, section.getInt("cooling_rate", 5)));
+            builder.heatingMultiplier(clamp(section.getDouble("heating_multiplier", 0.5), 0.01, 1.0));
+            builder.coolingMultiplier(clamp(section.getDouble("cooling_multiplier", 0.2), 0.01, 1.0));
+
+            // Fuel settings
+            builder.maxFuelTempPercentage(clamp(section.getDouble("max_temperature_gain_from_fuel_percentage", 0.6), 0.1, 1.0));
+
+            // Bellows settings
+            builder.bellowsDecayRate(clamp(section.getDouble("bellows_decay_rate", 0.02), 0.001, 0.5));
+            builder.bellowsInstantBoost(clamp(section.getDouble("bellows_instant_boost", 0.8), 0.0, 1.0));
+
+            // Smelting quality settings
+            builder.badOutputThresholdMs(Math.max(1000, section.getLong("bad_output_threshold_ms", 3000)));
+            builder.minIdealRatio(clamp(section.getDouble("min_ideal_ratio", 0.4), 0.1, 0.9));
+
+            // GUI configuration
+            ConfigurationSection guiSection = section.getConfigurationSection("gui");
+            if (guiSection != null) {
+                builder.guiTitle(guiSection.getString("title", "&8Furnace"));
+
+                List<Integer> inputSlotList = guiSection.getIntegerList("input_slots");
+                if (!inputSlotList.isEmpty()) {
+                    builder.inputSlots(inputSlotList.stream().mapToInt(Integer::intValue).toArray());
                 }
-            } catch (Exception e) {
-                loadErrors.add("[" + typeId + "] Failed to parse: " + e.getMessage());
+
+                builder.fuelSlot(guiSection.getInt("fuel_slot", 40));
+                builder.outputSlot(guiSection.getInt("output_slot", 24));
             }
-        }
-    }
 
-    /**
-     * Logs validation results to the plugin logger.
-     */
-    public void logValidationResults(JavaPlugin plugin) {
-        if (!loadWarnings.isEmpty()) {
-            plugin.getLogger().warning("Furnace config warnings:");
-            for (String warning : loadWarnings) {
-                plugin.getLogger().warning("  " + warning);
-            }
-        }
-
-        if (!loadErrors.isEmpty()) {
-            plugin.getLogger().log(Level.SEVERE, "Furnace config errors:");
-            for (String error : loadErrors) {
-                plugin.getLogger().severe("  " + error);
-            }
-        }
-    }
-
-    private FurnaceType parseFurnaceType(String id, ConfigurationSection section) {
-        String itemId = section.getString("item_id", id);
-        int maxTemp = section.getInt("max_temperature", 100);
-
-        String materialStr = section.getString("display_material", "STICK");
-        Material displayMaterial = Material.matchMaterial(materialStr);
-        if (displayMaterial == null) {
-            loadWarnings.add("[" + id + "] Unknown material '" + materialStr + "', using STICK");
-            displayMaterial = Material.STICK;
-        }
-
-        int displayCmd = section.getInt("display_cmd", 0);
-        int tempChange = section.getInt("temperature_change", 10);
-        int minIdeal = section.getInt("min_ideal_temperature", 80);
-        int maxIdeal = section.getInt("max_ideal_temperature", 100);
-        double maxFuelPercent = section.getDouble("max_temperature_gain_from_fuel_percentage", 0.2);
-
-        // Validate temperature ranges
-        if (minIdeal > maxIdeal) {
-            loadWarnings.add("[" + id + "] min_ideal_temperature > max_ideal_temperature, swapping");
-            int temp = minIdeal;
-            minIdeal = maxIdeal;
-            maxIdeal = temp;
-        }
-
-        if (maxIdeal > maxTemp) {
-            loadWarnings.add("[" + id + "] max_ideal_temperature > max_temperature, clamping");
-            maxIdeal = maxTemp;
-        }
-
-        if (maxFuelPercent <= 0 || maxFuelPercent > 1.0) {
-            loadWarnings.add("[" + id + "] max_temperature_gain_from_fuel_percentage should be 0.0-1.0, clamping");
-            maxFuelPercent = Math.max(0.1, Math.min(1.0, maxFuelPercent));
-        }
-
-        // Parse recipes
-        List<FurnaceRecipe> recipes = new ArrayList<>();
-        ConfigurationSection recipesSection = section.getConfigurationSection("recipes");
-        if (recipesSection != null) {
-            for (String recipeId : recipesSection.getKeys(false)) {
-                ConfigurationSection recipeSection = recipesSection.getConfigurationSection(recipeId);
-                if (recipeSection != null) {
-                    FurnaceRecipe recipe = parseRecipe(id, recipeId, recipeSection);
-                    if (recipe != null) {
-                        recipes.add(recipe);
+            // Parse recipes
+            ConfigurationSection recipesSection = section.getConfigurationSection("recipes");
+            if (recipesSection != null) {
+                for (String recipeId : recipesSection.getKeys(false)) {
+                    ConfigurationSection rs = recipesSection.getConfigurationSection(recipeId);
+                    if (rs != null) {
+                        parseRecipe(recipeId, rs).ifPresent(builder::addRecipe);
                     }
                 }
             }
-        }
 
-        return new FurnaceType(id, itemId, maxTemp, displayMaterial, displayCmd,
-                tempChange, minIdeal, maxIdeal, maxFuelPercent, recipes);
+            return Optional.of(builder.build());
+        } catch (Exception e) {
+            loadErrors.add("Failed to parse furnace type '" + id + "': " + e.getMessage());
+            e.printStackTrace();
+            return Optional.empty();
+        }
     }
 
-    private FurnaceRecipe parseRecipe(String furnaceId, String recipeId, ConfigurationSection section) {
-        long smeltTime = section.getLong("smelt_time", 8000);
+    private Optional<FurnaceRecipe> parseRecipe(String recipeId, ConfigurationSection section) {
+        try {
+            long smeltTime = Math.max(1000, section.getLong("smelt_time", 8000));
+            int minTemperature = Math.max(0, section.getInt("min_temperature", 0));
 
-        if (smeltTime <= 0) {
-            loadWarnings.add("[" + furnaceId + "." + recipeId + "] smelt_time must be positive, using 8000");
-            smeltTime = 8000;
+            // Parse per-recipe ideal temperature range
+            int minIdealTemp = section.getInt("min_ideal_temperature", minTemperature + 100);
+            int maxIdealTemp = section.getInt("max_ideal_temperature", minTemperature + 300);
+
+            // Validate ranges
+            if (minIdealTemp > maxIdealTemp) {
+                int temp = minIdealTemp;
+                minIdealTemp = maxIdealTemp;
+                maxIdealTemp = temp;
+            }
+            if (minIdealTemp < minTemperature) {
+                minIdealTemp = minTemperature;
+            }
+
+            List<RecipeInput> inputs = parseInputs(section.getConfigurationSection("inputs"));
+            List<RecipeOutput> outputs = parseOutputs(section.getConfigurationSection("outputs"));
+            List<RecipeOutput> badOutputs = parseOutputs(section.getConfigurationSection("bad_outputs"));
+
+            if (inputs.isEmpty()) {
+                loadErrors.add("Recipe '" + recipeId + "' has no inputs");
+                return Optional.empty();
+            }
+
+            if (outputs.isEmpty()) {
+                loadErrors.add("Recipe '" + recipeId + "' has no outputs");
+                return Optional.empty();
+            }
+
+            Bukkit.getLogger().info("[FurnaceConfig] Loaded recipe: " + recipeId +
+                    " | smeltTime=" + smeltTime +
+                    " | minTemp=" + minTemperature +
+                    " | idealRange=" + minIdealTemp + "-" + maxIdealTemp + "°C");
+
+            return Optional.of(new FurnaceRecipe(
+                    recipeId, smeltTime, minTemperature,
+                    minIdealTemp, maxIdealTemp,
+                    inputs, outputs, badOutputs
+            ));
+        } catch (Exception e) {
+            loadErrors.add("Failed to parse recipe '" + recipeId + "': " + e.getMessage());
+            return Optional.empty();
         }
+    }
 
-        // Parse inputs (letter-based slots: a, b, c, d, e, etc.)
+    private List<RecipeInput> parseInputs(ConfigurationSection section) {
         List<RecipeInput> inputs = new ArrayList<>();
-        ConfigurationSection inputsSection = section.getConfigurationSection("inputs");
-        if (inputsSection != null) {
-            for (String slot : inputsSection.getKeys(false)) {
-                ConfigurationSection inputSection = inputsSection.getConfigurationSection(slot);
-                if (inputSection != null) {
-                    String inputId = inputSection.getString("id", "");
-                    String inputType = inputSection.getString("type", "minecraft").toLowerCase();
-                    int amount = inputSection.getInt("amount", 1);
+        if (section == null) return inputs;
 
-                    if (inputId.isEmpty()) {
-                        loadWarnings.add("[" + furnaceId + "." + recipeId + ".inputs." + slot + "] Empty id, skipping");
-                        continue;
-                    }
+        for (String slot : section.getKeys(false)) {
+            ConfigurationSection is = section.getConfigurationSection(slot);
+            if (is == null) continue;
 
-                    if (amount <= 0) {
-                        loadWarnings.add("[" + furnaceId + "." + recipeId + ".inputs." + slot + "] Invalid amount, using 1");
-                        amount = 1;
-                    }
+            String id = is.getString("id", "");
+            if (id.isEmpty()) continue;
 
-                    inputs.add(new RecipeInput(slot, inputId, inputType, amount));
-                }
-            }
+            String type = is.getString("type", "minecraft").toLowerCase();
+            int amount = Math.max(1, is.getInt("amount", 1));
+
+            inputs.add(new RecipeInput(slot, id, type, amount));
+
+            Bukkit.getLogger().info("[FurnaceConfig]   Input: " + type + ":" + id + " x" + amount);
         }
 
-        // Parse outputs
+        return inputs;
+    }
+
+    private List<RecipeOutput> parseOutputs(ConfigurationSection section) {
         List<RecipeOutput> outputs = new ArrayList<>();
-        ConfigurationSection outputsSection = section.getConfigurationSection("outputs");
-        if (outputsSection != null) {
-            for (String slot : outputsSection.getKeys(false)) {
-                ConfigurationSection outputSection = outputsSection.getConfigurationSection(slot);
-                if (outputSection != null) {
-                    String outputId = outputSection.getString("id", "");
-                    String outputType = outputSection.getString("type", "minecraft").toLowerCase();
-                    int amount = outputSection.getInt("amount", 1);
+        if (section == null) return outputs;
 
-                    if (outputId.isEmpty()) {
-                        loadWarnings.add("[" + furnaceId + "." + recipeId + ".outputs." + slot + "] Empty id, skipping");
-                        continue;
-                    }
+        for (String slot : section.getKeys(false)) {
+            ConfigurationSection os = section.getConfigurationSection(slot);
+            if (os == null) continue;
 
-                    outputs.add(new RecipeOutput(slot, outputId, outputType, amount));
-                }
-            }
+            String id = os.getString("id", "");
+            if (id.isEmpty()) continue;
+
+            String type = os.getString("type", "minecraft").toLowerCase();
+            int amount = Math.max(1, os.getInt("amount", 1));
+
+            outputs.add(new RecipeOutput(slot, id, type, amount));
         }
 
-        // Parse bad outputs (failure outputs)
-        List<RecipeOutput> badOutputs = new ArrayList<>();
-        ConfigurationSection badSection = section.getConfigurationSection("bad_outputs");
-        if (badSection != null) {
-            for (String slot : badSection.getKeys(false)) {
-                ConfigurationSection badOutputSection = badSection.getConfigurationSection(slot);
-                if (badOutputSection != null) {
-                    String badId = badOutputSection.getString("id", "");
-                    String badType = badOutputSection.getString("type", "minecraft").toLowerCase();
-                    int amount = badOutputSection.getInt("amount", 1);
+        return outputs;
+    }
 
-                    if (!badId.isEmpty()) {
-                        badOutputs.add(new RecipeOutput(slot, badId, badType, amount));
-                    }
-                }
-            }
-        }
+    // ==================== UTILITIES ====================
 
-        // Validate recipe has required components
-        if (inputs.isEmpty()) {
-            loadErrors.add("[" + furnaceId + "." + recipeId + "] Recipe has no inputs");
-            return null;
-        }
+    private Material parseMaterial(String str) {
+        if (str == null || str.isEmpty()) return Material.FURNACE;
+        Material mat = Material.matchMaterial(str.toUpperCase());
+        return mat != null ? mat : Material.FURNACE;
+    }
 
-        if (outputs.isEmpty()) {
-            loadErrors.add("[" + furnaceId + "." + recipeId + "] Recipe has no outputs");
-            return null;
-        }
-
-        return new FurnaceRecipe(recipeId, smeltTime, inputs, outputs, badOutputs);
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     // ==================== GETTERS ====================
 
-    public FurnaceType getFurnaceType(String id) {
-        return furnaceTypes.get(id);
+    public Optional<FurnaceType> getFurnaceType(String id) {
+        return Optional.ofNullable(furnaceTypes.get(id));
+    }
+
+    public FurnaceType requireFurnaceType(String id) {
+        return getFurnaceType(id).orElseThrow(() ->
+                new IllegalArgumentException("Unknown furnace type: " + id));
     }
 
     public Map<String, FurnaceType> getFurnaceTypes() {
-        return new HashMap<>(furnaceTypes);
+        return new LinkedHashMap<>(furnaceTypes);
+    }
+
+    public Collection<FurnaceType> getAllTypes() {
+        return furnaceTypes.values();
     }
 
     public int getFurnaceTypeCount() {
         return furnaceTypes.size();
     }
 
-    public boolean hasErrors() {
-        return !loadErrors.isEmpty();
+    public Set<String> getTypeIds() {
+        return furnaceTypes.keySet();
     }
 
-    public List<String> getErrors() {
+    public boolean hasType(String id) {
+        return furnaceTypes.containsKey(id);
+    }
+
+    public List<String> getLoadErrors() {
         return new ArrayList<>(loadErrors);
     }
 
-    public List<String> getWarnings() {
-        return new ArrayList<>(loadWarnings);
-    }
-
-    /**
-     * Gets total recipe count across all furnace types.
-     */
-    public int getTotalRecipeCount() {
-        int count = 0;
-        for (FurnaceType type : furnaceTypes.values()) {
-            count += type.getRecipeCount();
-        }
-        return count;
+    public boolean hasErrors() {
+        return !loadErrors.isEmpty();
     }
 }

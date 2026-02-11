@@ -6,16 +6,14 @@ import com.simmc.blacksmith.forge.ForgeCategory;
 import com.simmc.blacksmith.forge.ForgeManager;
 import com.simmc.blacksmith.forge.gui.ForgeCategoryGUI;
 import com.simmc.blacksmith.forge.gui.ForgeRecipeGUI;
+import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
-
-import java.util.Map;
 
 public class ForgeGUIListener implements Listener {
 
@@ -29,10 +27,8 @@ public class ForgeGUIListener implements Listener {
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        Inventory inv = event.getInventory();
-        InventoryHolder holder = inv.getHolder();
+        InventoryHolder holder = event.getInventory().getHolder();
 
-        // Fast type dispatch
         if (holder instanceof ForgeCategoryGUI gui) {
             event.setCancelled(true);
             handleCategoryClick(player, gui, event.getRawSlot());
@@ -48,20 +44,22 @@ public class ForgeGUIListener implements Listener {
             return;
         }
 
-        ForgeCategory category = gui.getCategoryAtSlot(slot);
-        if (category != null) {
+        // FIX: Handle Optional<ForgeCategory> return type
+        gui.getCategoryAtSlot(slot).ifPresent(category -> {
             playClickSound(player);
             openRecipeGUI(player, category, 0);
-        }
+        });
     }
 
     private void handleRecipeClick(Player player, ForgeRecipeGUI gui, int slot) {
-        if (gui.isBackSlot(slot)) {
+        // Close/Back button
+        if (gui.isCloseSlot(slot)) {
             playClickSound(player);
             openCategoryGUI(player);
             return;
         }
 
+        // Pagination
         if (gui.isPrevPageSlot(slot)) {
             playClickSound(player);
             openRecipeGUI(player, gui.getCategory(), gui.getPage() - 1);
@@ -74,12 +72,19 @@ public class ForgeGUIListener implements Listener {
             return;
         }
 
-        String recipeId = gui.getRecipeIdAtSlot(slot);
-        if (recipeId != null) {
-            player.closeInventory();
-            player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_PLACE, 0.7f, 1.0f);
-            forgeManager.startSession(player, recipeId, player.getLocation());
-        }
+        // FIX: Handle Optional<String> return type
+        gui.getRecipeIdAtSlot(slot).ifPresent(recipeId -> startForging(player, recipeId));
+    }
+
+    private void startForging(Player player, String recipeId) {
+        player.closeInventory();
+        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_PLACE, 0.7f, 1.0f);
+
+        // Get stored anvil location from ForgeManager
+        Location anvilLocation = forgeManager.getAndRemovePlayerAnvilLocation(player.getUniqueId());
+        Location targetLocation = anvilLocation != null ? anvilLocation : player.getLocation();
+
+        forgeManager.startSession(player, recipeId, targetLocation);
     }
 
     private void playClickSound(Player player) {
@@ -88,12 +93,11 @@ public class ForgeGUIListener implements Listener {
 
     private void openCategoryGUI(Player player) {
         BlacksmithConfig config = SMCBlacksmith.getInstance().getConfigManager().getBlacksmithConfig();
-        Map<String, ForgeCategory> categories = config.getCategories();
-        new ForgeCategoryGUI(categories).open(player);
+        new ForgeCategoryGUI(config.getCategories()).open(player);
     }
 
     private void openRecipeGUI(Player player, ForgeCategory category, int page) {
         BlacksmithConfig config = SMCBlacksmith.getInstance().getConfigManager().getBlacksmithConfig();
-        new ForgeRecipeGUI(category, config.getRecipes(), page).open(player);
+        new ForgeRecipeGUI(category, config.getRecipes(), page, player).open(player);
     }
 }

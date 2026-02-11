@@ -18,6 +18,9 @@ public class ForgeTemperature {
     public static final int WHITE_HOT = 900;
     public static final int MAX_TEMP = 1200;
 
+    // Temperature bar display
+    private static final int BAR_LENGTH = 10;
+
     private int currentTemperature;
     private int targetTemperature;
     private final int heatingRate;
@@ -26,9 +29,11 @@ public class ForgeTemperature {
     public ForgeTemperature(int heatingRate, int coolingRate) {
         this.currentTemperature = COLD;
         this.targetTemperature = COLD;
-        this.heatingRate = heatingRate;
-        this.coolingRate = coolingRate;
+        this.heatingRate = Math.max(1, heatingRate);
+        this.coolingRate = Math.max(1, coolingRate);
     }
+
+    // ==================== TEMPERATURE UPDATES ====================
 
     /**
      * Updates temperature towards target.
@@ -39,11 +44,11 @@ public class ForgeTemperature {
         } else if (currentTemperature > targetTemperature) {
             currentTemperature = Math.max(currentTemperature - coolingRate, targetTemperature);
         }
-        currentTemperature = Math.max(COLD, Math.min(currentTemperature, MAX_TEMP));
+        currentTemperature = clamp(currentTemperature, COLD, MAX_TEMP);
     }
 
     /**
-     * Sets the target temperature (from fuel).
+     * Sets the target temperature (from fuel/bellows).
      */
     public void heat(int temperature) {
         this.targetTemperature = Math.min(temperature, MAX_TEMP);
@@ -57,42 +62,36 @@ public class ForgeTemperature {
     }
 
     /**
-     * Gets the heat level name.
+     * Directly sets current temperature.
+     */
+    public void setCurrentTemperature(int temp) {
+        this.currentTemperature = clamp(temp, COLD, MAX_TEMP);
+    }
+
+    // ==================== HEAT LEVEL ====================
+
+    /**
+     * Gets the current heat level.
+     */
+    public HeatLevel getHeatLevel() {
+        if (currentTemperature >= WHITE_HOT) return HeatLevel.WHITE_HOT;
+        if (currentTemperature >= HOT) return HeatLevel.HOT;
+        if (currentTemperature >= WARM) return HeatLevel.WARM;
+        return HeatLevel.COLD;
+    }
+
+    /**
+     * Gets the heat level name with color codes.
      */
     public String getHeatLevelName() {
-        if (currentTemperature >= WHITE_HOT) return "§f§lWHITE HOT";
-        if (currentTemperature >= HOT) return "§6§lHOT";
-        if (currentTemperature >= WARM) return "§e§lWARM";
-        return "§7§lCOLD";
+        return getHeatLevel().getDisplayName();
     }
 
     /**
-     * Gets the heat color for particles.
+     * Gets the heat color for particles/displays.
      */
     public Color getHeatColor() {
-        if (currentTemperature >= WHITE_HOT) {
-            return Color.WHITE;
-        } else if (currentTemperature >= HOT) {
-            return Color.ORANGE;
-        } else if (currentTemperature >= WARM) {
-            return Color.YELLOW;
-        }
-        return Color.GRAY;
-    }
-
-    /**
-     * Gets accuracy modifier based on temperature.
-     * Forging at ideal temperature gives bonus.
-     */
-    public double getAccuracyModifier(int idealMin, int idealMax) {
-        if (currentTemperature >= idealMin && currentTemperature <= idealMax) {
-            return 0.05; // +5% bonus in ideal range
-        } else if (currentTemperature < WARM) {
-            return -0.15; // -15% penalty when cold
-        } else if (currentTemperature > WHITE_HOT) {
-            return -0.10; // -10% penalty when too hot
-        }
-        return 0.0;
+        return getHeatLevel().getColor();
     }
 
     /**
@@ -103,60 +102,117 @@ public class ForgeTemperature {
     }
 
     /**
-     * Spawns temperature-based particles.
+     * Checks if temperature is in ideal range.
+     */
+    public boolean isInIdealRange(int idealMin, int idealMax) {
+        return currentTemperature >= idealMin && currentTemperature <= idealMax;
+    }
+
+    // ==================== MODIFIERS ====================
+
+    /**
+     * Gets accuracy modifier based on temperature.
+     */
+    public double getAccuracyModifier(int idealMin, int idealMax) {
+        if (isInIdealRange(idealMin, idealMax)) {
+            return 0.05; // +5% bonus in ideal range
+        } else if (currentTemperature < WARM) {
+            return -0.15; // -15% penalty when cold
+        } else if (currentTemperature > WHITE_HOT) {
+            return -0.10; // -10% penalty when too hot
+        }
+        return 0.0;
+    }
+
+    /**
+     * Gets the temperature as a percentage of max.
+     */
+    public double getTemperaturePercentage() {
+        return (double) currentTemperature / MAX_TEMP;
+    }
+
+    // ==================== VISUAL EFFECTS ====================
+
+    /**
+     * Spawns temperature-based particles at location.
      */
     public void spawnHeatParticles(Location location) {
         World world = location.getWorld();
         if (world == null) return;
 
         Location center = location.clone().add(0.5, 1.3, 0.5);
+        HeatLevel level = getHeatLevel();
 
-        if (currentTemperature >= WHITE_HOT) {
-            // White hot - intense glow
-            Particle.DustOptions whiteDust = new Particle.DustOptions(Color.WHITE, 1.5f);
-            world.spawnParticle(Particle.DUST, center, 5, 0.15, 0.1, 0.15, 0, whiteDust);
-            world.spawnParticle(Particle.FLAME, center, 3, 0.1, 0.05, 0.1, 0.01);
-        } else if (currentTemperature >= HOT) {
-            // Hot - orange glow
-            Particle.DustOptions orangeDust = new Particle.DustOptions(Color.ORANGE, 1.3f);
-            world.spawnParticle(Particle.DUST, center, 3, 0.12, 0.08, 0.12, 0, orangeDust);
-            world.spawnParticle(Particle.FLAME, center, 1, 0.08, 0.03, 0.08, 0.005);
-        } else if (currentTemperature >= WARM) {
-            // Warm - red glow
-            Particle.DustOptions redDust = new Particle.DustOptions(Color.RED, 1.0f);
-            world.spawnParticle(Particle.DUST, center, 2, 0.1, 0.05, 0.1, 0, redDust);
+        switch (level) {
+            case WHITE_HOT -> {
+                spawnDust(world, center, Color.WHITE, 1.5f, 5);
+                world.spawnParticle(Particle.FLAME, center, 3, 0.1, 0.05, 0.1, 0.01);
+            }
+            case HOT -> {
+                spawnDust(world, center, Color.ORANGE, 1.3f, 3);
+                world.spawnParticle(Particle.FLAME, center, 1, 0.08, 0.03, 0.08, 0.005);
+            }
+            case WARM -> {
+                spawnDust(world, center, Color.RED, 1.0f, 2);
+            }
+            // COLD - no particles
         }
+    }
+
+    private void spawnDust(World world, Location loc, Color color, float size, int count) {
+        Particle.DustOptions dust = new Particle.DustOptions(color, size);
+        world.spawnParticle(Particle.DUST, loc, count, 0.12, 0.08, 0.12, 0, dust);
     }
 
     /**
-     * Gets a visual temperature bar.
+     * Gets a visual temperature bar string.
      */
     public String getTemperatureBar() {
-        int barLength = 10;
-        int filled = (int) ((double) currentTemperature / MAX_TEMP * barLength);
+        int filled = (int) (getTemperaturePercentage() * BAR_LENGTH);
+        String barColor = getHeatLevel().getBarColor();
 
         StringBuilder bar = new StringBuilder("§8[");
-        for (int i = 0; i < barLength; i++) {
-            if (i < filled) {
-                if (currentTemperature >= WHITE_HOT) {
-                    bar.append("§f█");
-                } else if (currentTemperature >= HOT) {
-                    bar.append("§6█");
-                } else if (currentTemperature >= WARM) {
-                    bar.append("§e█");
-                } else {
-                    bar.append("§c█");
-                }
-            } else {
-                bar.append("§7░");
-            }
+        for (int i = 0; i < BAR_LENGTH; i++) {
+            bar.append(i < filled ? barColor + "█" : "§7░");
         }
         bar.append("§8] ").append(getHeatLevelName());
+
         return bar.toString();
     }
 
-    // Getters
+    // ==================== GETTERS ====================
+
     public int getCurrentTemperature() { return currentTemperature; }
     public int getTargetTemperature() { return targetTemperature; }
-    public void setCurrentTemperature(int temp) { this.currentTemperature = temp; }
+    public int getHeatingRate() { return heatingRate; }
+    public int getCoolingRate() { return coolingRate; }
+
+    // ==================== UTILITIES ====================
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    // ==================== HEAT LEVEL ENUM ====================
+
+    public enum HeatLevel {
+        COLD("§7§lCOLD", Color.GRAY, "§7"),
+        WARM("§e§lWARM", Color.YELLOW, "§e"),
+        HOT("§6§lHOT", Color.ORANGE, "§6"),
+        WHITE_HOT("§f§lWHITE HOT", Color.WHITE, "§f");
+
+        private final String displayName;
+        private final Color color;
+        private final String barColor;
+
+        HeatLevel(String displayName, Color color, String barColor) {
+            this.displayName = displayName;
+            this.color = color;
+            this.barColor = barColor;
+        }
+
+        public String getDisplayName() { return displayName; }
+        public Color getColor() { return color; }
+        public String getBarColor() { return barColor; }
+    }
 }

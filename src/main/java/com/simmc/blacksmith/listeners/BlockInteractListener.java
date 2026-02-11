@@ -1,8 +1,13 @@
 package com.simmc.blacksmith.listeners;
 
 import com.simmc.blacksmith.SMCBlacksmith;
+import com.simmc.blacksmith.config.BellowsConfig;
+import com.simmc.blacksmith.config.BlacksmithConfig;
 import com.simmc.blacksmith.config.ConfigManager;
-import com.simmc.blacksmith.config.FurnaceConfig;
+import com.simmc.blacksmith.config.HammerConfig;
+import com.simmc.blacksmith.forge.ForgeCategory;
+import com.simmc.blacksmith.forge.ForgeManager;
+import com.simmc.blacksmith.forge.gui.ForgeCategoryGUI;
 import com.simmc.blacksmith.furnace.FurnaceInstance;
 import com.simmc.blacksmith.furnace.FurnaceManager;
 import com.simmc.blacksmith.furnace.FurnaceType;
@@ -23,21 +28,29 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.Collection;
+import java.util.*;
 
+/**
+ * Handles block interactions for furnaces and anvils.
+ */
 public class BlockInteractListener implements Listener {
 
-    private final FurnaceManager furnaceManager;
-    private final ConfigManager configManager;
+    private static final Set<Material> ANVIL_MATERIALS = EnumSet.of(
+            Material.ANVIL,
+            Material.CHIPPED_ANVIL,
+            Material.DAMAGED_ANVIL
+    );
 
-    // Configurable constants
     private static final String HEAT_TOOL_ID = "heat_tool";
     private static final int HEAT_TOOL_BOOST = 50;
     private static final double FURNITURE_SEARCH_RADIUS = 1.0;
 
-    // Cached references (lazy loaded)
-    private SMCCoreHook smcHookCache;
-    private CraftEngineHook ceHookCache;
+    private final FurnaceManager furnaceManager;
+    private final ConfigManager configManager;
+
+    // Lazy-loaded hooks
+    private SMCCoreHook smcHook;
+    private CraftEngineHook ceHook;
     private boolean hooksInitialized;
 
     public BlockInteractListener(FurnaceManager furnaceManager, ConfigManager configManager) {
@@ -46,43 +59,163 @@ public class BlockInteractListener implements Listener {
         this.hooksInitialized = false;
     }
 
-    private void ensureHooksInitialized() {
-        if (hooksInitialized) return;
-        hooksInitialized = true;
-
-        SMCBlacksmith plugin = SMCBlacksmith.getInstance();
-        if (plugin != null) {
-            smcHookCache = plugin.getSmcCoreHook();
-            ceHookCache = plugin.getCraftEngineHook();
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH)
+    /**
+     * Use NORMAL priority so BellowsListener (HIGHEST) runs first.
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
-        // Fast rejection checks
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-        if (event.getHand() != EquipmentSlot.HAND) return;
+        if (!isValidInteraction(event)) return;
 
         Block block = event.getClickedBlock();
-        if (block == null) return;
-
         Player player = event.getPlayer();
         Location location = block.getLocation();
         ItemStack itemInHand = player.getInventory().getItemInMainHand();
 
-        // Check existing furnace first (most common case)
+        // Hammer + Anvil → Open Forge GUI
+        if (isAnvilBlock(block) && isHammer(itemInHand)) {
+            event.setCancelled(true);
+            openForgeGUI(player, location, itemInHand);
+            return;
+        }
+
+        // Check if holding bellows - skip furnace GUI if so
+        // (BellowsListener handles this at HIGHEST priority, but double-check here)
+        if (isBellows(itemInHand)) {
+            // Don't open furnace GUI - bellows listener handles it
+            return;
+        }
+
+        // Existing furnace interaction
         if (furnaceManager.isFurnace(location)) {
-            handleExistingFurnace(player, location, itemInHand, event);
+            handleFurnaceInteraction(player, location, itemInHand, event);
             return;
         }
 
         // Check for CraftEngine furniture
-        handlePotentialFurniture(player, block, location, itemInHand, event);
+        handleFurnitureInteraction(player, block, location, itemInHand, event);
     }
 
-    private void handleExistingFurnace(Player player, Location location,
-                                       ItemStack itemInHand, PlayerInteractEvent event) {
-        // Check for heat tool usage
+    // ==================== VALIDATION ====================
+
+    private boolean isValidInteraction(PlayerInteractEvent event) {
+        return event.getAction() == Action.RIGHT_CLICK_BLOCK
+                && event.getHand() == EquipmentSlot.HAND
+                && event.getClickedBlock() != null;
+    }
+
+    private boolean isAnvilBlock(Block block) {
+        return block != null && ANVIL_MATERIALS.contains(block.getType());
+    }
+
+    // ==================== BELLOWS CHECK ====================
+
+    /**
+     * Check if item is a bellows to prevent opening furnace GUI.
+     */
+    private boolean isBellows(ItemStack item) {
+        if (item == null || item.getType().isAir()) return false;
+
+        BellowsConfig bellowsConfig = configManager.getBellowsConfig();
+        if (bellowsConfig == null || bellowsConfig.getBellowsTypeCount() == 0) {
+            return false;
+        }
+
+        ensureHooksInitialized();
+
+        // Check SMCCore items first
+        if (smcHook != null && smcHook.isAvailable()) {
+            String smcId = smcHook.getItemId(item);
+            if (smcId != null && !smcId.isEmpty()) {
+                return bellowsConfig.getAllTypes().stream()
+                        .anyMatch(t -> t.isSMCCore() && t.itemId().equalsIgnoreCase(smcId));
+            }
+        }
+
+        // Check vanilla items
+        String materialName = item.getType().name();
+        return bellowsConfig.getAllTypes().stream()
+                .anyMatch(t -> t.isVanilla() && t.itemId().equalsIgnoreCase(materialName));
+    }
+
+    // ==================== HAMMER DETECTION ====================
+
+    private boolean isHammer(ItemStack item) {
+        if (item == null || item.getType().isAir()) return false;
+
+        HammerConfig hammerConfig = configManager.getHammerConfig();
+        if (hammerConfig == null || hammerConfig.getHammerTypeCount() == 0) {
+            return false;
+        }
+
+        return getHammerType(item).isPresent();
+    }
+
+    private Optional<HammerConfig.HammerType> getHammerType(ItemStack item) {
+        if (item == null || item.getType().isAir()) return Optional.empty();
+
+        ensureHooksInitialized();
+
+        HammerConfig hammerConfig = configManager.getHammerConfig();
+        if (hammerConfig == null) return Optional.empty();
+
+        // Check SMCCore items first
+        if (smcHook != null && smcHook.isAvailable()) {
+            String smcId = smcHook.getItemId(item);
+            if (smcId != null && !smcId.isEmpty()) {
+                return hammerConfig.getAllHammerTypes().values().stream()
+                        .filter(t -> t.type().equalsIgnoreCase("smc") && t.itemId().equalsIgnoreCase(smcId))
+                        .findFirst();
+            }
+        }
+
+        // Check vanilla items
+        String materialName = item.getType().name().toLowerCase();
+        return hammerConfig.getAllHammerTypes().values().stream()
+                .filter(t -> t.type().equalsIgnoreCase("minecraft") && t.itemId().equalsIgnoreCase(materialName))
+                .findFirst();
+    }
+
+    // ==================== FORGE GUI ====================
+
+    private void openForgeGUI(Player player, Location anvilLocation, ItemStack hammerItem) {
+        SMCBlacksmith plugin = SMCBlacksmith.getInstance();
+        ForgeManager forgeManager = plugin.getForgeManager();
+
+        // Validation checks
+        if (forgeManager.hasActiveSession(player.getUniqueId())) {
+            player.sendMessage("§cYou already have an active forge session!");
+            return;
+        }
+
+        if (plugin.getQuenchingManager().hasActiveSession(player.getUniqueId())) {
+            player.sendMessage("§cComplete your current session first!");
+            return;
+        }
+
+        // Store context for recipe selection
+        forgeManager.setPlayerAnvilLocation(player.getUniqueId(), anvilLocation);
+
+        getHammerType(hammerItem).ifPresent(hammerType ->
+                forgeManager.setPlayerHammerType(player.getUniqueId(), hammerType));
+
+        // Open category GUI
+        BlacksmithConfig config = configManager.getBlacksmithConfig();
+        Map<String, ForgeCategory> categories = config.getCategories();
+
+        if (categories.isEmpty()) {
+            player.sendMessage("§cNo forge recipes configured!");
+            return;
+        }
+
+        new ForgeCategoryGUI(categories).open(player);
+        player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 0.5f, 1.2f);
+    }
+
+    // ==================== FURNACE INTERACTION ====================
+
+    private void handleFurnaceInteraction(Player player, Location location,
+                                          ItemStack itemInHand, PlayerInteractEvent event) {
+        // Heat tool check
         if (isHeatTool(itemInHand)) {
             event.setCancelled(true);
             applyHeatTool(player, location);
@@ -94,38 +227,13 @@ public class BlockInteractListener implements Listener {
         furnaceManager.openFurnaceGUI(player, location);
     }
 
-    private void handlePotentialFurniture(Player player, Block block, Location location,
-                                          ItemStack itemInHand, PlayerInteractEvent event) {
-        String furnitureId = getCraftEngineFurnitureId(block, location);
-        if (furnitureId == null) return;
-
-        FurnaceType type = getFurnaceTypeForFurniture(furnitureId);
-        if (type == null) return;
-
-        event.setCancelled(true);
-
-        // Create furnace
-        FurnaceInstance instance = furnaceManager.createFurnace(type.getId(), location);
-        if (instance == null) return;
-
-        // Check for heat tool on new furnace
-        if (isHeatTool(itemInHand)) {
-            applyHeatTool(player, location);
-            return;
-        }
-
-        // Open GUI
-        furnaceManager.openFurnaceGUI(player, location);
-    }
-
     private boolean isHeatTool(ItemStack item) {
         if (item == null || item.getType().isAir()) return false;
 
         ensureHooksInitialized();
+        if (smcHook == null || !smcHook.isAvailable()) return false;
 
-        if (smcHookCache == null || !smcHookCache.isAvailable()) return false;
-
-        String itemId = smcHookCache.getItemId(item);
+        String itemId = smcHook.getItemId(item);
         return HEAT_TOOL_ID.equalsIgnoreCase(itemId);
     }
 
@@ -139,26 +247,47 @@ public class BlockInteractListener implements Listener {
 
         furnace.setTargetTemperature(newTarget);
 
-        // Feedback
         String message = configManager.getMessageConfig().getHeatToolUsed();
-        if (message != null && !message.isEmpty()) {
-            player.sendMessage(message);
-        } else {
-            player.sendMessage("§6Temperature boosted to " + newTarget + "°C!");
-        }
+        player.sendMessage(message != null && !message.isEmpty()
+                ? message
+                : "§6Temperature boosted to " + newTarget + "°C!");
 
         player.playSound(location, Sound.BLOCK_FIRE_AMBIENT, 1.0f, 1.5f);
     }
 
+    // ==================== FURNITURE HANDLING ====================
+
+    private void handleFurnitureInteraction(Player player, Block block, Location location,
+                                            ItemStack itemInHand, PlayerInteractEvent event) {
+        String furnitureId = getCraftEngineFurnitureId(block, location);
+        if (furnitureId == null) return;
+
+        Optional<FurnaceType> furnaceType = getFurnaceTypeForFurniture(furnitureId);
+        if (furnaceType.isEmpty()) return;
+
+        // Check if holding bellows - don't open GUI
+        if (isBellows(itemInHand)) {
+            return;
+        }
+
+        event.setCancelled(true);
+
+        FurnaceInstance instance = furnaceManager.createFurnace(furnaceType.get().getId(), location);
+        if (instance == null) return;
+
+        if (isHeatTool(itemInHand)) {
+            applyHeatTool(player, location);
+            return;
+        }
+
+        furnaceManager.openFurnaceGUI(player, location);
+    }
+
     private String getCraftEngineFurnitureId(Block block, Location location) {
         ensureHooksInitialized();
-
-        if (ceHookCache == null || !ceHookCache.isAvailable()) return null;
-
-        // CraftEngine furniture uses barrier blocks
+        if (ceHook == null || !ceHook.isAvailable()) return null;
         if (block.getType() != Material.BARRIER) return null;
 
-        // Search for item display entities
         Location center = location.clone().add(0.5, 0.5, 0.5);
         Collection<Entity> nearby = location.getWorld().getNearbyEntities(
                 center, FURNITURE_SEARCH_RADIUS, FURNITURE_SEARCH_RADIUS, FURNITURE_SEARCH_RADIUS,
@@ -171,14 +300,11 @@ public class BlockInteractListener implements Listener {
                 return customName.substring(3);
             }
 
-            // Try to get ID from entity's item
             if (entity instanceof ItemDisplay itemDisplay) {
                 ItemStack displayItem = itemDisplay.getItemStack();
                 if (displayItem != null) {
-                    String ceId = ceHookCache.getItemId(displayItem);
-                    if (ceId != null) {
-                        return ceId;
-                    }
+                    String ceId = ceHook.getItemId(displayItem);
+                    if (ceId != null) return ceId;
                 }
             }
         }
@@ -186,18 +312,24 @@ public class BlockInteractListener implements Listener {
         return null;
     }
 
-    private FurnaceType getFurnaceTypeForFurniture(String furnitureId) {
-        if (furnitureId == null || furnitureId.isEmpty()) return null;
+    private Optional<FurnaceType> getFurnaceTypeForFurniture(String furnitureId) {
+        if (furnitureId == null || furnitureId.isEmpty()) return Optional.empty();
 
-        FurnaceConfig furnaceConfig = configManager.getFurnaceConfig();
+        return configManager.getFurnaceConfig().getAllTypes().stream()
+                .filter(type -> furnitureId.equalsIgnoreCase(type.getItemId()))
+                .findFirst();
+    }
 
-        for (FurnaceType type : furnaceConfig.getFurnaceTypes().values()) {
-            String typeItemId = type.getItemId();
-            if (typeItemId != null && furnitureId.equalsIgnoreCase(typeItemId)) {
-                return type;
-            }
+    // ==================== HOOKS ====================
+
+    private void ensureHooksInitialized() {
+        if (hooksInitialized) return;
+        hooksInitialized = true;
+
+        SMCBlacksmith plugin = SMCBlacksmith.getInstance();
+        if (plugin != null) {
+            smcHook = plugin.getSmcCoreHook();
+            ceHook = plugin.getCraftEngineHook();
         }
-
-        return null;
     }
 }

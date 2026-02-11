@@ -2,6 +2,7 @@ package com.simmc.blacksmith.commands;
 
 import com.simmc.blacksmith.forge.ForgeHammer;
 import com.simmc.blacksmith.forge.ForgeManager;
+import com.simmc.blacksmith.forge.ForgeSession;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -11,9 +12,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -21,12 +20,19 @@ import java.util.stream.Collectors;
  */
 public class ForgeCommands implements CommandExecutor, TabCompleter {
 
+    private static final Set<Material> ANVIL_MATERIALS = EnumSet.of(
+            Material.ANVIL, Material.CHIPPED_ANVIL, Material.DAMAGED_ANVIL
+    );
+
+    private static final List<String> SUBCOMMANDS = List.of("start", "cancel", "hammer", "list", "debug");
+    private static final List<String> HAMMER_TYPES = List.of("normal", "master");
+
     private final ForgeManager forgeManager;
     private final List<String> recipeIds;
 
     public ForgeCommands(ForgeManager forgeManager, List<String> recipeIds) {
         this.forgeManager = forgeManager;
-        this.recipeIds = recipeIds;
+        this.recipeIds = new ArrayList<>(recipeIds);
     }
 
     @Override
@@ -53,6 +59,8 @@ public class ForgeCommands implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    // ==================== SUBCOMMAND HANDLERS ====================
+
     private void handleStart(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage("§cUsage: /forge start <recipe>");
@@ -61,26 +69,14 @@ public class ForgeCommands implements CommandExecutor, TabCompleter {
         }
 
         String recipeId = args[1];
+        Location anvilLocation = findAnvilLocation(player);
 
-        // Find anvil near player or where they're looking
-        Block targetBlock = player.getTargetBlockExact(5);
-        Location anvilLocation;
-
-        if (targetBlock != null && targetBlock.getType() == Material.ANVIL) {
-            anvilLocation = targetBlock.getLocation();
-        } else {
-            // Look for anvil nearby
-            anvilLocation = findNearbyAnvil(player.getLocation(), 3);
-            if (anvilLocation == null) {
-                player.sendMessage("§cNo anvil found nearby! Look at or stand near an anvil.");
-                return;
-            }
+        if (anvilLocation == null) {
+            player.sendMessage("§cNo anvil found nearby! Look at or stand near an anvil.");
+            return;
         }
 
-        boolean started = forgeManager.startSession(player, recipeId, anvilLocation);
-        if (!started) {
-            // Error message already sent by forgeManager
-        }
+        forgeManager.startSession(player, recipeId, anvilLocation);
     }
 
     private void handleCancel(Player player) {
@@ -90,6 +86,7 @@ public class ForgeCommands implements CommandExecutor, TabCompleter {
         }
 
         forgeManager.cancelSession(player.getUniqueId());
+        player.sendMessage("§eForging session cancelled.");
     }
 
     private void handleHammer(Player player, String[] args) {
@@ -109,8 +106,10 @@ public class ForgeCommands implements CommandExecutor, TabCompleter {
 
     private void handleList(Player player) {
         player.sendMessage("§6§l=== Forge Recipes ===");
-        for (String id : recipeIds) {
-            player.sendMessage("§7- §e" + id);
+        if (recipeIds.isEmpty()) {
+            player.sendMessage("§7No recipes configured.");
+        } else {
+            recipeIds.forEach(id -> player.sendMessage("§7- §e" + id));
         }
     }
 
@@ -118,16 +117,33 @@ public class ForgeCommands implements CommandExecutor, TabCompleter {
         player.sendMessage("§6§l=== Forge Debug ===");
         player.sendMessage("§7Active Sessions: §f" + forgeManager.getActiveSessionCount());
 
-        if (forgeManager.hasActiveSession(player.getUniqueId())) {
-            var session = forgeManager.getSession(player.getUniqueId());
-            player.sendMessage("§7Your Session:");
-            player.sendMessage("§7  Recipe: §f" + session.getRecipe().getId());
-            player.sendMessage("§7  Hits: §f" + session.getHitsCompleted() + "/" + session.getTotalHits());
-            player.sendMessage("§7  Accuracy: §f" + String.format("%.1f%%", session.getAverageAccuracy() * 100));
-            player.sendMessage("§7  Perfect Hits: §f" + session.getPerfectHits());
+        ForgeSession session = forgeManager.getSession(player.getUniqueId());
+        if (session != null) {
+            displaySessionInfo(player, session);
         } else {
             player.sendMessage("§7You have no active session.");
         }
+    }
+
+    private void displaySessionInfo(Player player, ForgeSession session) {
+        player.sendMessage("§7Your Session:");
+        player.sendMessage("§7  Recipe: §f" + session.getRecipe().getId());
+        player.sendMessage("§7  Hits: §f" + session.getHitsCompleted() + "/" + session.getTotalHits());
+        player.sendMessage("§7  Accuracy: §f" + formatPercent(session.getAverageAccuracy()));
+        player.sendMessage("§7  Perfect Hits: §f" + session.getPerfectHits());
+    }
+
+    // ==================== UTILITIES ====================
+
+    private Location findAnvilLocation(Player player) {
+        // First check what player is looking at
+        Block targetBlock = player.getTargetBlockExact(5);
+        if (targetBlock != null && ANVIL_MATERIALS.contains(targetBlock.getType())) {
+            return targetBlock.getLocation();
+        }
+
+        // Then search nearby
+        return findNearbyAnvil(player.getLocation(), 3);
     }
 
     private Location findNearbyAnvil(Location center, int radius) {
@@ -135,15 +151,17 @@ public class ForgeCommands implements CommandExecutor, TabCompleter {
             for (int y = -radius; y <= radius; y++) {
                 for (int z = -radius; z <= radius; z++) {
                     Location check = center.clone().add(x, y, z);
-                    if (check.getBlock().getType() == Material.ANVIL ||
-                            check.getBlock().getType() == Material.CHIPPED_ANVIL ||
-                            check.getBlock().getType() == Material.DAMAGED_ANVIL) {
+                    if (ANVIL_MATERIALS.contains(check.getBlock().getType())) {
                         return check;
                     }
                 }
             }
         }
         return null;
+    }
+
+    private String formatPercent(double value) {
+        return String.format("%.1f%%", value * 100);
     }
 
     private void sendHelp(Player player) {
@@ -155,25 +173,29 @@ public class ForgeCommands implements CommandExecutor, TabCompleter {
         player.sendMessage("§e/forge debug §7- Debug information");
     }
 
+    // ==================== TAB COMPLETION ====================
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filterStartsWith(Arrays.asList("start", "cancel", "hammer", "list", "debug"), args[0]);
+            return filterStartsWith(SUBCOMMANDS, args[0]);
         }
+
         if (args.length == 2) {
-            if ("start".equalsIgnoreCase(args[0])) {
-                return filterStartsWith(recipeIds, args[1]);
-            }
-            if ("hammer".equalsIgnoreCase(args[0])) {
-                return filterStartsWith(Arrays.asList("normal", "master"), args[1]);
-            }
+            return switch (args[0].toLowerCase()) {
+                case "start" -> filterStartsWith(recipeIds, args[1]);
+                case "hammer" -> filterStartsWith(HAMMER_TYPES, args[1]);
+                default -> List.of();
+            };
         }
-        return new ArrayList<>();
+
+        return List.of();
     }
 
     private List<String> filterStartsWith(List<String> options, String prefix) {
+        String lowerPrefix = prefix.toLowerCase();
         return options.stream()
-                .filter(s -> s.toLowerCase().startsWith(prefix.toLowerCase()))
+                .filter(s -> s.toLowerCase().startsWith(lowerPrefix))
                 .collect(Collectors.toList());
     }
 }

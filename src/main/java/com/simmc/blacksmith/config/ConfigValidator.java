@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * Validates configuration files and reports errors/warnings.
- * Provides detailed validation for furnaces, forge recipes, fuels, and repair configs.
+ * Provides detailed validation for furnaces, forge recipes, fuels, bellows, and repair configs.
  */
 public class ConfigValidator {
 
@@ -78,6 +78,12 @@ public class ConfigValidator {
         int tempChange = section.getInt("temperature_change", 10);
         if (tempChange <= 0) {
             addWarning(furnaceId, "temperature_change should be positive, got: " + tempChange);
+        }
+
+        // Cooling rate validation (NEW)
+        int coolingRate = section.getInt("cooling_rate", 1);
+        if (coolingRate < 0) {
+            addWarning(furnaceId, "cooling_rate should be non-negative, got: " + coolingRate);
         }
 
         // Display material validation
@@ -310,6 +316,49 @@ public class ConfigValidator {
         return valid;
     }
 
+    // ==================== BELLOWS VALIDATION (NEW) ====================
+
+    /**
+     * Validates a bellows configuration section.
+     */
+    public boolean validateBellowsConfig(ConfigurationSection section, String bellowsId) {
+        boolean valid = true;
+
+        // Item ID validation
+        String itemId = section.getString("id", "");
+        if (itemId.isEmpty()) {
+            addWarning(bellowsId, "Missing 'id' field, using config key as ID");
+        }
+
+        // Item type validation
+        String itemType = section.getString("type", "smc").toLowerCase();
+        if (!isValidItemType(itemType)) {
+            addWarning(bellowsId, "Unknown item type '" + itemType + "', expected minecraft/craftengine/smc/nexo");
+        }
+
+        // Heat per blow validation
+        int heatPerBlow = section.getInt("heat_per_blow", 0);
+        if (heatPerBlow <= 0) {
+            addWarning(bellowsId, "heat_per_blow should be positive, got: " + heatPerBlow + ", defaulting to 10");
+        }
+
+        // Max durability validation
+        int maxDurability = section.getInt("max_durability", 0);
+        if (maxDurability <= 0) {
+            addWarning(bellowsId, "max_durability should be positive, got: " + maxDurability + ", defaulting to 100");
+        }
+
+        // Validate minecraft items
+        if (itemType.equals("minecraft") && !itemId.isEmpty() && !itemId.contains(":")) {
+            Material mat = Material.matchMaterial(itemId);
+            if (mat == null) {
+                addWarning(bellowsId, "Unknown minecraft item '" + itemId + "'");
+            }
+        }
+
+        return valid;
+    }
+
     // ==================== ITEM REFERENCE VALIDATION ====================
 
     /**
@@ -366,6 +415,53 @@ public class ConfigValidator {
     private void addWarning(String path, String message) {
         String full = "[WARNING] " + path + ": " + message;
         warnings.add(full);
+    }
+
+    /**
+     * Validates a hammer configuration section.
+     */
+    public boolean validateHammerConfig(ConfigurationSection section, String hammerId) {
+        boolean valid = true;
+
+        // Item ID validation
+        String itemId = section.getString("id", "");
+        if (itemId.isEmpty()) {
+            addWarning(hammerId, "Missing 'id' field, using config key as ID");
+        }
+
+        // Item type validation
+        String itemType = section.getString("type", "smc").toLowerCase();
+        if (!isValidItemType(itemType)) {
+            addWarning(hammerId, "Unknown item type '" + itemType + "', expected minecraft/craftengine/smc/nexo");
+        }
+
+        // Max durability validation
+        int maxDurability = section.getInt("max_durability", 0);
+        if (maxDurability <= 0) {
+            addWarning(hammerId, "max_durability should be positive, got: " + maxDurability + ", defaulting to 500");
+        }
+
+        // Speed bonus validation
+        double speedBonus = section.getDouble("speed_bonus", 0.0);
+        if (speedBonus < 0 || speedBonus > 1.0) {
+            addWarning(hammerId, "speed_bonus should be 0.0-1.0, got: " + speedBonus);
+        }
+
+        // Accuracy bonus validation
+        double accuracyBonus = section.getDouble("accuracy_bonus", 0.0);
+        if (accuracyBonus < 0 || accuracyBonus > 1.0) {
+            addWarning(hammerId, "accuracy_bonus should be 0.0-1.0, got: " + accuracyBonus);
+        }
+
+        // Validate minecraft items
+        if (itemType.equals("minecraft") && !itemId.isEmpty() && !itemId.contains(":")) {
+            Material mat = Material.matchMaterial(itemId);
+            if (mat == null) {
+                addWarning(hammerId, "Unknown minecraft item '" + itemId + "'");
+            }
+        }
+
+        return valid;
     }
 
     /**

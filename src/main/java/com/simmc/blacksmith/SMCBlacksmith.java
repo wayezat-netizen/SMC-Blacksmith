@@ -15,15 +15,25 @@ import com.simmc.blacksmith.quench.QuenchingManager;
 import com.simmc.blacksmith.repair.RepairManager;
 import com.simmc.blacksmith.util.TaskManager;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+import java.util.logging.Level;
 
+/**
+ * Main plugin class for SMCBlacksmith.
+ * Manages lifecycle, dependencies, and core systems.
+ */
 public final class SMCBlacksmith extends JavaPlugin {
 
     private static SMCBlacksmith instance;
 
+    // Core managers
     private TaskManager taskManager;
     private ConfigManager configManager;
     private ItemProviderRegistry itemRegistry;
@@ -32,112 +42,149 @@ public final class SMCBlacksmith extends JavaPlugin {
     private QuenchingManager quenchingManager;
     private RepairManager repairManager;
 
-    private volatile PlaceholderAPIHook papiHook;
-    private volatile SMCCoreHook smcCoreHook;
-    private volatile CraftEngineHook craftEngineHook;
-    private volatile NexoHook nexoHook;
+    // Lazy-loaded hooks using AtomicReference for thread safety
+    private final LazyHook<PlaceholderAPIHook> papiHook = new LazyHook<>();
+    private final LazyHook<SMCCoreHook> smcCoreHook = new LazyHook<>();
+    private final LazyHook<CraftEngineHook> craftEngineHook = new LazyHook<>();
+    private final LazyHook<NexoHook> nexoHook = new LazyHook<>();
 
-    private final Object papiLock = new Object();
-    private final Object smcCoreLock = new Object();
-    private final Object craftEngineLock = new Object();
-    private final Object nexoLock = new Object();
-
-    private volatile boolean papiChecked = false;
-    private volatile boolean smcCoreChecked = false;
-    private volatile boolean craftEngineChecked = false;
-    private volatile boolean nexoChecked = false;
+    // Plugin state
+    private volatile boolean fullyEnabled = false;
 
     @Override
     public void onEnable() {
         instance = this;
-        taskManager = new TaskManager(this);
 
-        initializeEarlyHooks();
+        try {
+            initializeCore();
+            initializeManagers();
+            registerListeners();
+            registerCommands();
+            startSystems();
 
-        configManager = new ConfigManager(this);
-        configManager.loadAll();
-
-        itemRegistry = new ItemProviderRegistry(this,
-                getSmcCoreHook(),
-                getCraftEngineHook(),
-                getNexoHook());
-
-        furnaceManager = new FurnaceManager(this, configManager, itemRegistry);
-        forgeManager = new ForgeManager(this, configManager, itemRegistry);
-        quenchingManager = new QuenchingManager(this, configManager);
-        repairManager = new RepairManager(this, configManager, itemRegistry);
-
-        registerListeners();
-        registerCommands();
-
-        furnaceManager.startTickTask();
-        furnaceManager.loadAll();
-
-        logStartupInfo();
+            fullyEnabled = true;
+            logStartupInfo();
+        } catch (Exception e) {
+            getLogger().log(Level.SEVERE, "Failed to enable SMCBlacksmith!", e);
+            getServer().getPluginManager().disablePlugin(this);
+        }
     }
 
     @Override
     public void onDisable() {
-        if (quenchingManager != null) {
-            quenchingManager.cancelAllSessions();
-        }
+        fullyEnabled = false;
 
-        if (forgeManager != null) {
-            forgeManager.cancelAllSessions();
-        }
+        shutdownSafely("QuenchingManager", () -> {
+            if (quenchingManager != null) quenchingManager.cancelAllSessions();
+        });
 
-        if (furnaceManager != null) {
-            furnaceManager.stopTickTask();
-            furnaceManager.saveAll();
-        }
+        shutdownSafely("ForgeManager", () -> {
+            if (forgeManager != null) forgeManager.cancelAllSessions();
+        });
 
-        if (taskManager != null) {
-            taskManager.cancelAll();
-        }
+        shutdownSafely("FurnaceManager", () -> {
+            if (furnaceManager != null) {
+                furnaceManager.stopTickTask();
+                furnaceManager.saveAll();
+            }
+        });
+
+        shutdownSafely("TaskManager", () -> {
+            if (taskManager != null) taskManager.cancelAll();
+        });
 
         getLogger().info("SMCBlacksmith disabled.");
         instance = null;
     }
 
-    private void initializeEarlyHooks() {
-        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            getLogger().info("PlaceholderAPI detected");
-        }
-        if (getServer().getPluginManager().getPlugin("SMCCore") != null) {
-            getLogger().info("SMCCore detected");
-        }
-        if (getServer().getPluginManager().getPlugin("CraftEngine") != null) {
-            getLogger().info("CraftEngine detected");
-        }
-        if (getServer().getPluginManager().getPlugin("Nexo") != null) {
-            getLogger().info("Nexo detected");
-        }
+    // ==================== INITIALIZATION ====================
+
+    private void initializeCore() {
+        taskManager = new TaskManager(this);
+        configManager = new ConfigManager(this);
+        configManager.loadAll();
+
+        detectIntegrations();
+    }
+
+    private void initializeManagers() {
+        // Get hooks - create them here so they initialize
+        SMCCoreHook smcHook = getSmcCoreHook();
+        CraftEngineHook ceHook = getCraftEngineHook();
+        NexoHook nHook = getNexoHook();
+
+        // Log hook status
+        getLogger().info("SMCCore hook available: " + (smcHook != null && smcHook.isAvailable()));
+        getLogger().info("CraftEngine hook available: " + (ceHook != null && ceHook.isAvailable()));
+        getLogger().info("Nexo hook available: " + (nHook != null && nHook.isAvailable()));
+
+        itemRegistry = new ItemProviderRegistry(this, smcHook, ceHook, nHook);
+
+        furnaceManager = new FurnaceManager(this, configManager, itemRegistry);
+        forgeManager = new ForgeManager(this, configManager, itemRegistry);
+        quenchingManager = new QuenchingManager(this, configManager);
+        repairManager = new RepairManager(this, configManager, itemRegistry);
     }
 
     private void registerListeners() {
-        getServer().getPluginManager().registerEvents(new FurnaceListener(furnaceManager), this);
-        getServer().getPluginManager().registerEvents(new ForgeListener(forgeManager), this);
-        getServer().getPluginManager().registerEvents(new QuenchingListener(quenchingManager), this);
-        getServer().getPluginManager().registerEvents(new PlayerListener(furnaceManager, forgeManager, quenchingManager), this);
-        getServer().getPluginManager().registerEvents(new FurnaceBlockListener(furnaceManager), this);
-        getServer().getPluginManager().registerEvents(new ForgeGUIListener(forgeManager), this);
-        getServer().getPluginManager().registerEvents(new BlockInteractListener(furnaceManager, configManager), this);
+        PluginManager pm = getServer().getPluginManager();
+
+        pm.registerEvents(new FurnaceListener(furnaceManager), this);
+        pm.registerEvents(new ForgeListener(forgeManager), this);
+        pm.registerEvents(new QuenchingListener(quenchingManager), this);
+        pm.registerEvents(new PlayerListener(furnaceManager, forgeManager, quenchingManager), this);
+        pm.registerEvents(new FurnaceBlockListener(furnaceManager), this);
+        pm.registerEvents(new ForgeGUIListener(forgeManager), this);
+        pm.registerEvents(new BlockInteractListener(furnaceManager, configManager), this);
+        pm.registerEvents(new BellowsListener(this, furnaceManager, configManager), this);
     }
 
     private void registerCommands() {
         BlacksmithCommand commandExecutor = new BlacksmithCommand(this);
-        PluginCommand bsCommand = getCommand("blacksmith");
-        if (bsCommand != null) {
-            bsCommand.setExecutor(commandExecutor);
-            bsCommand.setTabCompleter(commandExecutor);
-        }
+        registerCommand("blacksmith", commandExecutor, commandExecutor);
 
         List<String> recipeIds = new ArrayList<>(configManager.getBlacksmithConfig().getRecipeIds());
         ForgeCommands forgeCommands = new ForgeCommands(forgeManager, recipeIds);
-        PluginCommand forgeCommand = getCommand("forge");
-        if (forgeCommand != null) {
-            forgeCommand.setExecutor(forgeCommands);
-            forgeCommand.setTabCompleter(forgeCommands);
+        registerCommand("forge", forgeCommands, forgeCommands);
+    }
+
+    private void registerCommand(String name, org.bukkit.command.CommandExecutor executor,
+                                 org.bukkit.command.TabCompleter completer) {
+        PluginCommand command = getCommand(name);
+        if (command != null) {
+            command.setExecutor(executor);
+            command.setTabCompleter(completer);
+        } else {
+            getLogger().warning("Command '" + name + "' not found in plugin.yml!");
+        }
+    }
+
+    private void startSystems() {
+        furnaceManager.startTickTask();
+        furnaceManager.loadAll();
+    }
+
+    private void detectIntegrations() {
+        PluginManager pm = getServer().getPluginManager();
+
+        // FIXED: Use correct plugin names (case-sensitive!)
+        logIntegration("PlaceholderAPI", pm.getPlugin("PlaceholderAPI") != null);
+        logIntegration("SmcCore", pm.getPlugin("SmcCore") != null);        // <-- FIXED
+        logIntegration("CraftEngine", pm.getPlugin("CraftEngine") != null);
+        logIntegration("Nexo", pm.getPlugin("Nexo") != null);
+    }
+
+    private void logIntegration(String name, boolean found) {
+        if (found) {
+            getLogger().info("Integration detected: " + name);
+        }
+    }
+
+    private void shutdownSafely(String component, Runnable shutdown) {
+        try {
+            shutdown.run();
+        } catch (Exception e) {
+            getLogger().log(Level.WARNING, "Error shutting down " + component, e);
         }
     }
 
@@ -147,9 +194,15 @@ public final class SMCBlacksmith extends JavaPlugin {
         getLogger().info("Furnace Types: " + configManager.getFurnaceConfig().getFurnaceTypeCount());
         getLogger().info("Forge Recipes: " + configManager.getBlacksmithConfig().getRecipeCount());
         getLogger().info("Repair Configs: " + configManager.getGrindstoneConfig().getRepairConfigCount());
+        getLogger().info("Bellows Types: " + configManager.getBellowsConfig().getBellowsTypeCount());
+        getLogger().info("Hammer Types: " + configManager.getHammerConfig().getHammerTypeCount());
         getLogger().info("Item Providers: " + itemRegistry.getProviderCount());
+        getLogger().info("SMCCore: " + (hasSMCCore() ? "Enabled" : "Disabled"));
+        getLogger().info("CraftEngine: " + (hasCraftEngine() ? "Enabled" : "Disabled"));
         getLogger().info("========================================");
     }
+
+    // ==================== RELOAD ====================
 
     public void reload() {
         configManager.loadAll();
@@ -160,62 +213,52 @@ public final class SMCBlacksmith extends JavaPlugin {
         getLogger().info("Configuration reloaded.");
     }
 
-    // Lazy hook getters (unchanged)
+    // ==================== HOOK ACCESSORS ====================
+
     public PlaceholderAPIHook getPapiHook() {
-        if (!papiChecked) {
-            synchronized (papiLock) {
-                if (!papiChecked) {
-                    if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-                        papiHook = new PlaceholderAPIHook(this);
-                    }
-                    papiChecked = true;
-                }
-            }
-        }
-        return papiHook;
+        return papiHook.get(() -> isPluginPresent("PlaceholderAPI")
+                ? new PlaceholderAPIHook(this) : null);
     }
 
     public SMCCoreHook getSmcCoreHook() {
-        if (!smcCoreChecked) {
-            synchronized (smcCoreLock) {
-                if (!smcCoreChecked) {
-                    if (getServer().getPluginManager().getPlugin("SMCCore") != null) {
-                        smcCoreHook = new SMCCoreHook(this);
-                    }
-                    smcCoreChecked = true;
-                }
-            }
-        }
-        return smcCoreHook;
+        // FIXED: Use "SmcCore" not "SMCCore"
+        return smcCoreHook.get(() -> isPluginPresent("SmcCore")
+                ? new SMCCoreHook(this) : null);
     }
 
     public CraftEngineHook getCraftEngineHook() {
-        if (!craftEngineChecked) {
-            synchronized (craftEngineLock) {
-                if (!craftEngineChecked) {
-                    if (getServer().getPluginManager().getPlugin("CraftEngine") != null) {
-                        craftEngineHook = new CraftEngineHook(this);
-                    }
-                    craftEngineChecked = true;
-                }
-            }
-        }
-        return craftEngineHook;
+        return craftEngineHook.get(() -> isPluginPresent("CraftEngine")
+                ? new CraftEngineHook(this) : null);
     }
 
     public NexoHook getNexoHook() {
-        if (!nexoChecked) {
-            synchronized (nexoLock) {
-                if (!nexoChecked) {
-                    if (getServer().getPluginManager().getPlugin("Nexo") != null) {
-                        nexoHook = new NexoHook(this);
-                    }
-                    nexoChecked = true;
-                }
-            }
-        }
-        return nexoHook;
+        return nexoHook.get(() -> isPluginPresent("Nexo")
+                ? new NexoHook(this) : null);
     }
+
+    private boolean isPluginPresent(String name) {
+        return getServer().getPluginManager().getPlugin(name) != null;
+    }
+
+    // ==================== HOOK AVAILABILITY ====================
+
+    public boolean hasPAPI() {
+        return Optional.ofNullable(getPapiHook()).map(PlaceholderAPIHook::isAvailable).orElse(false);
+    }
+
+    public boolean hasSMCCore() {
+        return Optional.ofNullable(getSmcCoreHook()).map(SMCCoreHook::isAvailable).orElse(false);
+    }
+
+    public boolean hasCraftEngine() {
+        return Optional.ofNullable(getCraftEngineHook()).map(CraftEngineHook::isAvailable).orElse(false);
+    }
+
+    public boolean hasNexo() {
+        return Optional.ofNullable(getNexoHook()).map(NexoHook::isAvailable).orElse(false);
+    }
+
+    // ==================== GETTERS ====================
 
     public static SMCBlacksmith getInstance() { return instance; }
     public TaskManager getTaskManager() { return taskManager; }
@@ -225,24 +268,24 @@ public final class SMCBlacksmith extends JavaPlugin {
     public ForgeManager getForgeManager() { return forgeManager; }
     public QuenchingManager getQuenchingManager() { return quenchingManager; }
     public RepairManager getRepairManager() { return repairManager; }
+    public boolean isFullyEnabled() { return fullyEnabled; }
 
-    public boolean hasPAPI() {
-        PlaceholderAPIHook hook = getPapiHook();
-        return hook != null && hook.isAvailable();
-    }
+    // ==================== LAZY HOOK HELPER ====================
 
-    public boolean hasSMCCore() {
-        SMCCoreHook hook = getSmcCoreHook();
-        return hook != null && hook.isAvailable();
-    }
+    private static class LazyHook<T> {
+        private final AtomicReference<T> ref = new AtomicReference<>();
+        private volatile boolean initialized = false;
 
-    public boolean hasCraftEngine() {
-        CraftEngineHook hook = getCraftEngineHook();
-        return hook != null && hook.isAvailable();
-    }
-
-    public boolean hasNexo() {
-        NexoHook hook = getNexoHook();
-        return hook != null && hook.isAvailable();
+        public T get(Supplier<T> supplier) {
+            if (!initialized) {
+                synchronized (this) {
+                    if (!initialized) {
+                        ref.set(supplier.get());
+                        initialized = true;
+                    }
+                }
+            }
+            return ref.get();
+        }
     }
 }

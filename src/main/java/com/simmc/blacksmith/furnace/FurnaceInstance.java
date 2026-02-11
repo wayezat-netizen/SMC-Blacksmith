@@ -2,6 +2,7 @@ package com.simmc.blacksmith.furnace;
 
 import com.simmc.blacksmith.config.FuelConfig;
 import com.simmc.blacksmith.items.ItemProviderRegistry;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.inventory.ItemStack;
 
@@ -9,30 +10,38 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Represents an active furnace instance in the world.
- * Handles smelting state, temperature, and item storage.
+ * Furnace with TIME-BASED burning (not tick-based).
  */
 public class FurnaceInstance {
 
-    private static final long BAD_OUTPUT_THRESHOLD_MS = 5000;
+    private static final int DEFAULT_INPUT_SLOTS = 9;
+    private static final boolean DEBUG = true;
+    private static final double FUEL_BASE_HEAT_PERCENTAGE = 0.25;
 
     private final UUID id;
     private final FurnaceType type;
     private final Location location;
 
-    // Temperature state
+    // Temperature
     private int currentTemperature;
-    private int targetTemperature;
+    private int bellowsBoost;
+    private long lastBellowsTime;
 
-    // Burn state
+    // Burn state - NOW TIME-BASED
     private boolean burning;
-    private long burnTimeRemaining;
+    private int fuelMaxTemperature;
+    private int fuelBaseTemperature;
+    private long burnEndTime;      // System time when burn ends
+    private long burnStartTime;    // System time when burn started
+    private long burnDurationMs;   // Total burn duration in milliseconds
 
-    // Smelting state
+    // Smelting
     private long smeltProgress;
     private long smeltTimeTotal;
     private FurnaceRecipe currentRecipe;
     private long timeOutsideIdealRange;
+    private long timeInsideIdealRange;
+    private boolean reachedIdealDuringSmelting;
 
     // Inventory
     private ItemStack[] inputSlots;
@@ -41,109 +50,299 @@ public class FurnaceInstance {
 
     // Timing
     private long lastTickTime;
+    private boolean dirty;
+    private long lastDebugLog;
 
     public FurnaceInstance(FurnaceType type, Location location) {
         this.id = UUID.randomUUID();
         this.type = type;
         this.location = location.clone();
+        this.inputSlots = new ItemStack[DEFAULT_INPUT_SLOTS];
+        this.lastTickTime = System.currentTimeMillis();
+        this.lastBellowsTime = 0;
+        this.lastDebugLog = 0;
+        this.dirty = false;
+        reset();
+    }
 
+    public void reset() {
         this.currentTemperature = 0;
-        this.targetTemperature = 0;
+        this.bellowsBoost = 0;
         this.burning = false;
-        this.burnTimeRemaining = 0;
+        this.fuelMaxTemperature = 0;
+        this.fuelBaseTemperature = 0;
+        this.burnEndTime = 0;
+        this.burnStartTime = 0;
+        this.burnDurationMs = 0;
         this.smeltProgress = 0;
         this.smeltTimeTotal = 0;
         this.currentRecipe = null;
         this.timeOutsideIdealRange = 0;
-
-        this.inputSlots = new ItemStack[9];
-        this.fuelSlot = null;
-        this.outputSlot = null;
-
-        this.lastTickTime = System.currentTimeMillis();
+        this.timeInsideIdealRange = 0;
+        this.reachedIdealDuringSmelting = false;
+        this.lastBellowsTime = 0;
     }
 
-    /**
-     * Synchronous tick method - used when async processing is disabled.
-     */
+    private void debug(String msg) {
+        if (DEBUG) {
+            Bukkit.getLogger().info("[Furnace] " + msg);
+        }
+    }
+
     public void tick(ItemProviderRegistry registry, FuelConfig fuelConfig) {
         long now = System.currentTimeMillis();
         long elapsed = now - lastTickTime;
         lastTickTime = now;
 
-        updateBurning(fuelConfig, registry);
+        // Check fuel removed
+        checkFuelRemoved();
+
+        // Update burning (time-based)
+        updateBurningState(now, fuelConfig, registry);
+
+        // Decay bellows
+        updateBellowsDecay(now);
+
+        // Update temp
         updateTemperature();
 
-        if (currentRecipe == null) {
+        // Recipe
+        if (currentRecipe == null && currentTemperature > 0) {
             findMatchingRecipe(registry);
         }
 
-        if (currentRecipe != null) {
+        if (currentRecipe != null && currentTemperature > 0) {
             processSmelting(elapsed, registry);
         }
     }
 
-    private void updateBurning(FuelConfig fuelConfig, ItemProviderRegistry registry) {
-        if (burnTimeRemaining > 0) {
-            burnTimeRemaining--;
-            burning = true;
-        } else {
-            burning = false;
-            consumeFuel(fuelConfig, registry);
+    // ==================== FUEL CHECK ====================
+
+    private void checkFuelRemoved() {
+        if (burning && !hasFuelInSlot()) {
+            debug("!!! FUEL REMOVED - STOPPING BURN !!!");
+            stopBurning();
         }
     }
 
-    private void consumeFuel(FuelConfig fuelConfig, ItemProviderRegistry registry) {
-        if (fuelSlot == null || fuelSlot.getType().isAir()) {
-            targetTemperature = 0;
+    private void stopBurning() {
+        burning = false;
+        fuelMaxTemperature = 0;
+        fuelBaseTemperature = 0;
+        burnEndTime = 0;
+        burnStartTime = 0;
+        burnDurationMs = 0;
+        markDirty();
+    }
+
+    // ==================== BURNING (TIME-BASED) ====================
+
+    private void updateBurningState(long now, FuelConfig fuelConfig, ItemProviderRegistry registry) {
+        // Debug log every 10 seconds when burning
+        if (burning && (now - lastDebugLog) >= 10000) {
+            lastDebugLog = now;
+            long remaining = burnEndTime - now;
+            debug("BURNING: " + (remaining / 1000) + "s remaining, temp=" + currentTemperature +
+                    ", fuel=" + (fuelSlot != null ? fuelSlot.getAmount() : 0));
+        }
+
+        // Check if burn time expired
+        if (burning && now >= burnEndTime) {
+            debug("=== BURN TIME EXPIRED ===");
+            consumeFuelAndStop();
+
+            // Try next fuel
+            if (hasFuelInSlot() && fuelConfig != null) {
+                debug("Starting next fuel...");
+                tryStartBurning(now, fuelConfig);
+            } else {
+                debug("No more fuel available");
+            }
             return;
         }
 
-        FuelConfig.FuelData fuelData = fuelConfig.getFuelData(fuelSlot);
-        if (fuelData == null) {
-            targetTemperature = 0;
+        // If not burning, try to start
+        if (!burning && hasFuelInSlot() && fuelConfig != null) {
+            tryStartBurning(now, fuelConfig);
+        }
+    }
+
+    private void consumeFuelAndStop() {
+        if (fuelSlot != null && !fuelSlot.getType().isAir()) {
+            int prevAmount = fuelSlot.getAmount();
+            int newAmount = prevAmount - 1;
+
+            debug("CONSUMING FUEL: " + fuelSlot.getType() + " " + prevAmount + " -> " + newAmount);
+
+            if (newAmount <= 0) {
+                fuelSlot = null;
+                debug("Fuel slot is now EMPTY");
+            } else {
+                fuelSlot.setAmount(newAmount);
+            }
+        }
+
+        stopBurning();
+    }
+
+    private void tryStartBurning(long now, FuelConfig fuelConfig) {
+        if (!hasFuelInSlot()) {
             return;
         }
 
-        burnTimeRemaining = fuelData.burnTimeTicks();
-        int maxFuelTemp = type.getMaxFuelTemperature();
-        targetTemperature = Math.min(fuelData.temperatureBoost(), maxFuelTemp);
+        if (fuelConfig == null) {
+            return;
+        }
+
+        var fuelDataOpt = fuelConfig.getFuelData(fuelSlot);
+        if (fuelDataOpt.isEmpty()) {
+            debug("Item " + fuelSlot.getType() + " is not valid fuel");
+            return;
+        }
+
+        var fuelData = fuelDataOpt.get();
+
+        // Calculate burn duration in MILLISECONDS
+        // burnTimeTicks is in game ticks (20 ticks = 1 second)
+        long burnTicks = fuelData.burnTimeTicks();
+        burnDurationMs = burnTicks * 50; // 1 tick = 50ms
+
+        burnStartTime = now;
+        burnEndTime = now + burnDurationMs;
+
+        fuelMaxTemperature = fuelData.temperatureBoost();
+        fuelBaseTemperature = (int) (fuelMaxTemperature * FUEL_BASE_HEAT_PERCENTAGE);
         burning = true;
 
-        int newAmount = fuelSlot.getAmount() - 1;
-        if (newAmount <= 0) {
-            fuelSlot = null;
-        } else {
-            fuelSlot.setAmount(newAmount);
-        }
+        debug("=== STARTED BURNING ===");
+        debug("  Fuel: " + fuelSlot.getType() + " x" + fuelSlot.getAmount());
+        debug("  Duration: " + (burnDurationMs / 1000) + " seconds (" + burnTicks + " ticks)");
+        debug("  End time: " + burnEndTime + " (now: " + now + ")");
+        debug("  Base temp: " + fuelBaseTemperature + "°C, Max: " + fuelMaxTemperature + "°C");
+
+        lastDebugLog = now;
+        markDirty();
     }
 
-    /**
-     * Consumes one fuel item from the fuel slot.
-     * Called from main thread after async calculation determines fuel should be consumed.
-     */
-    public void consumeFuelItem() {
-        if (fuelSlot == null || fuelSlot.getType().isAir()) {
+    private boolean hasFuelInSlot() {
+        return fuelSlot != null && !fuelSlot.getType().isAir() && fuelSlot.getAmount() > 0;
+    }
+
+    // ==================== BELLOWS ====================
+
+    private void updateBellowsDecay(long currentTime) {
+        if (bellowsBoost <= 0) {
+            bellowsBoost = 0;
             return;
         }
 
-        int newAmount = fuelSlot.getAmount() - 1;
-        if (newAmount <= 0) {
-            fuelSlot = null;
-        } else {
-            fuelSlot.setAmount(newAmount);
+        double decayRate = type.getBellowsDecayRate();
+        long timeSinceBellows = currentTime - lastBellowsTime;
+
+        if (timeSinceBellows > 1500) decayRate *= 1.5;
+        if (timeSinceBellows > 3000) decayRate *= 2.0;
+        if (timeSinceBellows > 5000) decayRate *= 2.5;
+
+        if (!burning) {
+            decayRate *= 5.0;
         }
+
+        int decay = Math.max(2, (int) (bellowsBoost * decayRate));
+        bellowsBoost = Math.max(0, bellowsBoost - decay);
     }
+
+    public boolean applyBellows(int temperatureBoost) {
+        if (!burning) {
+            debug("Bellows REJECTED: not burning");
+            return false;
+        }
+
+        if (!hasFuelInSlot()) {
+            debug("Bellows REJECTED: no fuel in slot");
+            stopBurning();
+            return false;
+        }
+
+        long now = System.currentTimeMillis();
+        if (now >= burnEndTime) {
+            debug("Bellows REJECTED: burn time expired");
+            return false;
+        }
+
+        int maxBellowsBoost = fuelMaxTemperature - fuelBaseTemperature;
+        maxBellowsBoost = Math.min(maxBellowsBoost, (int) (type.getMaxTemperature() * 0.5));
+
+        int effectiveBoost = temperatureBoost;
+        double currentRatio = maxBellowsBoost > 0 ? (double) bellowsBoost / maxBellowsBoost : 0;
+
+        if (currentRatio > 0.8) {
+            effectiveBoost = (int) (temperatureBoost * 0.3);
+        } else if (currentRatio > 0.5) {
+            effectiveBoost = (int) (temperatureBoost * 0.6);
+        }
+
+        bellowsBoost = Math.min(bellowsBoost + effectiveBoost, maxBellowsBoost);
+        lastBellowsTime = System.currentTimeMillis();
+
+        double instantPercent = type.getBellowsInstantBoost();
+        int instantBoost = (int) (effectiveBoost * instantPercent);
+        currentTemperature = Math.min(currentTemperature + instantBoost, type.getMaxTemperature());
+
+        debug("Bellows: +" + effectiveBoost + ", total=" + bellowsBoost + ", temp=" + currentTemperature);
+
+        markDirty();
+        return true;
+    }
+
+    public boolean canUseBellows() {
+        return burning && hasFuelInSlot() && System.currentTimeMillis() < burnEndTime;
+    }
+
+    // ==================== TEMPERATURE ====================
 
     private void updateTemperature() {
-        if (currentTemperature < targetTemperature) {
-            currentTemperature = Math.min(currentTemperature + type.getTemperatureChange(), targetTemperature);
-        } else if (currentTemperature > targetTemperature) {
-            currentTemperature = Math.max(currentTemperature - type.getTemperatureChange(), targetTemperature);
+        if (!burning && bellowsBoost <= 0) {
+            if (currentTemperature > 0) {
+                int coolRate = Math.max(5, (int) (type.getCoolingRate() * 2.0));
+                currentTemperature = Math.max(0, currentTemperature - coolRate);
+            }
+            return;
         }
 
-        currentTemperature = Math.max(0, Math.min(currentTemperature, type.getMaxTemperature()));
+        if (!burning && bellowsBoost > 0) {
+            int coolRate = Math.max(3, (int) (type.getCoolingRate() * 1.5));
+            currentTemperature = Math.max(0, currentTemperature - coolRate);
+            return;
+        }
+
+        int targetTemp = calculateTargetTemperature();
+
+        if (currentTemperature < targetTemp) {
+            double heatingMult = type.getHeatingMultiplier();
+            int heatRate = Math.max(1, (int) (type.getTemperatureChange() * heatingMult));
+            int diff = targetTemp - currentTemperature;
+            if (diff > 150) heatRate = (int) (heatRate * 1.3);
+            currentTemperature = Math.min(currentTemperature + heatRate, targetTemp);
+        } else if (currentTemperature > targetTemp) {
+            double coolingMult = type.getCoolingMultiplier();
+            int coolRate = Math.max(2, (int) (type.getCoolingRate() * coolingMult));
+            currentTemperature = Math.max(targetTemp, currentTemperature - coolRate);
+        }
+
+        currentTemperature = clampTemperature(currentTemperature);
     }
+
+    private int calculateTargetTemperature() {
+        if (!burning) return 0;
+        int target = fuelBaseTemperature + bellowsBoost;
+        return Math.min(target, type.getMaxTemperature());
+    }
+
+    private int clampTemperature(int temp) {
+        return Math.max(0, Math.min(temp, type.getMaxTemperature()));
+    }
+
+    // ==================== SMELTING ====================
 
     private void findMatchingRecipe(ItemProviderRegistry registry) {
         currentRecipe = type.findMatchingRecipe(inputSlots, registry);
@@ -151,6 +350,9 @@ public class FurnaceInstance {
             smeltTimeTotal = currentRecipe.getSmeltTimeMs();
             smeltProgress = 0;
             timeOutsideIdealRange = 0;
+            timeInsideIdealRange = 0;
+            reachedIdealDuringSmelting = false;
+            markDirty();
         }
     }
 
@@ -160,38 +362,62 @@ public class FurnaceInstance {
             return;
         }
 
-        if (type.isIdealTemperature(currentTemperature)) {
-            timeOutsideIdealRange = 0;
-            smeltProgress += elapsedMs;
+        int minTemp = currentRecipe.getMinTemperature();
+        if (currentTemperature < minTemp) return;
 
-            if (smeltProgress >= smeltTimeTotal) {
-                completeSmelting(true, registry);
-            }
+        boolean isIdeal = currentRecipe.isIdealTemperature(currentTemperature);
+
+        if (isIdeal) {
+            timeInsideIdealRange += elapsedMs;
+            timeOutsideIdealRange = Math.max(0, timeOutsideIdealRange - (elapsedMs / 2));
+            reachedIdealDuringSmelting = true;
+            smeltProgress += elapsedMs;
         } else {
             timeOutsideIdealRange += elapsedMs;
+            double efficiency = calculateSmeltingEfficiency();
+            smeltProgress += (long) (elapsedMs * efficiency);
+        }
 
-            if (timeOutsideIdealRange >= BAD_OUTPUT_THRESHOLD_MS) {
-                completeSmelting(false, registry);
-            }
+        if (smeltProgress >= smeltTimeTotal) {
+            boolean goodOutput = shouldProduceGoodOutput();
+            completeSmelting(goodOutput, registry);
         }
     }
 
-    /**
-     * Completes the smelting process.
-     * @param success true for normal outputs, false for bad outputs
-     * @param registry the item provider registry
-     */
+    private double calculateSmeltingEfficiency() {
+        if (currentRecipe == null) return 0.5;
+        int minIdeal = currentRecipe.getMinIdealTemperature();
+        int maxIdeal = currentRecipe.getMaxIdealTemperature();
+
+        if (currentTemperature < minIdeal) {
+            double ratio = (double) currentTemperature / minIdeal;
+            return Math.max(0.3, ratio * 0.7);
+        } else if (currentTemperature > maxIdeal) {
+            return 0.75;
+        }
+        return 1.0;
+    }
+
+    private boolean shouldProduceGoodOutput() {
+        if (!reachedIdealDuringSmelting) return false;
+        if (timeOutsideIdealRange >= type.getBadOutputThresholdMs()) return false;
+
+        long totalTime = timeInsideIdealRange + timeOutsideIdealRange;
+        if (totalTime > 0) {
+            double idealRatio = (double) timeInsideIdealRange / totalTime;
+            if (idealRatio < type.getMinIdealRatio()) return false;
+        }
+        return true;
+    }
+
     public void completeSmelting(boolean success, ItemProviderRegistry registry) {
         if (currentRecipe == null) return;
-
         consumeInputs(registry);
 
-        if (success) {
-            giveOutputs(currentRecipe.getOutputs(), registry);
-        } else {
-            giveOutputs(currentRecipe.getBadOutputs(), registry);
-        }
+        List<RecipeOutput> outputs = success ? currentRecipe.getOutputs() : currentRecipe.getBadOutputs();
+        if (outputs == null || outputs.isEmpty()) outputs = currentRecipe.getOutputs();
 
+        giveOutputs(outputs, registry);
         resetSmelting();
     }
 
@@ -200,15 +426,16 @@ public class FurnaceInstance {
 
         for (RecipeInput input : currentRecipe.getInputs()) {
             int remaining = input.amount();
+            String inputType = input.type().toLowerCase();
+            String inputId = input.id();
 
             for (int i = 0; i < inputSlots.length && remaining > 0; i++) {
                 ItemStack slot = inputSlots[i];
                 if (slot == null || slot.getType().isAir()) continue;
 
-                if (registry.matches(slot, input.type(), input.id())) {
+                if (matchesInput(slot, inputType, inputId, registry)) {
                     int take = Math.min(remaining, slot.getAmount());
                     remaining -= take;
-
                     int newAmount = slot.getAmount() - take;
                     if (newAmount <= 0) {
                         inputSlots[i] = null;
@@ -218,158 +445,194 @@ public class FurnaceInstance {
                 }
             }
         }
+        markDirty();
+    }
+
+    private boolean matchesInput(ItemStack item, String inputType, String inputId, ItemProviderRegistry registry) {
+        if (item == null || item.getType().isAir()) return false;
+
+        if (inputType.equals("minecraft")) {
+            String slotMaterial = item.getType().name().toUpperCase();
+            String targetMaterial = inputId.toUpperCase().replace("-", "_").replace(" ", "_");
+            if (targetMaterial.startsWith("MINECRAFT:")) targetMaterial = targetMaterial.substring(10);
+            return slotMaterial.equals(targetMaterial);
+        } else {
+            return registry.matches(item, inputType, inputId);
+        }
     }
 
     private void giveOutputs(List<RecipeOutput> outputs, ItemProviderRegistry registry) {
-        if (outputs == null) return;
+        if (outputs == null || outputs.isEmpty()) return;
 
         for (RecipeOutput output : outputs) {
+            if (output.amount() <= 0) continue;
             ItemStack item = registry.getItem(output.type(), output.id(), output.amount());
             if (item == null) continue;
 
             if (outputSlot == null || outputSlot.getType().isAir()) {
                 outputSlot = item.clone();
             } else if (outputSlot.isSimilar(item)) {
-                int newAmount = outputSlot.getAmount() + item.getAmount();
-                int maxStack = outputSlot.getMaxStackSize();
-                outputSlot.setAmount(Math.min(newAmount, maxStack));
+                int newAmount = Math.min(outputSlot.getAmount() + item.getAmount(), outputSlot.getMaxStackSize());
+                outputSlot.setAmount(newAmount);
             }
         }
+        markDirty();
     }
 
-    /**
-     * Resets smelting state.
-     */
     public void resetSmelting() {
         currentRecipe = null;
         smeltProgress = 0;
         smeltTimeTotal = 0;
         timeOutsideIdealRange = 0;
+        timeInsideIdealRange = 0;
+        reachedIdealDuringSmelting = false;
+        markDirty();
     }
 
-    /**
-     * Applies bellows temperature boost.
-     */
-    public void applyBellows(int temperatureBoost) {
-        targetTemperature = Math.min(targetTemperature + temperatureBoost, type.getMaxTemperature());
-    }
+    // ==================== STATE ====================
+
+    public void markDirty() { this.dirty = true; }
+    public boolean isDirty() { return dirty; }
+    public void clearDirty() { this.dirty = false; }
 
     // ==================== GETTERS ====================
 
-    public UUID getId() {
-        return id;
-    }
-
-    public FurnaceType getType() {
-        return type;
-    }
-
-    public Location getLocation() {
-        return location.clone();
-    }
-
-    public int getCurrentTemperature() {
-        return currentTemperature;
-    }
-
-    public int getTargetTemperature() {
-        return targetTemperature;
-    }
+    public UUID getId() { return id; }
+    public FurnaceType getType() { return type; }
+    public Location getLocation() { return location.clone(); }
+    public int getCurrentTemperature() { return currentTemperature; }
+    public int getBellowsBoost() { return bellowsBoost; }
 
     public boolean isBurning() {
-        return burning;
+        return burning && hasFuelInSlot() && System.currentTimeMillis() < burnEndTime;
     }
 
     public long getBurnTimeRemaining() {
-        return burnTimeRemaining;
+        if (!burning) return 0;
+        long remaining = burnEndTime - System.currentTimeMillis();
+        return Math.max(0, remaining / 50); // Convert ms to ticks
     }
+
+    public long getMaxBurnTime() {
+        return burnDurationMs / 50; // Convert ms to ticks
+    }
+
+    public int getFuelBaseTemperature() { return fuelBaseTemperature; }
+    public int getFuelMaxTemperature() { return fuelMaxTemperature; }
+    public FurnaceRecipe getCurrentRecipe() { return currentRecipe; }
+    public long getTimeOutsideIdealRange() { return timeOutsideIdealRange; }
+    public long getTimeInsideIdealRange() { return timeInsideIdealRange; }
+    public ItemStack[] getInputSlots() { return inputSlots; }
+    public ItemStack getFuelSlot() { return fuelSlot; }
+    public ItemStack getOutputSlot() { return outputSlot; }
+    public long getSmeltProgressMs() { return smeltProgress; }
+    public long getSmeltTimeTotal() { return smeltTimeTotal; }
+
+    public int getTargetTemperature() { return calculateTargetTemperature(); }
 
     public double getSmeltProgress() {
         if (smeltTimeTotal <= 0) return 0.0;
         return Math.min(1.0, (double) smeltProgress / smeltTimeTotal);
     }
 
-    public long getSmeltProgressMs() {
-        return smeltProgress;
+    public double getBurnProgress() {
+        if (burnDurationMs <= 0 || !burning) return 0.0;
+        long elapsed = System.currentTimeMillis() - burnStartTime;
+        return Math.min(1.0, (double) elapsed / burnDurationMs);
     }
 
-    public long getSmeltTimeTotal() {
-        return smeltTimeTotal;
+    public boolean isInIdealTemperature() {
+        return currentRecipe != null && currentRecipe.isIdealTemperature(currentTemperature);
     }
 
-    public FurnaceRecipe getCurrentRecipe() {
-        return currentRecipe;
+    public String getIdealTemperatureRange() {
+        if (currentRecipe == null) return null;
+        return currentRecipe.getMinIdealTemperature() + "-" + currentRecipe.getMaxIdealTemperature() + "°C";
     }
 
-    public long getTimeOutsideIdealRange() {
-        return timeOutsideIdealRange;
+    public int getRecipeMinIdealTemp() {
+        return currentRecipe != null ? currentRecipe.getMinIdealTemperature() : 0;
     }
 
-    public ItemStack[] getInputSlots() {
-        return inputSlots;
+    public int getRecipeMaxIdealTemp() {
+        return currentRecipe != null ? currentRecipe.getMaxIdealTemperature() : type.getMaxTemperature();
     }
 
-    public ItemStack getFuelSlot() {
-        return fuelSlot;
+    public String getRecipeTemperatureStatus() {
+        if (currentTemperature <= 0) return "COLD";
+        if (currentRecipe == null) {
+            if (currentTemperature < type.getMaxTemperature() / 3) return "LOW";
+            else if (currentTemperature < type.getMaxTemperature() * 2 / 3) return "WARMING";
+            else return "HOT";
+        }
+
+        int minIdeal = currentRecipe.getMinIdealTemperature();
+        int maxIdeal = currentRecipe.getMaxIdealTemperature();
+
+        if (currentTemperature < minIdeal) {
+            return (double) currentTemperature / minIdeal >= 0.7 ? "WARMING" : "LOW";
+        } else if (currentTemperature > maxIdeal) {
+            int overTemp = currentTemperature - maxIdeal;
+            int maxOver = type.getMaxTemperature() - maxIdeal;
+            return (maxOver > 0 && (double) overTemp / maxOver >= 0.6) ? "DANGEROUS" : "HIGH";
+        }
+        return "IDEAL";
     }
 
-    public ItemStack getOutputSlot() {
-        return outputSlot;
+    public int getTemperatureStatusCode() {
+        if (currentTemperature <= 0) return 0;
+        int minIdeal = currentRecipe != null ? currentRecipe.getMinIdealTemperature() : type.getMaxTemperature() / 3;
+        int maxIdeal = currentRecipe != null ? currentRecipe.getMaxIdealTemperature() : type.getMaxTemperature() * 2 / 3;
+
+        if (currentTemperature < minIdeal) {
+            return (double) currentTemperature / minIdeal >= 0.7 ? 2 : 1;
+        } else if (currentTemperature > maxIdeal) {
+            int overTemp = currentTemperature - maxIdeal;
+            int maxOver = type.getMaxTemperature() - maxIdeal;
+            return (maxOver > 0 && (double) overTemp / maxOver >= 0.6) ? 5 : 4;
+        }
+        return 3;
     }
 
     // ==================== SETTERS ====================
 
-    public void setCurrentTemperature(int temperature) {
-        this.currentTemperature = Math.max(0, Math.min(temperature, type.getMaxTemperature()));
+    public void setCurrentTemperature(int temp) {
+        this.currentTemperature = clampTemperature(temp);
     }
 
-    public void setTargetTemperature(int temperature) {
-        this.targetTemperature = Math.max(0, Math.min(temperature, type.getMaxTemperature()));
+    public void setTargetTemperature(int temp) {
+        this.currentTemperature = clampTemperature(temp);
+        markDirty();
     }
 
-    public void setBurning(boolean burning) {
-        this.burning = burning;
-    }
-
-    public void setBurnTimeRemaining(long burnTimeRemaining) {
-        this.burnTimeRemaining = Math.max(0, burnTimeRemaining);
-    }
-
-    public void setSmeltProgress(long smeltProgress) {
-        this.smeltProgress = Math.max(0, smeltProgress);
-    }
-
-    public void setSmeltTimeTotal(long smeltTimeTotal) {
-        this.smeltTimeTotal = Math.max(0, smeltTimeTotal);
-    }
-
-    public void setCurrentRecipe(FurnaceRecipe recipe) {
-        this.currentRecipe = recipe;
-        if (recipe != null) {
-            this.smeltTimeTotal = recipe.getSmeltTimeMs();
-        }
-    }
-
-    public void setTimeOutsideIdealRange(long timeOutsideIdealRange) {
-        this.timeOutsideIdealRange = Math.max(0, timeOutsideIdealRange);
+    public void addExternalHeat(int amount) {
+        this.currentTemperature = clampTemperature(this.currentTemperature + amount);
+        markDirty();
     }
 
     public void setInputSlots(ItemStack[] slots) {
-        if (slots == null) {
-            this.inputSlots = new ItemStack[9];
-        } else {
-            this.inputSlots = new ItemStack[9];
-            for (int i = 0; i < Math.min(slots.length, 9); i++) {
+        this.inputSlots = new ItemStack[DEFAULT_INPUT_SLOTS];
+        if (slots != null) {
+            for (int i = 0; i < Math.min(slots.length, DEFAULT_INPUT_SLOTS); i++) {
                 this.inputSlots[i] = slots[i] != null ? slots[i].clone() : null;
             }
         }
+        markDirty();
     }
 
     public void setFuelSlot(ItemStack fuel) {
         this.fuelSlot = fuel != null ? fuel.clone() : null;
+
+        if (burning && !hasFuelInSlot()) {
+            debug("setFuelSlot: Fuel removed while burning - STOPPING");
+            stopBurning();
+        }
+
+        markDirty();
     }
 
     public void setOutputSlot(ItemStack output) {
         this.outputSlot = output != null ? output.clone() : null;
+        markDirty();
     }
 }

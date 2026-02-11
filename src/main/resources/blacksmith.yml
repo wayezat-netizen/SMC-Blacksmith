@@ -1,15 +1,10 @@
 # ==========================================
 # SMCBlacksmith - Forge Recipes Configuration
 # ==========================================
-# Supports two formats:
-# 1. Simple: Recipes at root level (no categories)
-# 2. Enhanced: Categories + recipes sections
 
 # ==========================================
-# CATEGORIES (Optional)
+# CATEGORIES
 # ==========================================
-# If categories are defined, recipes will be organized in GUI
-# If no categories, all recipes show in a single "All Recipes" category
 
 categories:
   iron_series:
@@ -41,7 +36,7 @@ categories:
 # ==========================================
 
 recipes:
-  # Example: Simple recipe (vanilla items, no star modifiers)
+  # ========== SHORTSWORD ==========
   shortsword:
     frames:
       frame_0:
@@ -56,36 +51,41 @@ recipes:
     hits: 8
     bias: 0.2
     target_size: 0.5
-    # PAPI condition (optional)
-    condition: "%svalues_smithing% >= 1"
-    # Command to run after forge (optional)
+    condition: ""
     run_after_command: "smc skills trigger <player> smithing 50"
     input:
       id: iron_ingot
       type: minecraft
       amount: 3
-    # Simple results (6 items, one per star rating)
+    # Results format - 6 star ratings (0-5)
     results:
       result_0:
         id: iron_sword
         type: minecraft
+        amount: 1
       result_1:
         id: iron_sword
         type: minecraft
+        amount: 1
       result_2:
         id: iron_sword
         type: minecraft
+        amount: 1
       result_3:
         id: iron_sword
         type: minecraft
+        amount: 1
       result_4:
         id: iron_sword
         type: minecraft
+        amount: 1
       result_5:
         id: iron_sword
         type: minecraft
+        amount: 1
 
-  # Example: Advanced recipe (single base item with star modifiers)
+  # ========== LONGSWORD ==========
+  # Using star_modifiers mode - MUST also have results as fallback
   longsword:
     frames:
       frame_0:
@@ -100,16 +100,41 @@ recipes:
     hits: 12
     bias: 0.15
     target_size: 0.4
-    condition: "%svalues_smithing% >= 5"
+    condition: ""
     run_after_command: "smc skills trigger <player> smithing 100"
     input:
       id: diamond
       type: minecraft
       amount: 5
-    # Single base item mode
+    # REQUIRED: Results section (even with star_modifiers)
+    results:
+      result_0:
+        id: diamond_sword
+        type: minecraft
+        amount: 1
+      result_1:
+        id: diamond_sword
+        type: minecraft
+        amount: 1
+      result_2:
+        id: diamond_sword
+        type: minecraft
+        amount: 1
+      result_3:
+        id: diamond_sword
+        type: minecraft
+        amount: 1
+      result_4:
+        id: diamond_sword
+        type: minecraft
+        amount: 1
+      result_5:
+        id: diamond_sword
+        type: minecraft
+        amount: 1
+    # Optional: Star modifiers (applied on top of results)
     base_item: diamond_sword
     base_item_type: minecraft
-    # Star-based attribute modifiers
     star_modifiers:
       1:
         suffix: "&7[Poor]"
@@ -136,7 +161,6 @@ recipes:
         attributes:
           attack_damage: 3
           attack_speed: 0.2
-    # Custom star thresholds
     star_thresholds:
       star_5:
         min_perfect_hits: 10
@@ -153,3 +177,96 @@ recipes:
       star_1:
         min_perfect_hits: 0
         min_accuracy: 0.3
+
+  # ========== IRON PICKAXE ==========
+  iron_pickaxe:
+    frames:
+      frame_0:
+        material: STICK
+        cmd: 31
+      frame_1:
+        material: STICK
+        cmd: 32
+      frame_2:
+        material: STICK
+        cmd: 33
+    hits: 6
+    bias: 0.25
+    target_size: 0.6
+    condition: ""
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 3
+    results:
+      result_0:
+        id: iron_pickaxe
+        type: minecraft
+        amount: 1
+      result_1:
+        id: iron_pickaxe
+        type: minecraft
+        amount: 1
+      result_2:
+        id: iron_pickaxe
+        type: minecraft
+        amount: 1
+      result_3:
+        id: iron_pickaxe
+        type: minecraft
+        amount: 1
+      result_4:
+        id: iron_pickaxe
+        type: minecraft
+        amount: 1
+      result_5:
+        id: iron_pickaxe
+        type: minecraft
+        amount: 1
+
+  # ========== DIAMOND PICKAXE ==========
+  diamond_pickaxe:
+    frames:
+      frame_0:
+        material: STICK
+        cmd: 41
+      frame_1:
+        material: STICK
+        cmd: 42
+      frame_2:
+        material: STICK
+        cmd: 43
+    hits: 10
+    bias: 0.2
+    target_size: 0.45
+    condition: ""
+    run_after_command: "smc skills trigger <player> smithing 75"
+    input:
+      id: diamond
+      type: minecraft
+      amount: 3
+    results:
+      result_0:
+        id: diamond_pickaxe
+        type: minecraft
+        amount: 1
+      result_1:
+        id: diamond_pickaxe
+        type: minecraft
+        amount: 1
+      result_2:
+        id: diamond_pickaxe
+        type: minecraft
+        amount: 1
+      result_3:
+        id: diamond_pickaxe
+        type: minecraft
+        amount: 1
+      result_4:
+        id: diamond_pickaxe
+        type: minecraft
+        amount: 1
+      result_5:
+        id: diamond_pickaxe
+        type: minecraft
+        amount: 1

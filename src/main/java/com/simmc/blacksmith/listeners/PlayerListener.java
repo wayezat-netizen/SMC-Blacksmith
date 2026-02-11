@@ -12,8 +12,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import java.util.UUID;
 
 /**
- * Central listener for player-related events.
- * Handles cleanup for all systems when player disconnects.
+ * Central listener for player cleanup across all systems.
  */
 public class PlayerListener implements Listener {
 
@@ -33,17 +32,25 @@ public class PlayerListener implements Listener {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
 
-        // Close furnace GUI
+        // Cleanup all systems
+        cleanupFurnace(player, playerId);
+        cleanupForge(playerId);
+        cleanupQuenching(playerId);
+    }
+
+    private void cleanupFurnace(Player player, UUID playerId) {
         if (furnaceManager.hasOpenGUI(playerId)) {
             furnaceManager.closeGUI(player);
         }
+    }
 
-        // Cancel forge session
+    private void cleanupForge(UUID playerId) {
         if (forgeManager.hasActiveSession(playerId)) {
             forgeManager.cancelSession(playerId);
         }
+    }
 
-        // Cancel quenching session
+    private void cleanupQuenching(UUID playerId) {
         if (quenchingManager.hasActiveSession(playerId)) {
             quenchingManager.cancelSession(playerId, "Player disconnected.");
         }

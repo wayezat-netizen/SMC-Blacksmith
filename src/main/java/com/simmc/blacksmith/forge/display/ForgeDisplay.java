@@ -3,13 +3,7 @@ package com.simmc.blacksmith.forge.display;
 import com.simmc.blacksmith.forge.ForgeFrame;
 import com.simmc.blacksmith.forge.ForgeRecipe;
 import com.simmc.blacksmith.forge.ForgeSession;
-import org.bukkit.Bukkit;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Particle;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
@@ -22,11 +16,29 @@ import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * Professional forge display with item on anvil and boss bar progress.
+ * Handles visual display of forge item on anvil during minigame.
+ * Shows progress, animations, and completion effects.
  */
 public class ForgeDisplay {
+
+    private static final Logger LOGGER = Bukkit.getLogger();
+
+    // Display constants
+    private static final float BASE_SCALE = 0.8f;
+    private static final float MAX_SCALE = 1.1f;
+    private static final double OFFSET_X = 0.5;
+    private static final double OFFSET_Y = 1.05;
+    private static final double OFFSET_Z = 0.5;
+
+    // Color progression for heat glow
+    private static final Color COLOR_COLD = Color.ORANGE;
+    private static final Color COLOR_WARM = Color.fromRGB(255, 200, 50);
+    private static final Color COLOR_HOT = Color.YELLOW;
+    private static final Color COLOR_WHITE_HOT = Color.WHITE;
 
     private final UUID playerId;
     private final Location anvilLocation;
@@ -37,11 +49,6 @@ public class ForgeDisplay {
     private boolean spawned;
     private int tick;
     private int lastFrame = -1;
-    private double lastProgress = 0;
-
-    // Animation constants
-    private static final float BASE_SCALE = 0.8f;
-    private static final float MAX_SCALE = 1.1f;
 
     public ForgeDisplay(UUID playerId, Location anvilLocation, ForgeRecipe recipe) {
         this.playerId = playerId;
@@ -51,57 +58,72 @@ public class ForgeDisplay {
         this.tick = 0;
     }
 
+    // ==================== LIFECYCLE ====================
+
     public void spawn() {
         if (spawned) return;
 
         World world = anvilLocation.getWorld();
-        if (world == null) return;
-
         Player player = Bukkit.getPlayer(playerId);
-        if (player == null) return;
+        if (world == null || player == null) return;
 
         try {
-            // Create item display on anvil
-            Location itemLoc = anvilLocation.clone().add(0.5, 1.05, 0.5);
-
-            itemDisplay = world.spawn(itemLoc, ItemDisplay.class, display -> {
-                ForgeFrame frame = recipe.getFrame(0);
-                ItemStack item = frame != null ? frame.createDisplayItem() : new ItemStack(Material.IRON_INGOT);
-                display.setItemStack(item);
-                display.setBillboard(Display.Billboard.FIXED);
-                display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GROUND);
-                display.setGlowing(true);
-                display.setGlowColorOverride(Color.ORANGE);
-
-                // Lay flat on anvil
-                Transformation t = new Transformation(
-                        new Vector3f(0, 0, 0),
-                        new AxisAngle4f((float) Math.toRadians(-90), 1, 0, 0),
-                        new Vector3f(BASE_SCALE, BASE_SCALE, BASE_SCALE),
-                        new AxisAngle4f(0, 0, 0, 1)
-                );
-                display.setTransformation(t);
-            });
-
-            // Create boss bar for progress
-            progressBar = Bukkit.createBossBar(
-                    "§6⚒ §fForging... §7[0/" + recipe.getHits() + "]",
-                    BarColor.YELLOW,
-                    BarStyle.SEGMENTED_10
-            );
-            progressBar.setProgress(0);
-            progressBar.addPlayer(player);
-
-            // Initial spawn particles
-            world.spawnParticle(Particle.FLAME, itemLoc, 10, 0.2, 0.1, 0.2, 0.02);
-            world.playSound(anvilLocation, Sound.ITEM_FIRECHARGE_USE, 0.6f, 1.5f);
-
+            spawnItemDisplay(world);
+            spawnProgressBar(player);
+            playSpawnEffects(world);
             spawned = true;
-
         } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "[SMCBlacksmith] Failed to spawn forge display", e);
             remove();
         }
     }
+
+    private void spawnItemDisplay(World world) {
+        Location itemLoc = getDisplayLocation();
+
+        itemDisplay = world.spawn(itemLoc, ItemDisplay.class, display -> {
+            ForgeFrame frame = recipe.getFrame(0);
+            ItemStack item = frame != null ? frame.createDisplayItem() : new ItemStack(Material.IRON_INGOT);
+
+            display.setItemStack(item);
+            display.setBillboard(Display.Billboard.FIXED);
+            display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GROUND);
+            display.setGlowing(true);
+            display.setGlowColorOverride(COLOR_COLD);
+            display.setTransformation(createTransformation(BASE_SCALE, 0, 0));
+        });
+    }
+
+    private void spawnProgressBar(Player player) {
+        String title = "§6⚒ §fForging... §7[0/" + recipe.getHits() + "]";
+        progressBar = Bukkit.createBossBar(title, BarColor.YELLOW, BarStyle.SEGMENTED_10);
+        progressBar.setProgress(0);
+        progressBar.addPlayer(player);
+    }
+
+    private void playSpawnEffects(World world) {
+        Location loc = getDisplayLocation();
+        world.spawnParticle(Particle.FLAME, loc, 10, 0.2, 0.1, 0.2, 0.02);
+        world.playSound(anvilLocation, Sound.ITEM_FIRECHARGE_USE, 0.6f, 1.5f);
+    }
+
+    public void remove() {
+        if (progressBar != null) {
+            progressBar.removeAll();
+            progressBar = null;
+        }
+
+        if (itemDisplay != null && !itemDisplay.isDead()) {
+            try {
+                itemDisplay.remove();
+            } catch (Exception ignored) {}
+            itemDisplay = null;
+        }
+
+        spawned = false;
+    }
+
+    // ==================== TICK UPDATE ====================
 
     public void tick(ForgeSession session) {
         if (!spawned) return;
@@ -109,13 +131,13 @@ public class ForgeDisplay {
 
         updateItemDisplay(session);
         updateBossBar(session);
-        spawnAmbientEffects(session);
+        spawnAmbientParticles(session);
     }
 
     private void updateItemDisplay(ForgeSession session) {
         if (itemDisplay == null || itemDisplay.isDead()) return;
 
-        // Update frame based on progress
+        // Update frame if changed
         int currentFrame = session.getCurrentFrame();
         if (currentFrame != lastFrame) {
             ForgeFrame frame = recipe.getFrame(currentFrame);
@@ -127,33 +149,24 @@ public class ForgeDisplay {
 
         double progress = session.getProgress();
 
-        // Heat glow color progression
-        if (progress < 0.3) {
-            itemDisplay.setGlowColorOverride(Color.ORANGE);
-        } else if (progress < 0.6) {
-            itemDisplay.setGlowColorOverride(Color.fromRGB(255, 200, 50));  // Bright orange-yellow
-        } else if (progress < 0.9) {
-            itemDisplay.setGlowColorOverride(Color.YELLOW);
-        } else {
-            itemDisplay.setGlowColorOverride(Color.WHITE);  // White hot
-        }
+        // Update glow color based on heat
+        itemDisplay.setGlowColorOverride(getHeatColor(progress));
 
-        // Smooth scaling animation with heat wobble
+        // Calculate animation values
         float heatIntensity = (float) progress;
         float wobble = (float) Math.sin(tick * 0.2) * 0.02f * heatIntensity;
         float scale = BASE_SCALE + (MAX_SCALE - BASE_SCALE) * heatIntensity;
         float yOffset = (float) Math.sin(tick * 0.15) * 0.01f * heatIntensity;
 
-        Transformation t = new Transformation(
-                new Vector3f(0, yOffset, 0),
-                new AxisAngle4f((float) Math.toRadians(-90), 1, 0, 0),
-                new Vector3f(scale + wobble, scale + wobble, scale + wobble),
-                new AxisAngle4f(0, 0, 0, 1)
-        );
-        itemDisplay.setTransformation(t);
+        itemDisplay.setTransformation(createTransformation(scale + wobble, yOffset, 0));
         itemDisplay.setInterpolationDuration(2);
+    }
 
-        lastProgress = progress;
+    private Color getHeatColor(double progress) {
+        if (progress < 0.3) return COLOR_COLD;
+        if (progress < 0.6) return COLOR_WARM;
+        if (progress < 0.9) return COLOR_HOT;
+        return COLOR_WHITE_HOT;
     }
 
     private void updateBossBar(ForgeSession session) {
@@ -165,141 +178,145 @@ public class ForgeDisplay {
         double accuracy = session.getAverageAccuracy() * 100;
 
         progressBar.setProgress(Math.min(1.0, progress));
+        progressBar.setTitle(buildProgressTitle(hits, total, accuracy));
+        progressBar.setColor(getProgressBarColor(progress));
+    }
 
-        // Build title with stats
-        StringBuilder title = new StringBuilder();
-        title.append("§6⚒ §f");
+    private String buildProgressTitle(int hits, int total, double accuracy) {
+        StringBuilder title = new StringBuilder("§6⚒ §f");
 
-        // Add accuracy rating
         if (hits > 0) {
-            String accColor;
-            String rating;
-            if (accuracy >= 90) {
-                accColor = "§a";
-                rating = "PERFECT";
-            } else if (accuracy >= 70) {
-                accColor = "§e";
-                rating = "GREAT";
-            } else if (accuracy >= 50) {
-                accColor = "§6";
-                rating = "GOOD";
-            } else {
-                accColor = "§c";
-                rating = "POOR";
-            }
-            title.append(accColor).append(rating).append(" ");
+            title.append(getRatingText(accuracy)).append(" ");
         }
 
         title.append("§7[§f").append(hits).append("§7/§f").append(total).append("§7]");
 
         if (hits > 0) {
-            title.append(" §8| §7Accuracy: ");
-            if (accuracy >= 80) title.append("§a");
-            else if (accuracy >= 50) title.append("§e");
-            else title.append("§c");
-            title.append((int) accuracy).append("%");
+            title.append(" §8| §7Acc: ")
+                    .append(getAccuracyColor(accuracy))
+                    .append((int) accuracy).append("%");
         }
 
-        progressBar.setTitle(title.toString());
-
-        // Update bar color based on progress
-        if (progress < 0.3) {
-            progressBar.setColor(BarColor.YELLOW);
-        } else if (progress < 0.7) {
-            progressBar.setColor(BarColor.GREEN);
-        } else {
-            progressBar.setColor(BarColor.WHITE);
-        }
+        return title.toString();
     }
 
-    private void spawnAmbientEffects(ForgeSession session) {
+    private String getRatingText(double accuracy) {
+        if (accuracy >= 90) return "§aPERFECT";
+        if (accuracy >= 70) return "§eGREAT";
+        if (accuracy >= 50) return "§6GOOD";
+        return "§cPOOR";
+    }
+
+    private String getAccuracyColor(double accuracy) {
+        if (accuracy >= 80) return "§a";
+        if (accuracy >= 50) return "§e";
+        return "§c";
+    }
+
+    private BarColor getProgressBarColor(double progress) {
+        if (progress < 0.3) return BarColor.YELLOW;
+        if (progress < 0.7) return BarColor.GREEN;
+        return BarColor.WHITE;
+    }
+
+    private void spawnAmbientParticles(ForgeSession session) {
         World world = anvilLocation.getWorld();
         if (world == null) return;
 
-        Location particleLoc = anvilLocation.clone().add(0.5, 1.15, 0.5);
+        Location particleLoc = getDisplayLocation().add(0, 0.1, 0);
         double heat = session.getProgress();
 
-        // Heat shimmer
         if (tick % 4 == 0) {
             world.spawnParticle(Particle.SMALL_FLAME, particleLoc, 1, 0.1, 0.02, 0.1, 0.002);
         }
 
-        // Sparks as heat increases
         if (heat > 0.3 && tick % 8 == 0) {
             world.spawnParticle(Particle.ELECTRIC_SPARK, particleLoc, 1, 0.08, 0.05, 0.08, 0.01);
         }
 
-        // Smoke wisps
         if (heat > 0.5 && tick % 12 == 0) {
             world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, particleLoc, 1, 0.05, 0, 0.05, 0.005);
         }
     }
 
+    // ==================== COMPLETION ====================
+
     public void showCompletion(int stars) {
-        Player player = Bukkit.getPlayer(playerId);
+        updateCompletionBar(stars);
+        playCompletionEffects(stars);
+    }
 
-        // Update boss bar
-        if (progressBar != null) {
-            StringBuilder starDisplay = new StringBuilder("§a§l✓ COMPLETE! ");
-            for (int i = 0; i < 5; i++) {
-                starDisplay.append(i < stars ? "§6★" : "§8☆");
-            }
-            progressBar.setTitle(starDisplay.toString());
-            progressBar.setProgress(1.0);
-            progressBar.setColor(stars >= 4 ? BarColor.PURPLE : BarColor.GREEN);
+    private void updateCompletionBar(int stars) {
+        if (progressBar == null) return;
+
+        StringBuilder starDisplay = new StringBuilder("§a§l✓ COMPLETE! ");
+        for (int i = 0; i < 5; i++) {
+            starDisplay.append(i < stars ? "§6★" : "§8☆");
         }
 
-        // Completion effects
+        progressBar.setTitle(starDisplay.toString());
+        progressBar.setProgress(1.0);
+        progressBar.setColor(stars >= 4 ? BarColor.PURPLE : BarColor.GREEN);
+    }
+
+    private void playCompletionEffects(int stars) {
         World world = anvilLocation.getWorld();
-        if (world != null) {
-            Location loc = anvilLocation.clone().add(0.5, 1.3, 0.5);
+        if (world == null) return;
 
-            if (stars >= 5) {
-                // Legendary completion
-                world.spawnParticle(Particle.ELECTRIC_SPARK, loc, 40, 0.3, 0.3, 0.3, 0.1);
-                world.spawnParticle(Particle.FLAME, loc, 20, 0.2, 0.2, 0.2, 0.05);
-                world.spawnParticle(Particle.TOTEM_OF_UNDYING, loc, 15, 0.3, 0.3, 0.3, 0.2);
-                world.playSound(loc, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.2f);
-            } else if (stars >= 4) {
-                // Excellent
-                world.spawnParticle(Particle.ELECTRIC_SPARK, loc, 25, 0.25, 0.25, 0.25, 0.08);
-                world.spawnParticle(Particle.FLAME, loc, 12, 0.15, 0.15, 0.15, 0.04);
-                world.playSound(loc, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.3f);
-            } else if (stars >= 3) {
-                // Good
-                world.spawnParticle(Particle.CRIT, loc, 15, 0.2, 0.2, 0.2, 0.05);
-                world.playSound(loc, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
-            } else {
-                // Basic
-                world.spawnParticle(Particle.SMOKE, loc, 8, 0.15, 0.15, 0.15, 0.02);
-                world.playSound(loc, Sound.BLOCK_ANVIL_USE, 0.8f, 0.9f);
-            }
-        }
+        Location loc = getDisplayLocation().add(0, 0.25, 0);
 
-        // Make item glow brighter on completion
-        if (itemDisplay != null && !itemDisplay.isDead()) {
-            itemDisplay.setGlowColorOverride(stars >= 4 ? Color.PURPLE : Color.GREEN);
+        if (stars >= 5) {
+            // Perfect - spectacular
+            world.spawnParticle(Particle.ELECTRIC_SPARK, loc, 40, 0.3, 0.3, 0.3, 0.1);
+            world.spawnParticle(Particle.FLAME, loc, 20, 0.2, 0.2, 0.2, 0.05);
+            world.spawnParticle(Particle.TOTEM_OF_UNDYING, loc, 15, 0.3, 0.3, 0.3, 0.2);
+            world.playSound(loc, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.2f);
+        } else if (stars >= 4) {
+            // Great
+            world.spawnParticle(Particle.ELECTRIC_SPARK, loc, 25, 0.25, 0.25, 0.25, 0.08);
+            world.spawnParticle(Particle.FLAME, loc, 12, 0.15, 0.15, 0.15, 0.04);
+            world.playSound(loc, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.3f);
+        } else if (stars >= 3) {
+            // Good
+            world.spawnParticle(Particle.CRIT, loc, 15, 0.2, 0.2, 0.2, 0.05);
+            world.playSound(loc, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+        } else {
+            // Poor
+            world.spawnParticle(Particle.SMOKE, loc, 8, 0.15, 0.15, 0.15, 0.02);
+            world.playSound(loc, Sound.BLOCK_ANVIL_USE, 0.8f, 0.9f);
         }
     }
 
-    public void remove() {
-        if (itemDisplay != null) {
-            try { if (!itemDisplay.isDead()) itemDisplay.remove(); } catch (Exception ignored) {}
-            itemDisplay = null;
-        }
+    // ==================== UTILITIES ====================
 
-        if (progressBar != null) {
-            progressBar.removeAll();
-            progressBar = null;
-        }
-
-        spawned = false;
+    private Location getDisplayLocation() {
+        return anvilLocation.clone().add(OFFSET_X, OFFSET_Y, OFFSET_Z);
     }
+
+    private Transformation createTransformation(float scale, float yOffset, float rotation) {
+        return new Transformation(
+                new Vector3f(0, yOffset, 0),
+                new AxisAngle4f((float) Math.toRadians(-90), 1, 0, 0),
+                new Vector3f(scale, scale, scale),
+                new AxisAngle4f(rotation, 0, 1, 0)
+        );
+    }
+
+    // ==================== GETTERS ====================
 
     public boolean isValid() {
         return spawned && itemDisplay != null && !itemDisplay.isDead();
     }
 
-    public UUID getPlayerId() { return playerId; }
-    public Location getAnvilLocation() { return anvilLocation.clone(); }
+    public UUID getPlayerId() {
+        return playerId;
+    }
+
+    public Location getAnvilLocation() {
+        return anvilLocation.clone();
+    }
+
+    public boolean isSpawned() {
+        return spawned;
+    }
 }

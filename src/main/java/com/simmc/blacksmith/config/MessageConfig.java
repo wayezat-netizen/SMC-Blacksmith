@@ -2,17 +2,21 @@ package com.simmc.blacksmith.config;
 
 import org.bukkit.configuration.file.FileConfiguration;
 
+/**
+ * Message configuration for all plugin messages.
+ */
 public class MessageConfig {
 
-    // Furnace messages
+    // Furnace
     private String furnaceTitle;
     private String bellowsUsed;
+    private String bellowsBroke;
     private String heatToolUsed;
-    private String furnaceCreated;
     private String smeltingComplete;
     private String smeltingFailed;
+    private String bellowsNoFuel;
 
-    // Forge messages
+    // Forge
     private String forgeStarted;
     private String forgeComplete;
     private String forgeRefunded;
@@ -23,32 +27,31 @@ public class MessageConfig {
     private String forgeOkayHit;
     private String forgeMiss;
 
-    // Repair messages
+    // Repair
     private String repairSuccess;
     private String repairFailed;
     private String invalidItem;
-    private String itemNotDamaged;
-    private String vanillaAnvil;
 
-    // General messages
+    // General
     private String noPermission;
     private String conditionNotMet;
     private String missingMaterials;
+    private String vanillaAnvil;
 
     public void load(FileConfiguration config) {
         // Furnace
         furnaceTitle = color(config.getString("furnace.title", "&8Custom Furnace"));
-        bellowsUsed = color(config.getString("furnace.bellows_used", "&6Bellows pumped! Temperature rising..."));
-        heatToolUsed = color(config.getString("furnace.heat_tool_used", "&6Heat tool used! Temperature boosted!"));
-        furnaceCreated = color(config.getString("furnace.created", "&aFurnace created."));
+        bellowsUsed = color(config.getString("furnace.bellows_used", "&6Temperature rising..."));
+        bellowsBroke = color(config.getString("furnace.bellows_broke", "&cYour bellows broke!"));
+        heatToolUsed = color(config.getString("furnace.heat_tool_used", "&6Temperature boosted!"));
         smeltingComplete = color(config.getString("furnace.smelting_complete", "&aSmelting complete!"));
-        smeltingFailed = color(config.getString("furnace.smelting_failed", "&cSmelting failed - temperature was unstable."));
-
+        smeltingFailed = color(config.getString("furnace.smelting_failed", "&cSmelting failed!"));
+        this.bellowsNoFuel = color(config.getString("bellows.no_fuel", "&c&l⚠ &cAdd fuel first! Bellows need heat to work."));
         // Forge
-        forgeStarted = color(config.getString("forge.started", "&6Forging started! Strike the anvil!"));
-        forgeComplete = color(config.getString("forge.complete", "&aForging complete! %stars% Rating: %display%"));
+        forgeStarted = color(config.getString("forge.started", "&6Forging started!"));
+        forgeComplete = color(config.getString("forge.complete", "&aForging complete! Quality: %display%"));
         forgeRefunded = color(config.getString("forge.refunded", "&eMaterials refunded."));
-        forgeSessionActive = color(config.getString("forge.session_active", "&cYou already have an active forging session."));
+        forgeSessionActive = color(config.getString("forge.session_active", "&cYou already have an active session."));
         forgeUnknownRecipe = color(config.getString("forge.unknown_recipe", "&cUnknown recipe: %recipe%"));
         forgePerfectHit = color(config.getString("forge.perfect_hit", "&a&l★ PERFECT! ★"));
         forgeGoodHit = color(config.getString("forge.good_hit", "&aGood hit!"));
@@ -59,54 +62,74 @@ public class MessageConfig {
         repairSuccess = color(config.getString("repair.success", "&aRepair successful!"));
         repairFailed = color(config.getString("repair.failed", "&cRepair failed!"));
         invalidItem = color(config.getString("repair.invalid_item", "&cThis item cannot be repaired."));
-        itemNotDamaged = color(config.getString("repair.not_damaged", "&eThis item is not damaged."));
-        vanillaAnvil = color(config.getString("repair.vanilla_mode", "&7Using vanilla grindstone..."));
 
         // General
-        noPermission = color(config.getString("general.no_permission", "&cYou don't have permission to do this."));
-        conditionNotMet = color(config.getString("general.condition_not_met", "&cYou don't meet the requirements for this."));
-        missingMaterials = color(config.getString("general.missing_materials", "&cMissing materials: %amount%x %item%"));
+        noPermission = color(config.getString("general.no_permission", "&cNo permission."));
+        conditionNotMet = color(config.getString("general.condition_not_met", "&cRequirements not met."));
+        missingMaterials = color(config.getString("general.missing_materials", "&cMissing: %amount%x %item%"));
+
+        // FIX: Use same pattern as other messages
+        vanillaAnvil = color(config.getString("general.vanilla_anvil", "&7Using vanilla grindstone..."));
     }
 
     private String color(String text) {
-        if (text == null) return "";
-        return text.replace("&", "§");
+        return text != null ? text.replace("&", "§") : "";
     }
 
-    // Furnace
+    // ==================== FURNACE ====================
+
     public String getFurnaceTitle() { return furnaceTitle; }
     public String getBellowsUsed() { return bellowsUsed; }
+    public String getBellowsBroke() { return bellowsBroke; }
     public String getHeatToolUsed() { return heatToolUsed; }
-    public String getFurnaceCreated() { return furnaceCreated; }
     public String getSmeltingComplete() { return smeltingComplete; }
     public String getSmeltingFailed() { return smeltingFailed; }
 
-    // Forge
+    // ==================== FORGE ====================
+
     public String getForgeStarted() { return forgeStarted; }
+
     public String getForgeComplete(int stars, String display) {
-        return forgeComplete.replace("%stars%", String.valueOf(stars)).replace("%display%", display);
+        return forgeComplete
+                .replace("%stars%", String.valueOf(stars))
+                .replace("%display%", display)
+                .replace("%s", display);
     }
+
     public String getForgeRefunded() { return forgeRefunded; }
     public String getForgeSessionActive() { return forgeSessionActive; }
+
     public String getForgeUnknownRecipe(String recipeId) {
         return forgeUnknownRecipe.replace("%recipe%", recipeId);
     }
+
     public String getForgePerfectHit() { return forgePerfectHit; }
     public String getForgeGoodHit() { return forgeGoodHit; }
     public String getForgeOkayHit() { return forgeOkayHit; }
     public String getForgeMiss() { return forgeMiss; }
 
-    // Repair
+    // ==================== REPAIR ====================
+
     public String getRepairSuccess() { return repairSuccess; }
     public String getRepairFailed() { return repairFailed; }
     public String getInvalidItem() { return invalidItem; }
-    public String getItemNotDamaged() { return itemNotDamaged; }
-    public String getVanillaAnvil() { return vanillaAnvil; }
 
-    // General
+    // ==================== GENERAL ====================
+
     public String getNoPermission() { return noPermission; }
     public String getConditionNotMet() { return conditionNotMet; }
+
     public String getMissingMaterials(int amount, String itemName) {
-        return missingMaterials.replace("%amount%", String.valueOf(amount)).replace("%item%", itemName);
+        return missingMaterials
+                .replace("%amount%", String.valueOf(amount))
+                .replace("%item%", itemName);
+    }
+
+    public String getVanillaAnvil() {
+        return vanillaAnvil;
+    }
+
+    public String getBellowsNoFuel() {
+        return bellowsNoFuel;
     }
 }

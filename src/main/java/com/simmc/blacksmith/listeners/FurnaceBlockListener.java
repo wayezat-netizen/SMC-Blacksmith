@@ -2,7 +2,6 @@ package com.simmc.blacksmith.listeners;
 
 import com.simmc.blacksmith.furnace.FurnaceManager;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -11,22 +10,14 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 
-import java.util.EnumSet;
-import java.util.Set;
+import java.util.List;
 
 /**
- * Handles furnace removal when blocks are broken.
+ * Handles furnace removal when blocks are broken or exploded.
  */
 public class FurnaceBlockListener implements Listener {
 
     private final FurnaceManager furnaceManager;
-
-    private static final Set<Material> FURNACE_BLOCKS = EnumSet.of(
-            Material.BARRIER,  // CraftEngine furniture often uses barriers
-            Material.FURNACE,
-            Material.BLAST_FURNACE,
-            Material.SMOKER
-    );
 
     public FurnaceBlockListener(FurnaceManager furnaceManager) {
         this.furnaceManager = furnaceManager;
@@ -34,32 +25,28 @@ public class FurnaceBlockListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
-        Block block = event.getBlock();
-        Location location = block.getLocation();
+        handleBlockRemoval(event.getBlock().getLocation());
+    }
 
-        // Check if this location has a registered furnace
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockExplode(BlockExplodeEvent event) {
+        handleBlocksRemoval(event.blockList());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityExplode(EntityExplodeEvent event) {
+        handleBlocksRemoval(event.blockList());
+    }
+
+    private void handleBlockRemoval(Location location) {
         if (furnaceManager.isFurnace(location)) {
             furnaceManager.removeFurnace(location);
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onBlockExplode(BlockExplodeEvent event) {
-        for (Block block : event.blockList()) {
-            Location location = block.getLocation();
-            if (furnaceManager.isFurnace(location)) {
-                furnaceManager.removeFurnace(location);
-            }
-        }
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onEntityExplode(EntityExplodeEvent event) {
-        for (Block block : event.blockList()) {
-            Location location = block.getLocation();
-            if (furnaceManager.isFurnace(location)) {
-                furnaceManager.removeFurnace(location);
-            }
+    private void handleBlocksRemoval(List<Block> blocks) {
+        for (Block block : blocks) {
+            handleBlockRemoval(block.getLocation());
         }
     }
 }

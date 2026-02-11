@@ -6,19 +6,19 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+/**
+ * Configuration for grindstone repair system.
+ */
 public class GrindstoneConfig {
 
     private final Map<String, RepairConfigData> repairConfigs;
     private final List<String> loadWarnings;
-    private ItemProviderRegistry itemRegistry;
+    private volatile ItemProviderRegistry itemRegistry;
 
     public GrindstoneConfig() {
-        this.repairConfigs = new HashMap<>();
+        this.repairConfigs = new LinkedHashMap<>();
         this.loadWarnings = new ArrayList<>();
     }
 
@@ -30,68 +30,59 @@ public class GrindstoneConfig {
             ConfigurationSection section = config.getConfigurationSection(key);
             if (section == null) continue;
 
-            RepairConfigData data = parseRepairConfig(key, section);
-            if (data != null) {
-                repairConfigs.put(key, data);
-            }
+            parseRepairConfig(key, section).ifPresent(data -> repairConfigs.put(key, data));
         }
     }
 
-    private RepairConfigData parseRepairConfig(String id, ConfigurationSection section) {
+    private Optional<RepairConfigData> parseRepairConfig(String id, ConfigurationSection section) {
         String itemId = section.getString("id", "");
-        String itemType = section.getString("type", "minecraft");
-
         if (itemId.isEmpty()) {
             loadWarnings.add("[" + id + "] Missing item id");
-            return null;
+            return Optional.empty();
         }
 
-        // PAPI-based settings
+        String itemType = section.getString("type", "minecraft");
         String condition = section.getString("condition", "");
         String successChance = section.getString("success_chance", "%svalues_repair_chance%");
         String repairAmount = section.getString("repair_amount", "%svalues_repair_amount%");
 
         // Input material
-        ConfigurationSection inputSection = section.getConfigurationSection("input");
         String inputId = "";
         String inputType = "minecraft";
         int inputAmount = 1;
 
+        ConfigurationSection inputSection = section.getConfigurationSection("input");
         if (inputSection != null) {
             inputId = inputSection.getString("id", "");
             inputType = inputSection.getString("type", "minecraft");
-            inputAmount = inputSection.getInt("amount", 1);
-            if (inputAmount < 1) inputAmount = 1;
+            inputAmount = Math.max(1, inputSection.getInt("amount", 1));
         }
 
-        return new RepairConfigData(
+        return Optional.of(new RepairConfigData(
                 id, itemId, itemType,
                 condition, successChance, repairAmount,
                 inputId, inputType, inputAmount
-        );
+        ));
     }
 
     public void setItemRegistry(ItemProviderRegistry registry) {
         this.itemRegistry = registry;
     }
 
-    public RepairConfigData findByItem(ItemStack item) {
-        if (item == null || itemRegistry == null) return null;
+    public Optional<RepairConfigData> findByItem(ItemStack item) {
+        if (item == null || itemRegistry == null) return Optional.empty();
 
-        for (RepairConfigData config : repairConfigs.values()) {
-            if (itemRegistry.matches(item, config.itemType(), config.itemId())) {
-                return config;
-            }
-        }
-        return null;
+        return repairConfigs.values().stream()
+                .filter(config -> itemRegistry.matches(item, config.itemType(), config.itemId()))
+                .findFirst();
     }
 
-    public RepairConfigData getRepairConfig(String id) {
-        return repairConfigs.get(id);
+    public Optional<RepairConfigData> getRepairConfig(String id) {
+        return Optional.ofNullable(repairConfigs.get(id));
     }
 
     public Map<String, RepairConfigData> getRepairConfigs() {
-        return new HashMap<>(repairConfigs);
+        return new LinkedHashMap<>(repairConfigs);
     }
 
     public int getRepairConfigCount() {

@@ -6,18 +6,24 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.logging.Level;
 
 /**
- * Manages all configuration files for the plugin.
- * Handles loading, validation, and access to configurations.
+ * Centralized configuration management for SMCBlacksmith.
+ * Handles loading, validation, caching, and access to all config files.
  */
 public class ConfigManager {
 
     private final JavaPlugin plugin;
+    private final Map<ConfigType, FileConfiguration> configCache;
 
+    // Configuration instances
     private ConfigValidator validator;
     private MainConfig mainConfig;
     private FurnaceConfig furnaceConfig;
@@ -25,269 +31,282 @@ public class ConfigManager {
     private GrindstoneConfig grindstoneConfig;
     private FuelConfig fuelConfig;
     private MessageConfig messageConfig;
+    private BellowsConfig bellowsConfig;
+    private HammerConfig hammerConfig;
+
+    /**
+     * Enum for configuration types - ensures consistent file handling.
+     */
+    public enum ConfigType {
+        MAIN("config.yml"),
+        FURNACES("furnaces.yml"),
+        BLACKSMITH("blacksmith.yml"),
+        GRINDSTONE("grindstone.yml"),
+        FUELS("fuels.yml"),
+        BELLOWS("bellows.yml"),
+        HAMMER("hammer.yml"),
+        MESSAGES("lang/en_US.yml");
+
+        private final String fileName;
+
+        ConfigType(String fileName) {
+            this.fileName = fileName;
+        }
+
+        public String getFileName() {
+            return fileName;
+        }
+    }
 
     public ConfigManager(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.configCache = new EnumMap<>(ConfigType.class);
     }
 
     /**
      * Loads all configuration files with validation.
      */
     public void loadAll() {
+        long startTime = System.currentTimeMillis();
+
+        // Clear cache for reload
+        configCache.clear();
+
+        // Save defaults first
         saveDefaultConfigs();
 
-        // Initialize validator
+        // Initialize fresh validator
         validator = new ConfigValidator(plugin);
 
-        // Load main config (no validation needed)
+        // Load configs in dependency order
         loadMainConfig();
-
-        // Load and validate furnace config
         loadFurnaceConfig();
-
-        // Load and validate blacksmith config
         loadBlacksmithConfig();
-
-        // Load and validate grindstone config
         loadGrindstoneConfig();
-
-        // Load and validate fuel config
         loadFuelConfig();
-
-        // Load messages
+        loadBellowsConfig();
+        loadHammerConfig();
         loadMessages();
 
-        // Log validation results
+        // Log results
         validator.logResults();
-        validator.logSummary();
-
-        // Warn if critical errors found
-        if (validator.hasErrors()) {
-            plugin.getLogger().severe("========================================");
-            plugin.getLogger().severe("CRITICAL: Configuration errors detected!");
-            plugin.getLogger().severe("Some features may not work correctly.");
-            plugin.getLogger().severe("Please fix the errors above and reload.");
-            plugin.getLogger().severe("========================================");
-        }
-
-        // Log load summary
-        logLoadSummary();
+        logValidationSummary();
+        logLoadSummary(System.currentTimeMillis() - startTime);
     }
 
-    /**
-     * Loads and validates the main config.
-     */
+    // ==================== CONFIG LOADERS ====================
+
     private void loadMainConfig() {
-        FileConfiguration mainFile = loadConfig("config.yml");
+        FileConfiguration config = loadConfig(ConfigType.MAIN);
         mainConfig = new MainConfig();
-        mainConfig.load(mainFile);
+        mainConfig.load(config);
     }
 
-    /**
-     * Loads and validates the furnace config.
-     */
     private void loadFurnaceConfig() {
-        FileConfiguration config = loadConfig("furnaces.yml");
-
-        // Validate before loading
-        for (String furnaceId : config.getKeys(false)) {
-            ConfigurationSection section = config.getConfigurationSection(furnaceId);
-            if (section != null) {
-                validator.validateFurnaceConfig(section, furnaceId);
-            }
-        }
-
+        FileConfiguration config = loadConfig(ConfigType.FURNACES);
+        validateSections(config, validator::validateFurnaceConfig);
         furnaceConfig = new FurnaceConfig();
         furnaceConfig.load(config);
     }
 
-    /**
-     * Loads and validates the blacksmith/forge config.
-     */
     private void loadBlacksmithConfig() {
-        FileConfiguration config = loadConfig("blacksmith.yml");
+        FileConfiguration config = loadConfig(ConfigType.BLACKSMITH);
 
-        // Validate before loading
-        for (String recipeId : config.getKeys(false)) {
-            // Skip internal sections
-            if (recipeId.startsWith("_")) continue;
+        // Validate root-level recipes
+        for (String key : config.getKeys(false)) {
+            if (isInternalKey(key)) continue;
 
-            ConfigurationSection section = config.getConfigurationSection(recipeId);
-            if (section != null) {
-                validator.validateForgeRecipe(section, recipeId);
+            ConfigurationSection section = config.getConfigurationSection(key);
+            if (section != null && section.contains("hits")) {
+                validator.validateForgeRecipe(section, key);
             }
+        }
+
+        // Validate nested recipes section
+        ConfigurationSection recipesSection = config.getConfigurationSection("recipes");
+        if (recipesSection != null) {
+            validateSections(recipesSection, validator::validateForgeRecipe);
         }
 
         blacksmithConfig = new BlacksmithConfig();
         blacksmithConfig.load(config);
-
-        // Log any additional validation from BlacksmithConfig itself
         blacksmithConfig.logValidationResults(plugin);
     }
 
-    /**
-     * Loads and validates the grindstone/repair config.
-     */
     private void loadGrindstoneConfig() {
-        FileConfiguration config = loadConfig("grindstone.yml");
-
-        // Validate before loading
-        for (String configId : config.getKeys(false)) {
-            ConfigurationSection section = config.getConfigurationSection(configId);
-            if (section != null) {
-                validator.validateRepairConfig(section, configId);
-            }
-        }
-
+        FileConfiguration config = loadConfig(ConfigType.GRINDSTONE);
+        validateSections(config, validator::validateRepairConfig);
         grindstoneConfig = new GrindstoneConfig();
         grindstoneConfig.load(config);
     }
 
-    /**
-     * Loads and validates the fuel config.
-     */
     private void loadFuelConfig() {
-        FileConfiguration config = loadConfig("fuels.yml");
-
-        // Validate before loading
-        for (String fuelId : config.getKeys(false)) {
-            ConfigurationSection section = config.getConfigurationSection(fuelId);
-            if (section != null) {
-                validator.validateFuelConfig(section, fuelId);
-            }
-        }
-
+        FileConfiguration config = loadConfig(ConfigType.FUELS);
+        validateSections(config, validator::validateFuelConfig);
         fuelConfig = new FuelConfig();
         fuelConfig.load(config);
     }
 
-    /**
-     * Loads the message config.
-     */
+    private void loadBellowsConfig() {
+        FileConfiguration config = loadConfig(ConfigType.BELLOWS);
+        validateSections(config, validator::validateBellowsConfig);
+        bellowsConfig = new BellowsConfig();
+        bellowsConfig.load(config);
+    }
+
+    private void loadHammerConfig() {
+        FileConfiguration config = loadConfig(ConfigType.HAMMER);
+        validateSections(config, validator::validateHammerConfig);
+        hammerConfig = new HammerConfig();
+        hammerConfig.load(config);
+    }
+
     private void loadMessages() {
         String langFile = "lang/" + mainConfig.getLanguage();
-        FileConfiguration langConfig = loadConfig(langFile);
+        FileConfiguration config = loadConfigByPath(langFile);
         messageConfig = new MessageConfig();
-        messageConfig.load(langConfig);
+        messageConfig.load(config);
+    }
+
+    // ==================== UTILITY METHODS ====================
+
+    /**
+     * Validates all sections in a config using the provided validator.
+     */
+    private void validateSections(ConfigurationSection config,
+                                  SectionValidator validatorFunc) {
+        for (String key : config.getKeys(false)) {
+            ConfigurationSection section = config.getConfigurationSection(key);
+            if (section != null) {
+                validatorFunc.validate(section, key);
+            }
+        }
+    }
+
+    @FunctionalInterface
+    private interface SectionValidator {
+        void validate(ConfigurationSection section, String id);
+    }
+
+    private boolean isInternalKey(String key) {
+        return key.startsWith("_") ||
+                key.equals("categories") ||
+                key.equals("recipes");
     }
 
     /**
-     * Logs a summary of loaded configurations.
+     * Loads a configuration file with defaults from JAR.
      */
-    private void logLoadSummary() {
-        plugin.getLogger().info("=== Configuration Load Summary ===");
-        plugin.getLogger().info("Furnace types: " + furnaceConfig.getFurnaceTypeCount());
-        plugin.getLogger().info("Forge recipes: " + blacksmithConfig.getRecipeCount());
-        plugin.getLogger().info("Repair configs: " + grindstoneConfig.getRepairConfigCount());
-        plugin.getLogger().info("Fuel types: " + fuelConfig.getFuelCount());
-        plugin.getLogger().info("==================================");
+    private FileConfiguration loadConfig(ConfigType type) {
+        return loadConfigByPath(type.getFileName());
+    }
+
+    private FileConfiguration loadConfigByPath(String fileName) {
+        File file = new File(plugin.getDataFolder(), fileName);
+
+        if (!file.exists()) {
+            saveResourceSafely(fileName);
+        }
+
+        FileConfiguration config = YamlConfiguration.loadConfiguration(file);
+        applyDefaults(config, fileName);
+
+        return config;
+    }
+
+    private void applyDefaults(FileConfiguration config, String fileName) {
+        try (InputStream defaultStream = plugin.getResource(fileName)) {
+            if (defaultStream != null) {
+                YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
+                        new InputStreamReader(defaultStream, StandardCharsets.UTF_8));
+                config.setDefaults(defaults);
+            }
+        } catch (IOException e) {
+            plugin.getLogger().log(Level.WARNING, "Could not load defaults for " + fileName, e);
+        }
     }
 
     /**
      * Saves default configuration files if they don't exist.
      */
     private void saveDefaultConfigs() {
-        saveResourceIfNotExists("config.yml");
-        saveResourceIfNotExists("furnaces.yml");
-        saveResourceIfNotExists("blacksmith.yml");
-        saveResourceIfNotExists("grindstone.yml");
-        saveResourceIfNotExists("fuels.yml");
-        saveResourceIfNotExists("lang/en_US.yml");
+        for (ConfigType type : ConfigType.values()) {
+            saveResourceSafely(type.getFileName());
+        }
     }
 
-    /**
-     * Saves a resource file if it doesn't already exist.
-     */
-    private void saveResourceIfNotExists(String resourcePath) {
+    private void saveResourceSafely(String resourcePath) {
         File file = new File(plugin.getDataFolder(), resourcePath);
-        if (!file.exists()) {
-            file.getParentFile().mkdirs();
+        if (file.exists()) return;
+
+        // Ensure parent directories exist
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
+
+        // Try to save from JAR, create empty file if not in JAR
+        if (plugin.getResource(resourcePath) != null) {
             plugin.saveResource(resourcePath, false);
+        } else {
+            try {
+                file.createNewFile();
+                plugin.getLogger().info("Created empty config: " + resourcePath);
+            } catch (IOException e) {
+                plugin.getLogger().warning("Could not create " + resourcePath + ": " + e.getMessage());
+            }
         }
     }
 
-    /**
-     * Loads a configuration file with defaults.
-     */
-    private FileConfiguration loadConfig(String fileName) {
-        File file = new File(plugin.getDataFolder(), fileName);
-        if (!file.exists()) {
-            saveResourceIfNotExists(fileName);
+    // ==================== LOGGING ====================
+
+    private void logValidationSummary() {
+        if (validator.hasErrors()) {
+            plugin.getLogger().severe("========================================");
+            plugin.getLogger().severe("CRITICAL: Configuration errors detected!");
+            plugin.getLogger().severe("Some features may not work correctly.");
+            plugin.getLogger().severe("Please fix the errors above and reload.");
+            plugin.getLogger().severe("========================================");
+        } else if (validator.hasWarnings()) {
+            plugin.getLogger().warning("Configuration loaded with warnings.");
         }
-
-        FileConfiguration config = YamlConfiguration.loadConfiguration(file);
-
-        // Load defaults from JAR
-        InputStream defaultStream = plugin.getResource(fileName);
-        if (defaultStream != null) {
-            YamlConfiguration defaultConfig = YamlConfiguration.loadConfiguration(
-                    new InputStreamReader(defaultStream, StandardCharsets.UTF_8));
-            config.setDefaults(defaultConfig);
-        }
-
-        return config;
+        validator.logSummary();
     }
 
-    /**
-     * Reloads all configuration files.
-     */
+    private void logLoadSummary(long loadTimeMs) {
+        plugin.getLogger().info("=== Configuration Load Summary ===");
+        plugin.getLogger().info("Furnace types: " + furnaceConfig.getFurnaceTypeCount());
+        plugin.getLogger().info("Forge recipes: " + blacksmithConfig.getRecipeCount());
+        plugin.getLogger().info("Forge categories: " + blacksmithConfig.getCategoryCount());
+        plugin.getLogger().info("Repair configs: " + grindstoneConfig.getRepairConfigCount());
+        plugin.getLogger().info("Fuel types: " + fuelConfig.getFuelCount());
+        plugin.getLogger().info("Bellows types: " + bellowsConfig.getBellowsTypeCount());
+        plugin.getLogger().info("Hammer types: " + hammerConfig.getHammerTypeCount());
+        plugin.getLogger().info("Load time: " + loadTimeMs + "ms");
+        plugin.getLogger().info("==================================");
+    }
+
+    // ==================== PUBLIC API ====================
+
     public void reload() {
         loadAll();
     }
 
-    // ==================== GETTERS ====================
+    // Getters
+    public ConfigValidator getValidator() { return validator; }
+    public MainConfig getMainConfig() { return mainConfig; }
+    public FurnaceConfig getFurnaceConfig() { return furnaceConfig; }
+    public BlacksmithConfig getBlacksmithConfig() { return blacksmithConfig; }
+    public GrindstoneConfig getGrindstoneConfig() { return grindstoneConfig; }
+    public FuelConfig getFuelConfig() { return fuelConfig; }
+    public MessageConfig getMessageConfig() { return messageConfig; }
+    public BellowsConfig getBellowsConfig() { return bellowsConfig; }
+    public HammerConfig getHammerConfig() { return hammerConfig; }
+    public JavaPlugin getPlugin() { return plugin; }
 
-    public ConfigValidator getValidator() {
-        return validator;
-    }
-
-    public MainConfig getMainConfig() {
-        return mainConfig;
-    }
-
-    public FurnaceConfig getFurnaceConfig() {
-        return furnaceConfig;
-    }
-
-    public BlacksmithConfig getBlacksmithConfig() {
-        return blacksmithConfig;
-    }
-
-    public GrindstoneConfig getGrindstoneConfig() {
-        return grindstoneConfig;
-    }
-
-    public FuelConfig getFuelConfig() {
-        return fuelConfig;
-    }
-
-    public MessageConfig getMessageConfig() {
-        return messageConfig;
-    }
-
-    public int getFurnaceTickRate() {
-        return mainConfig.getFurnaceTicks();
-    }
-
-    public int getBellowsCooldown() {
-        return mainConfig.getBellowsCooldown();
-    }
-
-    public JavaPlugin getPlugin() {
-        return plugin;
-    }
-
-    /**
-     * Checks if configuration has critical errors.
-     */
-    public boolean hasConfigErrors() {
-        return validator != null && validator.hasErrors();
-    }
-
-    /**
-     * Checks if configuration has warnings.
-     */
-    public boolean hasConfigWarnings() {
-        return validator != null && validator.hasWarnings();
-    }
+    // Convenience methods
+    public int getFurnaceTickRate() { return mainConfig.getFurnaceTicks(); }
+    public int getBellowsCooldown() { return mainConfig.getBellowsCooldown(); }
+    public boolean hasConfigErrors() { return validator != null && validator.hasErrors(); }
+    public boolean hasConfigWarnings() { return validator != null && validator.hasWarnings(); }
 }

@@ -4,8 +4,8 @@ import com.simmc.blacksmith.items.ItemProviderRegistry;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -14,102 +14,59 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class RecipeMatchCache {
 
+    private static final long DEFAULT_EXPIRATION_MS = 5000;
+    private static final long CLEANUP_INTERVAL_MS = 30000;
+
     private final Map<String, CachedMatch> cache;
     private final long cacheExpirationMs;
-    private long lastCleanupTime;
+    private volatile long lastCleanupTime;
 
-    private static final long CLEANUP_INTERVAL_MS = 30000; // Clean up every 30 seconds
+    public RecipeMatchCache() {
+        this(DEFAULT_EXPIRATION_MS);
+    }
 
-    /**
-     * Creates a new recipe match cache.
-     *
-     * @param expirationMs how long cached results remain valid (in milliseconds)
-     */
     public RecipeMatchCache(long expirationMs) {
         this.cache = new ConcurrentHashMap<>();
-        this.cacheExpirationMs = expirationMs;
+        this.cacheExpirationMs = Math.max(1000, expirationMs);
         this.lastCleanupTime = System.currentTimeMillis();
     }
 
+    // ==================== PUBLIC API ====================
+
     /**
      * Gets a cached recipe match, or performs matching if not cached/expired.
-     *
-     * @param furnaceTypeId the furnace type ID
-     * @param inputs        the input items
-     * @param type          the furnace type for matching
-     * @param registry      the item provider registry
-     * @return the matched recipe, or null if no match
      */
-    public FurnaceRecipe getCachedMatch(String furnaceTypeId, ItemStack[] inputs,
-                                        FurnaceType type, ItemProviderRegistry registry) {
-        // Periodic cleanup
+    public Optional<FurnaceRecipe> getCachedMatch(String furnaceTypeId, ItemStack[] inputs,
+                                                  FurnaceType type, ItemProviderRegistry registry) {
         maybeCleanup();
 
         String cacheKey = generateCacheKey(furnaceTypeId, inputs);
         CachedMatch cached = cache.get(cacheKey);
 
         if (cached != null && !cached.isExpired()) {
-            return cached.recipe;
+            return Optional.ofNullable(cached.recipe);
         }
 
-        // Cache miss or expired - perform actual matching
+        // Cache miss or expired
         FurnaceRecipe match = type.findMatchingRecipe(inputs, registry);
         cache.put(cacheKey, new CachedMatch(match, System.currentTimeMillis() + cacheExpirationMs));
 
-        return match;
-    }
-
-    /**
-     * Generates a cache key based on furnace type and input items.
-     */
-    private String generateCacheKey(String furnaceTypeId, ItemStack[] inputs) {
-        StringBuilder sb = new StringBuilder(64);
-        sb.append(furnaceTypeId).append(":");
-
-        if (inputs == null) {
-            return sb.toString();
-        }
-
-        for (ItemStack item : inputs) {
-            if (item != null && !item.getType().isAir()) {
-                sb.append(item.getType().name())
-                        .append("-")
-                        .append(item.getAmount());
-
-                // Include custom model data if present (for custom items)
-                if (item.hasItemMeta()) {
-                    ItemMeta meta = item.getItemMeta();
-                    if (meta != null && meta.hasCustomModelData()) {
-                        sb.append("-cmd").append(meta.getCustomModelData());
-                    }
-                }
-
-                sb.append("|");
-            }
-        }
-
-        return sb.toString();
+        return Optional.ofNullable(match);
     }
 
     /**
      * Invalidates all cached entries for a specific furnace type.
-     *
-     * @param furnaceTypeId the furnace type ID to invalidate
      */
     public void invalidate(String furnaceTypeId) {
         String prefix = furnaceTypeId + ":";
-        cache.entrySet().removeIf(e -> e.getKey().startsWith(prefix));
+        cache.keySet().removeIf(key -> key.startsWith(prefix));
     }
 
     /**
      * Invalidates a specific cache entry.
-     *
-     * @param furnaceTypeId the furnace type ID
-     * @param inputs        the input items
      */
     public void invalidateSpecific(String furnaceTypeId, ItemStack[] inputs) {
-        String cacheKey = generateCacheKey(furnaceTypeId, inputs);
-        cache.remove(cacheKey);
+        cache.remove(generateCacheKey(furnaceTypeId, inputs));
     }
 
     /**
@@ -120,47 +77,73 @@ public class RecipeMatchCache {
     }
 
     /**
-     * Performs cleanup if enough time has passed since the last cleanup.
+     * Manually triggers cleanup of expired entries.
      */
+    public void cleanup() {
+        long now = System.currentTimeMillis();
+        cache.entrySet().removeIf(entry -> entry.getValue().isExpired(now));
+        lastCleanupTime = now;
+    }
+
+    // ==================== CACHE KEY GENERATION ====================
+
+    private String generateCacheKey(String furnaceTypeId, ItemStack[] inputs) {
+        StringBuilder sb = new StringBuilder(64);
+        sb.append(furnaceTypeId).append(':');
+
+        if (inputs == null) return sb.toString();
+
+        for (ItemStack item : inputs) {
+            if (item != null && !item.getType().isAir()) {
+                appendItemKey(sb, item);
+            }
+        }
+
+        return sb.toString();
+    }
+
+    private void appendItemKey(StringBuilder sb, ItemStack item) {
+        sb.append(item.getType().name())
+                .append('-')
+                .append(item.getAmount());
+
+        // Include custom model data for custom items
+        if (item.hasItemMeta()) {
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null && meta.hasCustomModelData()) {
+                sb.append("-cmd").append(meta.getCustomModelData());
+            }
+        }
+
+        sb.append('|');
+    }
+
+    // ==================== MAINTENANCE ====================
+
     private void maybeCleanup() {
         long now = System.currentTimeMillis();
         if (now - lastCleanupTime > CLEANUP_INTERVAL_MS) {
             cleanup();
-            lastCleanupTime = now;
         }
     }
 
-    /**
-     * Removes all expired entries from the cache.
-     */
-    public void cleanup() {
-        Iterator<Map.Entry<String, CachedMatch>> iterator = cache.entrySet().iterator();
-        while (iterator.hasNext()) {
-            if (iterator.next().getValue().isExpired()) {
-                iterator.remove();
-            }
-        }
-    }
+    // ==================== STATISTICS ====================
 
-    /**
-     * Gets the current cache size.
-     */
     public int size() {
         return cache.size();
     }
 
-    /**
-     * Gets cache statistics as a string.
-     */
-    public String getStats() {
+    public CacheStats getStats() {
+        long now = System.currentTimeMillis();
         int total = cache.size();
-        long expired = cache.values().stream().filter(CachedMatch::isExpired).count();
-        return String.format("Cache size: %d, Expired: %d", total, expired);
+        long expired = cache.values().stream()
+                .filter(c -> c.isExpired(now))
+                .count();
+        return new CacheStats(total, (int) expired, total - (int) expired);
     }
 
-    /**
-     * Internal class to hold cached match results.
-     */
+    // ==================== INNER TYPES ====================
+
     private static class CachedMatch {
         final FurnaceRecipe recipe;
         final long expirationTime;
@@ -171,7 +154,18 @@ public class RecipeMatchCache {
         }
 
         boolean isExpired() {
-            return System.currentTimeMillis() > expirationTime;
+            return isExpired(System.currentTimeMillis());
+        }
+
+        boolean isExpired(long now) {
+            return now > expirationTime;
+        }
+    }
+
+    public record CacheStats(int total, int expired, int valid) {
+        @Override
+        public String toString() {
+            return String.format("Cache[total=%d, valid=%d, expired=%d]", total, valid, expired);
         }
     }
 }

@@ -3,323 +3,310 @@ package com.simmc.blacksmith.furnace;
 import com.simmc.blacksmith.config.ConfigManager;
 import com.simmc.blacksmith.config.FuelConfig;
 import com.simmc.blacksmith.items.ItemProviderRegistry;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.RayTraceResult;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 /**
- * Manages all furnace instances, GUIs, temperature bars, and async processing.
- * Includes performance optimizations: batch GUI updates and recipe caching.
+ * Manages all furnace instances, GUIs, and temperature displays.
+ * Boss bar shows recipe-specific ideal temperature ranges.
  */
 public class FurnaceManager {
+
+    private static final double LOOK_DISTANCE = 5.0;
+    private static final String DATA_FILE = "data/furnaces.yml";
+
+    // Temperature status display data
+    private static final String[] STATUS_DISPLAY = {
+            "§8❄ Cold",
+            "§9⬇ Too Cold",
+            "§e↑ Warming Up",
+            "§a✓ Ideal",
+            "§6⬆ Too Hot",
+            "§c⚠ Dangerous!"
+    };
+
+    private static final String[] STATUS_COLOR = {
+            "§8", "§9", "§e", "§a", "§6", "§c"
+    };
+
+    private static final BarColor[] STATUS_BAR_COLOR = {
+            BarColor.WHITE,
+            BarColor.BLUE,
+            BarColor.YELLOW,
+            BarColor.GREEN,
+            BarColor.YELLOW,
+            BarColor.RED
+    };
 
     private final JavaPlugin plugin;
     private final ConfigManager configManager;
     private final ItemProviderRegistry itemRegistry;
 
-    // CHANGED: Use String keys instead of Location to avoid equality issues
     private final Map<String, FurnaceInstance> furnaces;
-    private final Map<String, TemperatureBar> temperatureBars;
     private final Map<UUID, FurnaceGUI> openGUIs;
+    private final Map<UUID, BossBar> playerBossBars;
+    private final Map<UUID, String> playerLookingAt;
 
     private BukkitTask tickTask;
-    private AsyncSmeltingProcessor asyncProcessor;
-    private RecipeMatchCache recipeCache;
-
-    // Configuration
-    private boolean asyncEnabled = true;
-    private static final int DEFAULT_THREAD_COUNT = 2;
-
-    // Batch GUI update settings
-    private static final int GUI_UPDATE_BATCH_SIZE = 10;
-    private int guiUpdateOffset = 0;
-
-    // Cache settings
-    private static final long RECIPE_CACHE_EXPIRATION_MS = 5000; // 5 seconds
+    private BukkitTask displayTask;
 
     public FurnaceManager(JavaPlugin plugin, ConfigManager configManager, ItemProviderRegistry itemRegistry) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.itemRegistry = itemRegistry;
-        this.furnaces = new HashMap<>();
-        this.temperatureBars = new HashMap<>();
-        this.openGUIs = new HashMap<>();
 
-        // Initialize async processor
-        int threadCount = Math.max(1, Math.min(DEFAULT_THREAD_COUNT,
-                Runtime.getRuntime().availableProcessors() / 4));
-        this.asyncProcessor = new AsyncSmeltingProcessor(plugin, threadCount);
-
-        // Initialize recipe cache
-        this.recipeCache = new RecipeMatchCache(RECIPE_CACHE_EXPIRATION_MS);
-
-        plugin.getLogger().info("Initialized async smelting processor with " + threadCount + " worker thread(s)");
+        this.furnaces = new ConcurrentHashMap<>();
+        this.openGUIs = new ConcurrentHashMap<>();
+        this.playerBossBars = new ConcurrentHashMap<>();
+        this.playerLookingAt = new ConcurrentHashMap<>();
     }
+
+    // ==================== LIFECYCLE ====================
 
     public void startTickTask() {
         int tickRate = configManager.getFurnaceTickRate();
-        tickTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, tickRate, tickRate);
+        tickTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, tickRate, tickRate);
+        displayTask = Bukkit.getScheduler().runTaskTimer(plugin, this::updateDisplays, 5L, 5L);
     }
 
     public void stopTickTask() {
-        if (tickTask != null && !tickTask.isCancelled()) {
-            tickTask.cancel();
-            tickTask = null;
-        }
+        if (tickTask != null && !tickTask.isCancelled()) tickTask.cancel();
+        if (displayTask != null && !displayTask.isCancelled()) displayTask.cancel();
+        tickTask = null;
+        displayTask = null;
 
-        // Shutdown async processor
-        if (asyncProcessor != null) {
-            asyncProcessor.shutdown();
-            asyncProcessor = null;
-        }
-
-        // Clear recipe cache
-        if (recipeCache != null) {
-            recipeCache.clear();
-        }
-
-        // Remove all temperature bars
-        removeAllTemperatureBars();
+        playerBossBars.values().forEach(BossBar::removeAll);
+        playerBossBars.clear();
+        playerLookingAt.clear();
     }
 
-    /**
-     * Main tick method - processes all furnaces.
-     */
+    // ==================== TICK ====================
+
     private void tick() {
         FuelConfig fuelConfig = configManager.getFuelConfig();
-        fuelConfig.setItemRegistry(itemRegistry);
-
-        if (asyncEnabled && asyncProcessor != null && asyncProcessor.isRunning()) {
-            // Async processing mode
-            tickAsync(fuelConfig);
-        } else {
-            // Synchronous fallback
-            tickSync(fuelConfig);
+        if (fuelConfig != null) {
+            fuelConfig.setItemRegistry(itemRegistry);
         }
 
-        // Batch GUI updates for performance
-        tickGUIUpdatesBatched();
-
-        // Temperature bar updates (always synchronous)
-        tickTemperatureBars();
+        for (FurnaceInstance furnace : furnaces.values()) {
+            try {
+                furnace.tick(itemRegistry, fuelConfig);
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.WARNING, "Error ticking furnace at " + furnace.getLocation(), e);
+            }
+        }
     }
 
-    /**
-     * Asynchronous tick - offloads calculations to worker threads.
-     */
-    private void tickAsync(FuelConfig fuelConfig) {
-        for (FurnaceInstance furnace : furnaces.values()) {
-            // Skip if async task still pending
-            if (asyncProcessor.hasPendingTask(furnace.getId())) {
-                continue;
-            }
+    // ==================== DISPLAY ====================
 
-            // Process async with callback
-            asyncProcessor.processAsync(furnace, itemRegistry, fuelConfig, result -> {
-                applySmeltingResult(furnace, result);
+    private void updateDisplays() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            updatePlayerDisplay(player);
+        }
+    }
+
+    private void updatePlayerDisplay(Player player) {
+        UUID playerId = player.getUniqueId();
+        FurnaceInstance lookingAt = getFurnacePlayerIsLookingAt(player);
+
+        if (lookingAt != null) {
+            playerLookingAt.put(playerId, locationToKey(lookingAt.getLocation()));
+
+            BossBar bar = playerBossBars.computeIfAbsent(playerId, k -> {
+                BossBar newBar = Bukkit.createBossBar("", BarColor.WHITE, BarStyle.SEGMENTED_10);
+                newBar.addPlayer(player);
+                return newBar;
             });
-        }
-    }
 
-    /**
-     * Synchronous tick - fallback when async is disabled.
-     */
-    private void tickSync(FuelConfig fuelConfig) {
-        for (FurnaceInstance furnace : furnaces.values()) {
-            furnace.tick(itemRegistry, fuelConfig);
-        }
-    }
-
-    /**
-     * Applies the result of async smelting calculations to the furnace.
-     * This runs on the main thread.
-     */
-    private void applySmeltingResult(FurnaceInstance furnace,
-                                     AsyncSmeltingProcessor.SmeltingResult result) {
-        // Apply temperature
-        furnace.setCurrentTemperature(result.getNewTemperature());
-
-        // Apply burn state
-        AsyncSmeltingProcessor.BurnCalculation burn = result.getBurnCalculation();
-        if (burn != null) {
-            furnace.setBurning(burn.isBurning);
-            furnace.setBurnTimeRemaining(burn.newBurnTimeRemaining);
-            furnace.setTargetTemperature(burn.newTargetTemperature);
-
-            if (burn.consumeFuel) {
-                // Consume fuel on main thread (modifies inventory)
-                furnace.consumeFuelItem();
+            updateBossBar(bar, lookingAt);
+            bar.setVisible(true);
+        } else {
+            playerLookingAt.remove(playerId);
+            BossBar bar = playerBossBars.get(playerId);
+            if (bar != null) {
+                bar.setVisible(false);
             }
         }
+    }
 
-        // Apply recipe changes
-        if (result.getNewRecipe() != null) {
-            furnace.setCurrentRecipe(result.getNewRecipe());
-            furnace.setSmeltProgress(0);
-            furnace.setTimeOutsideIdealRange(0);
+    /**
+     * Updates the boss bar with furnace status.
+     * Shows recipe-specific ideal temperature range when smelting.
+     */
+    private void updateBossBar(BossBar bar, FurnaceInstance furnace) {
+        FurnaceType type = furnace.getType();
+        int currentTemp = furnace.getCurrentTemperature();
+        int maxTemp = type.getMaxTemperature();
 
-            // Invalidate cache for this furnace's inputs
-            recipeCache.invalidateSpecific(furnace.getType().getId(), furnace.getInputSlots());
+        int statusCode = furnace.getTemperatureStatusCode();
+
+        StringBuilder title = new StringBuilder();
+
+        // Status display (shows if temp is LOW/IDEAL/HIGH relative to recipe)
+        title.append(STATUS_DISPLAY[statusCode]);
+
+        // Current temperature
+        title.append(" §7| ");
+        title.append(STATUS_COLOR[statusCode]).append(currentTemp).append("°C");
+
+        // Fuel indicator with burn time
+        if (furnace.isBurning()) {
+            title.append(" §6🔥");
+        } else {
+            title.append(" §8🔥 §c(No Fuel!)");
         }
 
-        // Apply smelting progress
-        AsyncSmeltingProcessor.SmeltingProgress progress = result.getProgress();
-        if (progress != null) {
-            if (progress.shouldReset) {
-                furnace.resetSmelting();
-            } else if (progress.isComplete) {
-                // Complete smelting on main thread (modifies inventory)
-                furnace.completeSmelting(progress.isSuccess, itemRegistry);
+        // Recipe-specific display
+        FurnaceRecipe recipe = furnace.getCurrentRecipe();
+        double progress;
 
-                // Invalidate cache after smelting completes
-                recipeCache.invalidateSpecific(furnace.getType().getId(), furnace.getInputSlots());
+        if (recipe != null) {
+            // Show recipe's ideal temperature range
+            String idealRange = furnace.getIdealTemperatureRange();
+            title.append(" §7| §fIdeal: §e").append(idealRange);
+
+            // Show smelting progress with temperature status
+            progress = furnace.getSmeltProgress();
+            int percent = (int) (progress * 100);
+
+            title.append(" §7| ");
+
+            String tempStatus = furnace.getRecipeTemperatureStatus();
+            switch (tempStatus) {
+                case "LOW", "COLD" -> {
+                    title.append("§9⬇ Too Cold! ");
+                    title.append("§7").append(percent).append("%");
+                }
+                case "HIGH" -> {
+                    title.append("§6⬆ Too Hot! ");
+                    title.append("§7").append(percent).append("%");
+                }
+                case "DANGEROUS" -> {
+                    title.append("§c⚠ Overheating! ");
+                    title.append("§c").append(percent).append("%");
+                }
+                case "IDEAL" -> {
+                    title.append("§a✓ Smelting: ");
+                    title.append("§a").append(percent).append("%");
+                }
+                default -> {
+                    title.append("§7Smelting: ").append(percent).append("%");
+                }
+            }
+
+            // Warning indicator if outside ideal range for too long
+            long timeOutside = furnace.getTimeOutsideIdealRange();
+            long threshold = type.getBadOutputThresholdMs();
+
+            if (timeOutside > threshold * 0.5) {
+                title.append(" §4⚠");
+            } else if (timeOutside > threshold * 0.25) {
+                title.append(" §c⚠");
+            }
+
+            // Show quality indicator
+            long timeInside = furnace.getTimeInsideIdealRange();
+            long totalTime = timeInside + timeOutside;
+            if (totalTime > 1000) {
+                double ratio = (double) timeInside / totalTime;
+                if (ratio >= 0.8) {
+                    title.append(" §a★");
+                } else if (ratio >= 0.6) {
+                    title.append(" §e★");
+                } else if (ratio >= type.getMinIdealRatio()) {
+                    title.append(" §7★");
+                } else {
+                    title.append(" §c✗");
+                }
+            }
+
+        } else {
+            // No recipe - show temperature progress toward max
+            progress = maxTemp > 0 ? (double) currentTemp / maxTemp : 0;
+
+            if (currentTemp > 0) {
+                title.append(" §7| §8No recipe loaded");
             } else {
-                furnace.setSmeltProgress(progress.newSmeltProgress);
-                furnace.setTimeOutsideIdealRange(progress.newTimeOutsideIdealRange);
+                title.append(" §7| §8Add fuel and ingredients");
             }
         }
+
+        bar.setTitle(title.toString());
+        bar.setProgress(Math.max(0, Math.min(1, progress)));
+        bar.setColor(STATUS_BAR_COLOR[statusCode]);
     }
 
-    /**
-     * Updates GUIs in batches to reduce per-tick overhead.
-     * Updates GUI_UPDATE_BATCH_SIZE GUIs per tick in round-robin fashion.
-     */
-    private void tickGUIUpdatesBatched() {
-        if (openGUIs.isEmpty()) return;
-
-        List<FurnaceGUI> guiList = new ArrayList<>(openGUIs.values());
-        int total = guiList.size();
-
-        // If we have fewer GUIs than batch size, update all
-        if (total <= GUI_UPDATE_BATCH_SIZE) {
-            for (FurnaceGUI gui : guiList) {
-                gui.updateDisplay();
-            }
-            return;
-        }
-
-        // Update a subset of GUIs each tick
-        int start = guiUpdateOffset % total;
-        int end = Math.min(start + GUI_UPDATE_BATCH_SIZE, total);
-
-        for (int i = start; i < end; i++) {
-            guiList.get(i).updateDisplay();
-        }
-
-        // Wrap around for next tick
-        guiUpdateOffset = (end >= total) ? 0 : end;
-    }
-
-    /**
-     * Updates all temperature bar displays.
-     */
-    private void tickTemperatureBars() {
-        for (TemperatureBar bar : temperatureBars.values()) {
-            bar.update();
-        }
-    }
-
-    /**
-     * Removes all temperature bars.
-     */
-    private void removeAllTemperatureBars() {
-        for (TemperatureBar bar : temperatureBars.values()) {
-            bar.remove();
-        }
-        temperatureBars.clear();
-    }
-
-    /**
-     * Gets a cached recipe match for the given furnace and inputs.
-     * Uses the recipe cache to avoid repeated matching.
-     */
-    public FurnaceRecipe getCachedRecipeMatch(FurnaceInstance furnace) {
-        return recipeCache.getCachedMatch(
-                furnace.getType().getId(),
-                furnace.getInputSlots(),
-                furnace.getType(),
-                itemRegistry
+    private FurnaceInstance getFurnacePlayerIsLookingAt(Player player) {
+        RayTraceResult result = player.getWorld().rayTraceBlocks(
+                player.getEyeLocation(),
+                player.getEyeLocation().getDirection(),
+                LOOK_DISTANCE
         );
+
+        if (result == null || result.getHitBlock() == null) {
+            return null;
+        }
+
+        return getFurnace(result.getHitBlock().getLocation());
     }
 
-    /**
-     * Creates a furnace with a temperature bar display.
-     */
+    // ==================== FURNACE CRUD ====================
+
     public FurnaceInstance createFurnace(String typeId, Location location) {
-        FurnaceType type = configManager.getFurnaceConfig().getFurnaceType(typeId);
-        if (type == null) {
+        Optional<FurnaceType> typeOpt = configManager.getFurnaceConfig().getFurnaceType(typeId);
+
+        if (typeOpt.isEmpty()) {
             plugin.getLogger().warning("Unknown furnace type: " + typeId);
             return null;
         }
 
         String key = locationToKey(location);
-
         if (furnaces.containsKey(key)) {
             return furnaces.get(key);
         }
 
-        Location normalizedLoc = normalizeLocation(location);
-        FurnaceInstance instance = new FurnaceInstance(type, normalizedLoc);
+        FurnaceInstance instance = new FurnaceInstance(typeOpt.get(), normalizeLocation(location));
         furnaces.put(key, instance);
-
-        if (configManager.getMainConfig().isTemperatureBarEnabled()) {
-            createTemperatureBar(instance, key);
-        }
-
         return instance;
     }
 
-    /**
-     * Creates a temperature bar for the furnace.
-     */
-    private void createTemperatureBar(FurnaceInstance furnace, String key) {
-        // Remove existing bar if any
-        TemperatureBar existingBar = temperatureBars.remove(key);
-        if (existingBar != null) {
-            existingBar.remove();
-        }
-
-        // Create new bar
-        TemperatureBar bar = new TemperatureBar(furnace);
-        bar.spawn();
-        temperatureBars.put(key, bar);
-    }
-
     public FurnaceInstance getFurnace(Location location) {
-        String key = locationToKey(location);
-        return furnaces.get(key);
+        return furnaces.get(locationToKey(location));
     }
 
+    /**
+     * Gets a furnace instance directly.
+     * Alias for getFurnace() for clearer API.
+     */
+    public FurnaceInstance getFurnaceInstance(Location location) {
+        return getFurnace(location);
+    }
 
     public void removeFurnace(Location location) {
-        String key = locationToKey(location);
-
-        FurnaceInstance removed = furnaces.remove(key);
-
-        TemperatureBar bar = temperatureBars.remove(key);
-        if (bar != null) {
-            bar.remove();
-        }
-
-        if (removed != null) {
-            plugin.getLogger().info("Removed furnace at " + key);
-        }
+        furnaces.remove(locationToKey(location));
     }
-
 
     public boolean isFurnace(Location location) {
-        String key = locationToKey(location);
-        return furnaces.containsKey(key);
+        return furnaces.containsKey(locationToKey(location));
     }
+
+    // ==================== GUI ====================
 
     public void openFurnaceGUI(Player player, Location location) {
         FurnaceInstance furnace = getFurnace(location);
@@ -350,18 +337,55 @@ public class FurnaceManager {
         return openGUIs.containsKey(playerId);
     }
 
+    // ==================== BELLOWS ====================
+
+    /**
+     * @deprecated Use FurnaceInstance.applyBellows() directly for better control.
+     * This method is kept for backward compatibility.
+     */
+    @Deprecated
+    public boolean applyBellows(Player player, Location furnaceLocation, int heatBoost) {
+        FurnaceInstance furnace = getFurnace(furnaceLocation);
+        if (furnace == null) {
+            return false;
+        }
+
+        boolean success = furnace.applyBellows(heatBoost);
+
+        if (!success) {
+            player.sendMessage(configManager.getMessageConfig().getBellowsNoFuel());
+            return false;
+        }
+
+        return true;
+    }
+
+    // ==================== PLAYER EVENTS ====================
+
+    public void handlePlayerQuit(Player player) {
+        UUID playerId = player.getUniqueId();
+        closeGUI(player);
+
+        BossBar bar = playerBossBars.remove(playerId);
+        if (bar != null) {
+            bar.removeAll();
+        }
+        playerLookingAt.remove(playerId);
+    }
+
+    // ==================== PERSISTENCE ====================
+
     public void saveAll() {
-        File file = new File(plugin.getDataFolder(), "data/furnaces.yml");
+        File file = new File(plugin.getDataFolder(), DATA_FILE);
         file.getParentFile().mkdirs();
 
         YamlConfiguration config = new YamlConfiguration();
-
         int count = 0;
-        for (Map.Entry<String, FurnaceInstance> entry : furnaces.entrySet()) {
-            FurnaceInstance furnace = entry.getValue();
-            Location loc = furnace.getLocation();
 
+        for (FurnaceInstance furnace : furnaces.values()) {
+            Location loc = furnace.getLocation();
             String path = "furnaces." + count;
+
             config.set(path + ".type", furnace.getType().getId());
             config.set(path + ".world", loc.getWorld().getName());
             config.set(path + ".x", loc.getBlockX());
@@ -383,35 +407,28 @@ public class FurnaceManager {
     }
 
     public void loadAll() {
-        File file = new File(plugin.getDataFolder(), "data/furnaces.yml");
-        if (!file.exists()) {
-            return;
-        }
+        File file = new File(plugin.getDataFolder(), DATA_FILE);
+        if (!file.exists()) return;
 
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        ConfigurationSection section = config.getConfigurationSection("furnaces");
+        if (section == null) return;
+
         int loaded = 0;
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection fs = section.getConfigurationSection(key);
+            if (fs == null) continue;
 
-        ConfigurationSection furnacesSection = config.getConfigurationSection("furnaces");
-        if (furnacesSection == null) return;
-
-        for (String key : furnacesSection.getKeys(false)) {
-            ConfigurationSection section = furnacesSection.getConfigurationSection(key);
-            if (section == null) continue;
-
-            String typeId = section.getString("type");
-            String worldName = section.getString("world");
-            int x = section.getInt("x");
-            int y = section.getInt("y");
-            int z = section.getInt("z");
-            int temperature = section.getInt("temperature", 0);
-
+            String typeId = fs.getString("type");
+            String worldName = fs.getString("world");
             World world = plugin.getServer().getWorld(worldName);
             if (world == null) continue;
 
-            Location loc = new Location(world, x, y, z);
+            Location loc = new Location(world, fs.getInt("x"), fs.getInt("y"), fs.getInt("z"));
             FurnaceInstance furnace = createFurnace(typeId, loc);
+
             if (furnace != null) {
-                furnace.setCurrentTemperature(temperature);
+                furnace.setCurrentTemperature(fs.getInt("temperature", 0));
                 loaded++;
             }
         }
@@ -420,92 +437,27 @@ public class FurnaceManager {
     }
 
     public void reload() {
-        for (FurnaceGUI gui : openGUIs.values()) {
-            gui.saveItemsToFurnace();
-        }
-
-        // Clear caches on reload
-        if (recipeCache != null) {
-            recipeCache.clear();
-        }
+        openGUIs.values().forEach(FurnaceGUI::saveItemsToFurnace);
     }
 
-    /**
-     * Converts a Location to a unique String key.
-     * This avoids issues with Location's equals/hashCode methods.
-     */
+    // ==================== UTILITIES ====================
+
     private String locationToKey(Location location) {
-        if (location == null || location.getWorld() == null) {
-            return "null";
-        }
-        return location.getWorld().getName() + ":" +
-                location.getBlockX() + ":" +
-                location.getBlockY() + ":" +
-                location.getBlockZ();
-    }
-
-    /**
-     * Normalizes a location to block coordinates.
-     */
-    private Location normalizeLocation(Location location) {
-        return new Location(
-                location.getWorld(),
+        if (location == null || location.getWorld() == null) return "null";
+        return String.format("%s:%d:%d:%d",
+                location.getWorld().getName(),
                 location.getBlockX(),
                 location.getBlockY(),
-                location.getBlockZ()
-        );
+                location.getBlockZ());
+    }
+
+    private Location normalizeLocation(Location location) {
+        return new Location(location.getWorld(), location.getBlockX(), location.getBlockY(), location.getBlockZ());
     }
 
     // ==================== GETTERS ====================
 
-    public int getFurnaceCount() {
-        return furnaces.size();
-    }
-
-    public int getTemperatureBarCount() {
-        return temperatureBars.size();
-    }
-
-    public int getOpenGUICount() {
-        return openGUIs.size();
-    }
-
-    public Map<String, FurnaceInstance> getAllFurnaces() {
-        return new HashMap<>(furnaces);
-    }
-
-    public boolean isAsyncEnabled() {
-        return asyncEnabled;
-    }
-
-    public void setAsyncEnabled(boolean enabled) {
-        this.asyncEnabled = enabled;
-    }
-
-    public RecipeMatchCache getRecipeCache() {
-        return recipeCache;
-    }
-
-    /**
-     * Gets performance statistics for debugging.
-     */
-    public String getPerformanceStats() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== FurnaceManager Stats ===\n");
-        sb.append("Furnaces: ").append(furnaces.size()).append("\n");
-        sb.append("Temperature Bars: ").append(temperatureBars.size()).append("\n");
-        sb.append("Open GUIs: ").append(openGUIs.size()).append("\n");
-        sb.append("Async Enabled: ").append(asyncEnabled).append("\n");
-
-        if (asyncProcessor != null) {
-            sb.append("Async Pending: ").append(asyncProcessor.getPendingTaskCount()).append("\n");
-            sb.append("Async Queued: ").append(asyncProcessor.getQueuedResultCount()).append("\n");
-        }
-
-        if (recipeCache != null) {
-            sb.append("Recipe Cache: ").append(recipeCache.getStats()).append("\n");
-        }
-
-        return sb.toString();
-    }
+    public int getFurnaceCount() { return furnaces.size(); }
+    public int getOpenGUICount() { return openGUIs.size(); }
+    public Map<String, FurnaceInstance> getAllFurnaces() { return new HashMap<>(furnaces); }
 }

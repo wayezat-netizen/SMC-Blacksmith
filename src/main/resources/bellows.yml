@@ -1,0 +1,55 @@
+# ==========================================
+# Bellows Configuration
+# BALANCED - lower heat per blow, need constant use
+# ==========================================
+
+# Basic tier - low heat, low durability
+leather_bellows:
+  type: minecraft
+  id: LEATHER
+  heat_per_blow: 20
+  max_durability: 50
+  cooldown_ticks: 8
+  sound: ENTITY_HORSE_BREATHE
+
+paper_bellows:
+  type: minecraft
+  id: PAPER
+  heat_per_blow: 12
+  max_durability: 25
+  cooldown_ticks: 8
+  sound: ENTITY_HORSE_BREATHE
+
+# Mid tier
+iron_bellows:
+  type: smc
+  id: iron_bellows
+  heat_per_blow: 30
+  max_durability: 150
+  cooldown_ticks: 6
+  sound: BLOCK_PISTON_EXTEND
+
+copper_bellows:
+  type: smc
+  id: copper_bellows
+  heat_per_blow: 25
+  max_durability: 120
+  cooldown_ticks: 6
+  sound: BLOCK_PISTON_EXTEND
+
+# High tier
+steel_bellows:
+  type: smc
+  id: steel_bellows
+  heat_per_blow: 45
+  max_durability: 300
+  cooldown_ticks: 5
+  sound: BLOCK_PISTON_EXTEND
+
+advanced_bellows:
+  type: smc
+  id: advanced_bellows
+  heat_per_blow: 60
+  max_durability: 500
+  cooldown_ticks: 4
+  sound: BLOCK_PISTON_EXTEND

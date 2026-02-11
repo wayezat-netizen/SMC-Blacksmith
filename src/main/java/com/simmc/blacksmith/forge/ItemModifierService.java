@@ -11,63 +11,74 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Service for applying star-based modifications to forged items.
+ */
 public class ItemModifierService {
 
     private static final String MODIFIER_PREFIX = "smcblacksmith_";
 
-    public ItemStack applyStarModifiers(ItemStack item, int stars, Map<Integer, StarModifier> modifiers, String forgerName) {
+    /**
+     * Applies star modifiers to a forged item.
+     */
+    public ItemStack applyStarModifiers(ItemStack item, int stars,
+                                        Map<Integer, StarModifier> modifiers,
+                                        String forgerName) {
         if (item == null || item.getType().isAir()) return item;
 
         ItemStack result = item.clone();
         ItemMeta meta = result.getItemMeta();
         if (meta == null) return result;
 
-        StarModifier modifier = modifiers.get(stars);
+        StarModifier modifier = modifiers != null ? modifiers.get(stars) : null;
 
-        // Apply display name suffix
-        if (modifier != null && modifier.getDisplaySuffix() != null) {
-            String currentName = meta.hasDisplayName() ? meta.getDisplayName() : "";
-            meta.setDisplayName(currentName + " " + modifier.getDisplaySuffix());
-        }
-
-        // Build lore
-        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-
-        // Add star rating
-        lore.add("");
-        lore.add(formatStars(stars));
-
-        // Add modifier description
-        if (modifier != null && modifier.getLoreLine() != null) {
-            lore.add(modifier.getLoreLine());
-        }
-
-        // Add forger name
-        if (forgerName != null) {
-            lore.add("");
-            lore.add("§7Forged by §e" + forgerName);
-        }
-
-        meta.setLore(lore);
-
-        // Apply attribute modifiers
-        if (modifier != null) {
-            applyAttributeModifiers(meta, modifier);
-        }
+        applyDisplayName(meta, modifier);
+        applyLore(meta, stars, modifier, forgerName);
+        applyAttributes(meta, modifier);
 
         result.setItemMeta(meta);
         return result;
     }
 
-    private void applyAttributeModifiers(ItemMeta meta, StarModifier modifier) {
-        Map<String, Double> mods = modifier.getAttributeModifiers();
+    private void applyDisplayName(ItemMeta meta, StarModifier modifier) {
+        if (modifier == null || !modifier.hasDisplaySuffix()) return;
 
-        for (Map.Entry<String, Double> entry : mods.entrySet()) {
+        String currentName = meta.hasDisplayName() ? meta.getDisplayName() : "";
+        meta.setDisplayName(currentName + " " + modifier.getDisplaySuffix());
+    }
+
+    private void applyLore(ItemMeta meta, int stars, StarModifier modifier, String forgerName) {
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+
+        // Star rating
+        lore.add("");
+        lore.add(formatStars(stars));
+
+        // Modifier description
+        if (modifier != null && modifier.hasLoreLine()) {
+            lore.add(modifier.getLoreLine());
+        }
+
+        // Forger signature
+        if (forgerName != null && !forgerName.isEmpty()) {
+            lore.add("");
+            lore.add("§7Forged by §e" + forgerName);
+        }
+
+        meta.setLore(lore);
+    }
+
+    private void applyAttributes(ItemMeta meta, StarModifier modifier) {
+        if (modifier == null || !modifier.hasAttributeModifiers()) return;
+
+        for (Map.Entry<String, Double> entry : modifier.getAttributeModifiers().entrySet()) {
             String attrName = entry.getKey().toUpperCase();
             double value = entry.getValue();
 
             try {
-                Attribute attribute = Attribute.valueOf("GENERIC_" + attrName);
+                Attribute attribute = parseAttribute(attrName);
+                if (attribute == null) continue;
+
                 UUID uuid = UUID.nameUUIDFromBytes((MODIFIER_PREFIX + attrName).getBytes());
 
                 AttributeModifier attrMod = new AttributeModifier(
@@ -79,10 +90,24 @@ public class ItemModifierService {
                 );
 
                 meta.addAttributeModifier(attribute, attrMod);
-            } catch (IllegalArgumentException e) {
-                // Unknown attribute, skip
+            } catch (Exception ignored) {
+                // Skip invalid attributes
             }
         }
+    }
+
+    private Attribute parseAttribute(String name) {
+        // Try with GENERIC_ prefix
+        try {
+            return Attribute.valueOf("GENERIC_" + name);
+        } catch (IllegalArgumentException ignored) {}
+
+        // Try direct match
+        try {
+            return Attribute.valueOf(name);
+        } catch (IllegalArgumentException ignored) {}
+
+        return null;
     }
 
     private String formatStars(int stars) {

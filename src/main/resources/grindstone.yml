@@ -1,75 +1,52 @@
 # ==========================================
-# SMCBlacksmith - Grindstone Repair Configuration
+# Grindstone Repair Configuration
 # ==========================================
-# Uses PAPI placeholders for conditions and chances
-# Format:
-#   condition: "%placeholder% operator value" (>=, <=, >, <, ==, !=)
-#   success_chance: "%placeholder%" returning 0-100
-#   repair_amount: "%placeholder%" returning 0-100
 
-iron_sword:
-  id: iron_sword
-  type: minecraft
-  condition: "%svalues_repair_skill% >= 1"
-  success_chance: "%svalues_repair_chance%"
-  repair_amount: "%svalues_repair_amount%"
-  input:
-    id: iron_ingot
-    type: minecraft
-    amount: 1
+# Sneak + right-click vanilla grindstone to use vanilla behavior
+sneak_for_vanilla: true
 
-iron_pickaxe:
-  id: iron_pickaxe
-  type: minecraft
-  condition: "%svalues_repair_skill% >= 1"
-  success_chance: "%svalues_repair_chance%"
-  repair_amount: "%svalues_repair_amount%"
-  input:
-    id: iron_ingot
-    type: minecraft
-    amount: 1
+# Repair configurations by item type
+repairs:
+  iron_sword:
+    item_type: smc
+    item_id: iron_sword
+    repair_material:
+      type: minecraft
+      id: IRON_INGOT
+      amount: 2
+    repair_percent: 25
+    max_repairs: 5
+    cost: 0
 
-diamond_sword:
-  id: diamond_sword
-  type: minecraft
-  condition: "%svalues_repair_skill% >= 10"
-  success_chance: "%svalues_repair_chance%"
-  repair_amount: "%svalues_repair_amount%"
-  input:
-    id: diamond
-    type: minecraft
-    amount: 1
+  diamond_sword:
+    item_type: smc
+    item_id: diamond_sword
+    repair_material:
+      type: minecraft
+      id: DIAMOND
+      amount: 1
+    repair_percent: 20
+    max_repairs: 3
+    cost: 0
 
-diamond_pickaxe:
-  id: diamond_pickaxe
-  type: minecraft
-  condition: "%svalues_repair_skill% >= 10"
-  success_chance: "%svalues_repair_chance%"
-  repair_amount: "%svalues_repair_amount%"
-  input:
-    id: diamond
-    type: minecraft
-    amount: 1
+  iron_pickaxe:
+    item_type: smc
+    item_id: iron_pickaxe
+    repair_material:
+      type: minecraft
+      id: IRON_INGOT
+      amount: 3
+    repair_percent: 30
+    max_repairs: 5
+    cost: 0
 
-netherite_sword:
-  id: netherite_sword
-  type: minecraft
-  condition: "%svalues_repair_skill% >= 20"
-  success_chance: "%svalues_repair_chance%"
-  repair_amount: "%svalues_repair_amount%"
-  input:
-    id: netherite_ingot
-    type: minecraft
-    amount: 1
-
-# SMCCore custom item example
-custom_blade:
-  id: custom_blade
-  type: smc
-  condition: "%svalues_repair_mastery% >= 5"
-  success_chance: "%svalues_repair_chance%"
-  repair_amount: "%svalues_repair_amount%"
-  input:
-    id: repair_kit
-    type: smc
-    amount: 1
+  diamond_pickaxe:
+    item_type: smc
+    item_id: diamond_pickaxe
+    repair_material:
+      type: minecraft
+      id: DIAMOND
+      amount: 2
+    repair_percent: 25
+    max_repairs: 3
+    cost: 0

@@ -1,68 +1,61 @@
 package com.simmc.blacksmith.listeners;
 
 import com.simmc.blacksmith.SMCBlacksmith;
+import com.simmc.blacksmith.quench.QuenchingGUI;
 import com.simmc.blacksmith.quench.QuenchingManager;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.Inventory;
 
-import java.util.EnumSet;
-import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Handles quenching GUI interactions and chat input for naming.
+ */
 public class QuenchingListener implements Listener {
 
     private final QuenchingManager quenchingManager;
-
-    private static final Set<Material> CONTAINER_BLOCKS = EnumSet.of(
-            Material.CAULDRON,
-            Material.WATER_CAULDRON,
-            Material.BARREL,
-            Material.CHEST
-    );
-
-    private static final Set<Material> ANVIL_BLOCKS = EnumSet.of(
-            Material.ANVIL,
-            Material.CHIPPED_ANVIL,
-            Material.DAMAGED_ANVIL,
-            Material.BARRIER
-    );
 
     public QuenchingListener(QuenchingManager quenchingManager) {
         this.quenchingManager = quenchingManager;
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-        if (event.getHand() != EquipmentSlot.HAND) return;
+    // ==================== GUI INTERACTION ====================
 
-        Player player = event.getPlayer();
-        UUID playerId = player.getUniqueId();
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        if (!quenchingManager.hasActiveSession(playerId)) return;
+        Inventory inventory = event.getInventory();
+        if (!(inventory.getHolder() instanceof QuenchingGUI gui)) return;
 
-        Block block = event.getClickedBlock();
-        if (block == null) return;
+        event.setCancelled(true);
 
-        if (!quenchingManager.isHoldingTongs(player)) return;
+        int slot = event.getRawSlot();
+        if (slot < 0 || slot >= inventory.getSize()) return;
 
-        Material blockType = block.getType();
-        Location targetLoc = block.getLocation();
-
-        if (ANVIL_BLOCKS.contains(blockType) || CONTAINER_BLOCKS.contains(blockType)) {
-            event.setCancelled(true);
-            quenchingManager.handleTongsUse(player, targetLoc);
+        if (gui.isRenameSlot(slot)) {
+            quenchingManager.handleRenameClick(player);
+        } else if (gui.isSkipSlot(slot)) {
+            quenchingManager.handleSkipClick(player);
         }
     }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+        if (!(event.getInventory().getHolder() instanceof QuenchingGUI)) return;
+
+        quenchingManager.handleGUIClose(player);
+    }
+
+    // ==================== CHAT INPUT ====================
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onChat(AsyncPlayerChatEvent event) {
@@ -72,12 +65,23 @@ public class QuenchingListener implements Listener {
         if (!quenchingManager.isAwaitingName(playerId)) return;
 
         event.setCancelled(true);
-
         String message = event.getMessage();
 
+        // Handle on main thread
         SMCBlacksmith.getInstance().getServer().getScheduler().runTask(
                 SMCBlacksmith.getInstance(),
                 () -> quenchingManager.handleChatInput(player, message)
         );
+    }
+
+    // ==================== CLEANUP ====================
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+
+        if (quenchingManager.hasActiveSession(playerId)) {
+            quenchingManager.cancelSession(playerId, "Player disconnected.");
+        }
     }
 }
