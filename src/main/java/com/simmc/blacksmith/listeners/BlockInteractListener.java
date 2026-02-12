@@ -32,6 +32,10 @@ import java.util.*;
 
 /**
  * Handles block interactions for furnaces and anvils.
+ *
+ * UPDATED:
+ * - Furnaces now only work with registered CE furniture IDs
+ * - Better furniture detection
  */
 public class BlockInteractListener implements Listener {
 
@@ -43,7 +47,7 @@ public class BlockInteractListener implements Listener {
 
     private static final String HEAT_TOOL_ID = "heat_tool";
     private static final int HEAT_TOOL_BOOST = 50;
-    private static final double FURNITURE_SEARCH_RADIUS = 1.0;
+    private static final double FURNITURE_SEARCH_RADIUS = 1.5;
 
     private final FurnaceManager furnaceManager;
     private final ConfigManager configManager;
@@ -59,9 +63,6 @@ public class BlockInteractListener implements Listener {
         this.hooksInitialized = false;
     }
 
-    /**
-     * Use NORMAL priority so BellowsListener (HIGHEST) runs first.
-     */
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (!isValidInteraction(event)) return;
@@ -78,20 +79,18 @@ public class BlockInteractListener implements Listener {
             return;
         }
 
-        // Check if holding bellows - skip furnace GUI if so
-        // (BellowsListener handles this at HIGHEST priority, but double-check here)
+        // Check if holding bellows - skip furnace GUI
         if (isBellows(itemInHand)) {
-            // Don't open furnace GUI - bellows listener handles it
             return;
         }
 
         // Existing furnace interaction
         if (furnaceManager.isFurnace(location)) {
-            handleFurnaceInteraction(player, location, itemInHand, event);
+            handleExistingFurnaceInteraction(player, location, itemInHand, event);
             return;
         }
 
-        // Check for CraftEngine furniture
+        // Check for CraftEngine furniture and validate against config
         handleFurnitureInteraction(player, block, location, itemInHand, event);
     }
 
@@ -109,9 +108,6 @@ public class BlockInteractListener implements Listener {
 
     // ==================== BELLOWS CHECK ====================
 
-    /**
-     * Check if item is a bellows to prevent opening furnace GUI.
-     */
     private boolean isBellows(ItemStack item) {
         if (item == null || item.getType().isAir()) return false;
 
@@ -122,7 +118,6 @@ public class BlockInteractListener implements Listener {
 
         ensureHooksInitialized();
 
-        // Check SMCCore items first
         if (smcHook != null && smcHook.isAvailable()) {
             String smcId = smcHook.getItemId(item);
             if (smcId != null && !smcId.isEmpty()) {
@@ -131,7 +126,6 @@ public class BlockInteractListener implements Listener {
             }
         }
 
-        // Check vanilla items
         String materialName = item.getType().name();
         return bellowsConfig.getAllTypes().stream()
                 .anyMatch(t -> t.isVanilla() && t.itemId().equalsIgnoreCase(materialName));
@@ -158,7 +152,6 @@ public class BlockInteractListener implements Listener {
         HammerConfig hammerConfig = configManager.getHammerConfig();
         if (hammerConfig == null) return Optional.empty();
 
-        // Check SMCCore items first
         if (smcHook != null && smcHook.isAvailable()) {
             String smcId = smcHook.getItemId(item);
             if (smcId != null && !smcId.isEmpty()) {
@@ -168,7 +161,6 @@ public class BlockInteractListener implements Listener {
             }
         }
 
-        // Check vanilla items
         String materialName = item.getType().name().toLowerCase();
         return hammerConfig.getAllHammerTypes().values().stream()
                 .filter(t -> t.type().equalsIgnoreCase("minecraft") && t.itemId().equalsIgnoreCase(materialName))
@@ -181,7 +173,6 @@ public class BlockInteractListener implements Listener {
         SMCBlacksmith plugin = SMCBlacksmith.getInstance();
         ForgeManager forgeManager = plugin.getForgeManager();
 
-        // Validation checks
         if (forgeManager.hasActiveSession(player.getUniqueId())) {
             player.sendMessage("§cYou already have an active forge session!");
             return;
@@ -192,13 +183,11 @@ public class BlockInteractListener implements Listener {
             return;
         }
 
-        // Store context for recipe selection
         forgeManager.setPlayerAnvilLocation(player.getUniqueId(), anvilLocation);
 
         getHammerType(hammerItem).ifPresent(hammerType ->
                 forgeManager.setPlayerHammerType(player.getUniqueId(), hammerType));
 
-        // Open category GUI
         BlacksmithConfig config = configManager.getBlacksmithConfig();
         Map<String, ForgeCategory> categories = config.getCategories();
 
@@ -211,18 +200,16 @@ public class BlockInteractListener implements Listener {
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 0.5f, 1.2f);
     }
 
-    // ==================== FURNACE INTERACTION ====================
+    // ==================== EXISTING FURNACE INTERACTION ====================
 
-    private void handleFurnaceInteraction(Player player, Location location,
-                                          ItemStack itemInHand, PlayerInteractEvent event) {
-        // Heat tool check
+    private void handleExistingFurnaceInteraction(Player player, Location location,
+                                                  ItemStack itemInHand, PlayerInteractEvent event) {
         if (isHeatTool(itemInHand)) {
             event.setCancelled(true);
             applyHeatTool(player, location);
             return;
         }
 
-        // Open furnace GUI
         event.setCancelled(true);
         furnaceManager.openFurnaceGUI(player, location);
     }
@@ -255,25 +242,52 @@ public class BlockInteractListener implements Listener {
         player.playSound(location, Sound.BLOCK_FIRE_AMBIENT, 1.0f, 1.5f);
     }
 
-    // ==================== FURNITURE HANDLING ====================
+    // ==================== CE FURNITURE HANDLING ====================
 
+    /**
+     * Handles interaction with CraftEngine furniture.
+     * Only allows furnace creation if furniture ID is registered in config.
+     */
     private void handleFurnitureInteraction(Player player, Block block, Location location,
                                             ItemStack itemInHand, PlayerInteractEvent event) {
+        // Get the CE furniture ID at this location
         String furnitureId = getCraftEngineFurnitureId(block, location);
-        if (furnitureId == null) return;
 
-        Optional<FurnaceType> furnaceType = getFurnaceTypeForFurniture(furnitureId);
-        if (furnaceType.isEmpty()) return;
+        if (furnitureId == null || furnitureId.isEmpty()) {
+            // Not a CE furniture - ignore
+            return;
+        }
 
-        // Check if holding bellows - don't open GUI
+        // Check if this furniture ID is registered to a furnace type
+        Optional<FurnaceType> furnaceTypeOpt = configManager.getFurnaceConfig()
+                .getFurnaceTypeForFurniture(furnitureId);
+
+        if (furnaceTypeOpt.isEmpty()) {
+            // This CE furniture is not a registered furnace - ignore
+            return;
+        }
+
+        FurnaceType furnaceType = furnaceTypeOpt.get();
+
+        // Validate that the furniture matches
+        if (!furnaceType.matchesFurniture(furnitureId)) {
+            // Shouldn't happen if lookup worked, but double-check
+            return;
+        }
+
+        // Don't open GUI if holding bellows
         if (isBellows(itemInHand)) {
             return;
         }
 
         event.setCancelled(true);
 
-        FurnaceInstance instance = furnaceManager.createFurnace(furnaceType.get().getId(), location);
-        if (instance == null) return;
+        // Create or get existing furnace instance
+        FurnaceInstance instance = furnaceManager.createFurnace(furnaceType.getId(), location);
+        if (instance == null) {
+            player.sendMessage("§cFailed to create furnace!");
+            return;
+        }
 
         if (isHeatTool(itemInHand)) {
             applyHeatTool(player, location);
@@ -283,41 +297,99 @@ public class BlockInteractListener implements Listener {
         furnaceManager.openFurnaceGUI(player, location);
     }
 
+    /**
+     * Gets the CraftEngine furniture/block ID at a location.
+     * Checks both block and nearby ItemDisplay entities.
+     */
     private String getCraftEngineFurnitureId(Block block, Location location) {
         ensureHooksInitialized();
-        if (ceHook == null || !ceHook.isAvailable()) return null;
-        if (block.getType() != Material.BARRIER) return null;
 
-        Location center = location.clone().add(0.5, 0.5, 0.5);
-        Collection<Entity> nearby = location.getWorld().getNearbyEntities(
-                center, FURNITURE_SEARCH_RADIUS, FURNITURE_SEARCH_RADIUS, FURNITURE_SEARCH_RADIUS,
-                entity -> entity instanceof ItemDisplay
-        );
+        if (ceHook == null || !ceHook.isAvailable()) {
+            return null;
+        }
 
-        for (Entity entity : nearby) {
-            String customName = entity.getCustomName();
-            if (customName != null && customName.startsWith("ce:")) {
-                return customName.substring(3);
-            }
+        // Method 1: Check if block itself is a CE block (barrier block with ItemDisplay)
+        if (block.getType() == Material.BARRIER) {
+            String id = findFurnitureIdFromItemDisplays(location);
+            if (id != null) return id;
+        }
 
-            if (entity instanceof ItemDisplay itemDisplay) {
-                ItemStack displayItem = itemDisplay.getItemStack();
-                if (displayItem != null) {
-                    String ceId = ceHook.getItemId(displayItem);
-                    if (ceId != null) return ceId;
-                }
-            }
+        // Method 2: Check if the block is a CE custom block
+        // Some CE blocks use note_block, mushroom_block, etc.
+        String blockId = getCEBlockId(block);
+        if (blockId != null) return blockId;
+
+        // Method 3: Check nearby ItemDisplays for furniture
+        String nearbyId = findFurnitureIdFromItemDisplays(location);
+        if (nearbyId != null) return nearbyId;
+
+        return null;
+    }
+
+    /**
+     * Tries to get CE block ID from the block itself.
+     */
+    private String getCEBlockId(Block block) {
+        // CE might store block ID in various ways
+        // This is a simplified check - may need adjustment based on CE version
+
+        ensureHooksInitialized();
+        if (ceHook == null) return null;
+
+        // Create a temporary ItemStack to check
+        ItemStack blockItem = new ItemStack(block.getType());
+        String ceId = ceHook.getItemId(blockItem);
+
+        // Only return if it's actually a CE item, not just a vanilla block
+        if (ceId != null && ceId.contains(":")) {
+            return ceId;
         }
 
         return null;
     }
 
-    private Optional<FurnaceType> getFurnaceTypeForFurniture(String furnitureId) {
-        if (furnitureId == null || furnitureId.isEmpty()) return Optional.empty();
+    /**
+     * Finds furniture ID from nearby ItemDisplay entities.
+     */
+    private String findFurnitureIdFromItemDisplays(Location location) {
+        Location center = location.clone().add(0.5, 0.5, 0.5);
 
-        return configManager.getFurnaceConfig().getAllTypes().stream()
-                .filter(type -> furnitureId.equalsIgnoreCase(type.getItemId()))
-                .findFirst();
+        Collection<Entity> nearby = location.getWorld().getNearbyEntities(
+                center,
+                FURNITURE_SEARCH_RADIUS,
+                FURNITURE_SEARCH_RADIUS,
+                FURNITURE_SEARCH_RADIUS,
+                entity -> entity instanceof ItemDisplay
+        );
+
+        for (Entity entity : nearby) {
+            // Method 1: Check custom name (some CE versions store ID here)
+            String customName = entity.getCustomName();
+            if (customName != null) {
+                if (customName.startsWith("ce:")) {
+                    return customName.substring(3);
+                }
+                if (customName.contains(":")) {
+                    return customName;
+                }
+            }
+
+            // Method 2: Check the item in the ItemDisplay
+            if (entity instanceof ItemDisplay itemDisplay) {
+                ItemStack displayItem = itemDisplay.getItemStack();
+                if (displayItem != null && !displayItem.getType().isAir()) {
+                    String ceId = ceHook.getItemId(displayItem);
+                    if (ceId != null && !ceId.isEmpty()) {
+                        return ceId;
+                    }
+                }
+            }
+
+            // Method 3: Check persistent data container (if CE stores ID there)
+            // This would require knowing CE's specific PDC key
+        }
+
+        return null;
     }
 
     // ==================== HOOKS ====================

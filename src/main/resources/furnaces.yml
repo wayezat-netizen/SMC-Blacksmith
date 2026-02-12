@@ -1,6 +1,5 @@
 # ==========================================
 # Furnace Types Configuration
-# BALANCED for engaging gameplay
 # ==========================================
 
 basic_furnace:
@@ -9,20 +8,45 @@ basic_furnace:
   display_material: "FURNACE"
   display_cmd: 0
 
-  # Temperature balance - player must actively maintain heat
+  # ==========================================
+  # CE Furniture Restriction (Optional)
+  # ==========================================
+  # furniture_id: smc:blacksmith/basic_forge
+  # block_id: smc:blacksmith/forge_block
+  # allowed_furniture_ids:
+  #   - smc:blacksmith/basic_forge
+  #   - smc:blacksmith/small_forge
+
+  # ==========================================
+  # Input Restrictions (Optional)
+  # ==========================================
+  # allowed_inputs:
+  #   restrict: true
+  #   items:
+  #     - type: minecraft
+  #       id: RAW_IRON
+  #       description: "Raw Iron"
+  #     - type: minecraft
+  #       id: RAW_COPPER
+  #       description: "Raw Copper"
+  #     - type: minecraft
+  #       id: RAW_GOLD
+  #       description: "Raw Gold"
+
+  # Temperature
   temperature_change: 8
   cooling_rate: 6
   heating_multiplier: 0.4
   cooling_multiplier: 0.5
 
-  # Bellows balance - need constant use
+  # Bellows
   bellows_decay_rate: 0.08
   bellows_instant_boost: 0.6
 
-  # Fuel only gets you partway there
+  # Fuel
   max_temperature_gain_from_fuel_percentage: 0.5
 
-  # Quality thresholds
+  # Quality
   bad_output_threshold_ms: 4000
   min_ideal_ratio: 0.5
 
@@ -96,6 +120,7 @@ basic_furnace:
           type: minecraft
           amount: 3
 
+
 # Advanced furnace for high-tier recipes
 advanced_furnace:
   item_id: "advanced_furnace"
@@ -103,16 +128,47 @@ advanced_furnace:
   display_material: "BLAST_FURNACE"
   display_cmd: 0
 
-  temperature_change: 10
-  cooling_rate: 8
-  heating_multiplier: 0.5
-  cooling_multiplier: 0.4
+  # ==========================================
+  # CE Furniture Restriction (Optional)
+  # ==========================================
+  # furniture_id: smc:blacksmith/advanced_forge
 
-  bellows_decay_rate: 0.06
-  bellows_instant_boost: 0.7
+  # ==========================================
+  # Input Restrictions (Optional)
+  # ==========================================
+  # allowed_inputs:
+  #   restrict: true
+  #   items:
+  #     - type: minecraft
+  #       id: IRON_INGOT
+  #       description: "Iron Ingot"
+  #     - type: minecraft
+  #       id: COAL
+  #       description: "Coal"
+  #     - type: minecraft
+  #       id: ANCIENT_DEBRIS
+  #       description: "Ancient Debris"
+  #     - type: smc
+  #       id: steel_ingot
+  #       description: "Steel Ingot"
 
-  max_temperature_gain_from_fuel_percentage: 0.6
+  # Temperature - higher base idle temp (200-250)
+  min_ideal_temperature: 200
+  max_ideal_temperature: 250
 
+  temperature_change: 12
+  cooling_rate: 5
+  heating_multiplier: 0.65
+  cooling_multiplier: 0.25
+
+  # Bellows - more responsive
+  bellows_decay_rate: 0.03
+  bellows_instant_boost: 0.85
+
+  # Fuel
+  max_temperature_gain_from_fuel_percentage: 0.7
+
+  # Quality
   bad_output_threshold_ms: 3500
   min_ideal_ratio: 0.55
 
@@ -162,9 +218,4 @@ advanced_furnace:
         output_0:
           id: NETHERITE_SCRAP
           type: minecraft
-          amount: 1
-      bad_outputs:
-        output_0:
-          id: NETHERITE_SCRAP
-          type: minecraft
-          amount: 0
+          amount: 1i

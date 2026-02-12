@@ -3,6 +3,7 @@ package com.simmc.blacksmith.furnace;
 import com.simmc.blacksmith.config.ConfigManager;
 import com.simmc.blacksmith.config.FuelConfig;
 import com.simmc.blacksmith.items.ItemProviderRegistry;
+import com.simmc.blacksmith.listeners.FurnaceListener;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -25,6 +26,11 @@ import java.util.logging.Level;
 /**
  * Manages all furnace instances, GUIs, and temperature displays.
  * Boss bar shows recipe-specific ideal temperature ranges.
+ *
+ * FIXES:
+ * - Added getPlugin() method
+ * - Added GUI refresh task integration
+ * - Proper fuel config passing to GUI
  */
 public class FurnaceManager {
 
@@ -63,8 +69,14 @@ public class FurnaceManager {
     private final Map<UUID, BossBar> playerBossBars;
     private final Map<UUID, String> playerLookingAt;
 
+    // GUI refresh tasks
+    private final Map<UUID, BukkitTask> guiRefreshTasks;
+
     private BukkitTask tickTask;
     private BukkitTask displayTask;
+
+    // Reference to listener for refresh task management
+    private FurnaceListener furnaceListener;
 
     public FurnaceManager(JavaPlugin plugin, ConfigManager configManager, ItemProviderRegistry itemRegistry) {
         this.plugin = plugin;
@@ -75,6 +87,7 @@ public class FurnaceManager {
         this.openGUIs = new ConcurrentHashMap<>();
         this.playerBossBars = new ConcurrentHashMap<>();
         this.playerLookingAt = new ConcurrentHashMap<>();
+        this.guiRefreshTasks = new ConcurrentHashMap<>();
     }
 
     // ==================== LIFECYCLE ====================
@@ -91,9 +104,22 @@ public class FurnaceManager {
         tickTask = null;
         displayTask = null;
 
+        // Stop all GUI refresh tasks
+        guiRefreshTasks.values().forEach(task -> {
+            if (task != null && !task.isCancelled()) task.cancel();
+        });
+        guiRefreshTasks.clear();
+
         playerBossBars.values().forEach(BossBar::removeAll);
         playerBossBars.clear();
         playerLookingAt.clear();
+    }
+
+    /**
+     * Sets the furnace listener reference for refresh task management.
+     */
+    public void setFurnaceListener(FurnaceListener listener) {
+        this.furnaceListener = listener;
     }
 
     // ==================== TICK ====================
@@ -167,7 +193,9 @@ public class FurnaceManager {
 
         // Fuel indicator with burn time
         if (furnace.isBurning()) {
-            title.append(" §6🔥");
+            long burnRemaining = furnace.getBurnTimeRemaining();
+            int seconds = (int) (burnRemaining / 20);
+            title.append(" §6🔥 §7(").append(seconds).append("s)");
         } else {
             title.append(" §8🔥 §c(No Fuel!)");
         }
@@ -308,6 +336,10 @@ public class FurnaceManager {
 
     // ==================== GUI ====================
 
+    /**
+     * Opens the furnace GUI for a player.
+     * Starts a refresh task to sync fuel consumption.
+     */
     public void openFurnaceGUI(Player player, Location location) {
         FurnaceInstance furnace = getFurnace(location);
         if (furnace == null) {
@@ -317,15 +349,61 @@ public class FurnaceManager {
 
         closeGUI(player);
 
-        FurnaceGUI gui = new FurnaceGUI(furnace, configManager.getMessageConfig(), itemRegistry);
+        // Create GUI with fuel config for validation
+        FuelConfig fuelConfig = configManager.getFuelConfig();
+        FurnaceGUI gui = new FurnaceGUI(furnace, configManager.getMessageConfig(), itemRegistry, fuelConfig);
         gui.open(player);
         openGUIs.put(player.getUniqueId(), gui);
+
+        // Start refresh task to sync fuel consumption
+        startGUIRefreshTask(player.getUniqueId());
     }
 
+    /**
+     * Closes the furnace GUI for a player.
+     * Saves items and stops refresh task.
+     */
     public void closeGUI(Player player) {
-        FurnaceGUI gui = openGUIs.remove(player.getUniqueId());
+        UUID playerId = player.getUniqueId();
+
+        // Stop refresh task
+        stopGUIRefreshTask(playerId);
+
+        // Save and remove GUI
+        FurnaceGUI gui = openGUIs.remove(playerId);
         if (gui != null) {
             gui.saveItemsToFurnace();
+        }
+    }
+
+    /**
+     * Starts a task to refresh GUI fuel display while open.
+     */
+    private void startGUIRefreshTask(UUID playerId) {
+        stopGUIRefreshTask(playerId); // Cancel existing
+
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            FurnaceGUI gui = openGUIs.get(playerId);
+            if (gui == null) {
+                stopGUIRefreshTask(playerId);
+                return;
+            }
+
+            // Refresh fuel slot display to show consumption
+            gui.refreshFuelSlot();
+
+        }, 20L, 20L); // Every 1 second
+
+        guiRefreshTasks.put(playerId, task);
+    }
+
+    /**
+     * Stops the GUI refresh task for a player.
+     */
+    private void stopGUIRefreshTask(UUID playerId) {
+        BukkitTask task = guiRefreshTasks.remove(playerId);
+        if (task != null && !task.isCancelled()) {
+            task.cancel();
         }
     }
 
@@ -364,6 +442,10 @@ public class FurnaceManager {
 
     public void handlePlayerQuit(Player player) {
         UUID playerId = player.getUniqueId();
+
+        // Stop refresh task
+        stopGUIRefreshTask(playerId);
+
         closeGUI(player);
 
         BossBar bar = playerBossBars.remove(playerId);
@@ -457,7 +539,10 @@ public class FurnaceManager {
 
     // ==================== GETTERS ====================
 
+    public JavaPlugin getPlugin() { return plugin; }
     public int getFurnaceCount() { return furnaces.size(); }
     public int getOpenGUICount() { return openGUIs.size(); }
     public Map<String, FurnaceInstance> getAllFurnaces() { return new HashMap<>(furnaces); }
+    public ConfigManager getConfigManager() { return configManager; }
+    public ItemProviderRegistry getItemRegistry() { return itemRegistry; }
 }

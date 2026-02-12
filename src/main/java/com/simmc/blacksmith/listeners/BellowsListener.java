@@ -34,6 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * - Bellows fan flames, they don't create fire
  * - Without fuel, bellows do nothing
  * - With fuel, bellows increase temperature significantly
+ *
+ * FIXED: Only consume 1 bellows from stack when breaking
  */
 public class BellowsListener implements Listener {
 
@@ -44,7 +46,7 @@ public class BellowsListener implements Listener {
     private final FurnaceManager furnaceManager;
     private final ConfigManager configManager;
     private final Map<UUID, Long> cooldowns;
-    private final Map<UUID, Long> lastInteractTime; // Prevent double-fire
+    private final Map<UUID, Long> lastInteractTime;
     private final NamespacedKey durabilityKey;
 
     public BellowsListener(SMCBlacksmith plugin, FurnaceManager furnaceManager, ConfigManager configManager) {
@@ -71,7 +73,7 @@ public class BellowsListener implements Listener {
         long now = System.currentTimeMillis();
         Long lastInteract = lastInteractTime.get(playerId);
         if (lastInteract != null && (now - lastInteract) < 50) {
-            return; // Ignore duplicate event within 50ms
+            return;
         }
         lastInteractTime.put(playerId, now);
 
@@ -85,7 +87,6 @@ public class BellowsListener implements Listener {
         Optional<BellowsConfig.BellowsType> bellowsType = getBellowsType(heldItem);
 
         if (bellowsType.isEmpty()) {
-            // Not a bellows - let other listeners handle it (open GUI)
             return;
         }
 
@@ -96,7 +97,6 @@ public class BellowsListener implements Listener {
 
         // Check cooldown BEFORE applying effect
         if (isOnCooldown(player)) {
-            // Optional: play a subtle sound to indicate cooldown
             return;
         }
 
@@ -139,11 +139,9 @@ public class BellowsListener implements Listener {
     private void setCooldown(Player player, BellowsConfig.BellowsType bellowsType) {
         long now = System.currentTimeMillis();
 
-        // Get cooldown from bellows config (in ticks), convert to ms
-        // Each tick is 50ms
         long cooldownTicks = bellowsType.cooldownTicks();
         if (cooldownTicks <= 0) {
-            cooldownTicks = 8; // Default 8 ticks
+            cooldownTicks = 8;
         }
         long cooldownMs = cooldownTicks * 50L;
 
@@ -239,7 +237,6 @@ public class BellowsListener implements Listener {
         // Particles - scale with temperature
         Location particleLoc = location.clone().add(0.5, 1.0, 0.5);
 
-        // More particles at higher temperatures
         int smokeCount = Math.min(15, 5 + (currentTemp / 100));
         player.getWorld().spawnParticle(Particle.SMOKE, particleLoc, smokeCount, 0.2, 0.3, 0.2, 0.02);
 
@@ -247,12 +244,10 @@ public class BellowsListener implements Listener {
         int flameCount = Math.min(10, 3 + (currentTemp / 150));
         player.getWorld().spawnParticle(Particle.FLAME, flameLoc, flameCount, 0.15, 0.1, 0.15, 0.02);
 
-        // Extra ember particles for visual feedback at high temps
         if (currentTemp > 300) {
             player.getWorld().spawnParticle(Particle.LAVA, flameLoc, 2, 0.1, 0.1, 0.1, 0);
         }
 
-        // Soul flame at very high temps
         if (currentTemp > 600) {
             player.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, flameLoc, 3, 0.1, 0.2, 0.1, 0.01);
         }
@@ -260,7 +255,15 @@ public class BellowsListener implements Listener {
 
     // ==================== DURABILITY ====================
 
+    /**
+     * Damages the bellows by 1 durability.
+     * When durability reaches 0, only removes 1 item from the stack.
+     *
+     * @return true if the bellows broke
+     */
     private boolean damageBellows(Player player, ItemStack bellows, BellowsConfig.BellowsType type) {
+        int stackSize = bellows.getAmount();
+
         ItemMeta meta = bellows.getItemMeta();
         if (meta == null) return false;
 
@@ -271,8 +274,20 @@ public class BellowsListener implements Listener {
         currentDurability--;
 
         if (currentDurability <= 0) {
-            // Bellows broke
-            player.getInventory().setItemInMainHand(null);
+            // Bellows broke - handle stack properly
+            if (stackSize > 1) {
+                // More than 1 in stack - reduce stack by 1 and reset durability on remaining
+                bellows.setAmount(stackSize - 1);
+
+                // Reset durability for the remaining items
+                pdc.set(durabilityKey, PersistentDataType.INTEGER, maxDurability);
+                updateDurabilityLore(meta, maxDurability, maxDurability);
+                bellows.setItemMeta(meta);
+            } else {
+                // Only 1 item - remove it entirely
+                player.getInventory().setItemInMainHand(null);
+            }
+
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1.0f, 1.0f);
             return true;
         }
@@ -291,20 +306,18 @@ public class BellowsListener implements Listener {
             lore = new ArrayList<>();
         }
 
-        // Calculate durability percentage for color
         double percent = (double) current / max;
         String color;
         if (percent > 0.5) {
-            color = "§a"; // Green
+            color = "§a";
         } else if (percent > 0.25) {
-            color = "§e"; // Yellow
+            color = "§e";
         } else {
-            color = "§c"; // Red
+            color = "§c";
         }
 
         String durabilityLine = "§7Durability: " + color + current + "§7/" + max;
 
-        // Find and replace existing durability line, or add new one
         boolean found = false;
         for (int i = 0; i < lore.size(); i++) {
             if (lore.get(i).contains("Durability:")) {

@@ -4,14 +4,14 @@ import com.simmc.blacksmith.items.ItemProviderRegistry;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Represents a type of custom furnace with fully configurable properties.
- * All balance settings are configurable.
+ *
+ * ADDED:
+ * - CE furniture/block ID restrictions
+ * - Allowed input items list
  */
 public class FurnaceType {
 
@@ -20,12 +20,17 @@ public class FurnaceType {
     private final Material displayMaterial;
     private final int displayCmd;
 
+    // CraftEngine integration
+    private final String furnitureId;
+    private final String blockId;
+    private final Set<String> allowedFurnitureIds;
+
     // Temperature settings
     private final int maxTemperature;
     private final int minIdealTemperature;
     private final int maxIdealTemperature;
 
-    // Heating/Cooling rates - BALANCED for engaging gameplay
+    // Heating/Cooling rates
     private final int temperatureChange;
     private final int coolingRate;
     private final double heatingMultiplier;
@@ -34,13 +39,17 @@ public class FurnaceType {
     // Fuel settings
     private final double maxFuelTempPercentage;
 
-    // Bellows settings - BALANCED for constant interaction
+    // Bellows settings
     private final double bellowsDecayRate;
     private final double bellowsInstantBoost;
 
     // Smelting quality settings
     private final long badOutputThresholdMs;
     private final double minIdealRatio;
+
+    // Input restrictions
+    private final Set<AllowedInput> allowedInputs;
+    private final boolean restrictInputs;
 
     // GUI
     private final String guiTitle;
@@ -56,6 +65,11 @@ public class FurnaceType {
         this.itemId = builder.itemId;
         this.displayMaterial = builder.displayMaterial;
         this.displayCmd = builder.displayCmd;
+
+        this.furnitureId = builder.furnitureId;
+        this.blockId = builder.blockId;
+        this.allowedFurnitureIds = Set.copyOf(builder.allowedFurnitureIds);
+
         this.maxTemperature = builder.maxTemperature;
         this.minIdealTemperature = builder.minIdealTemperature;
         this.maxIdealTemperature = builder.maxIdealTemperature;
@@ -68,11 +82,88 @@ public class FurnaceType {
         this.bellowsInstantBoost = builder.bellowsInstantBoost;
         this.badOutputThresholdMs = builder.badOutputThresholdMs;
         this.minIdealRatio = builder.minIdealRatio;
+
+        this.allowedInputs = Set.copyOf(builder.allowedInputs);
+        this.restrictInputs = builder.restrictInputs;
+
         this.guiTitle = builder.guiTitle;
         this.inputSlots = builder.inputSlots;
         this.fuelSlot = builder.fuelSlot;
         this.outputSlot = builder.outputSlot;
         this.recipes = List.copyOf(builder.recipes);
+    }
+
+    // ==================== CE FURNITURE CHECKS ====================
+
+    public boolean requiresCEFurniture() {
+        return (furnitureId != null && !furnitureId.isEmpty())
+                || (blockId != null && !blockId.isEmpty())
+                || !allowedFurnitureIds.isEmpty();
+    }
+
+    public boolean matchesFurniture(String checkId) {
+        if (checkId == null || checkId.isEmpty()) {
+            return !requiresCEFurniture();
+        }
+
+        String normalizedCheck = normalizeId(checkId);
+
+        if (furnitureId != null && !furnitureId.isEmpty()) {
+            if (normalizeId(furnitureId).equals(normalizedCheck)) {
+                return true;
+            }
+        }
+
+        if (blockId != null && !blockId.isEmpty()) {
+            if (normalizeId(blockId).equals(normalizedCheck)) {
+                return true;
+            }
+        }
+
+        for (String allowed : allowedFurnitureIds) {
+            if (normalizeId(allowed).equals(normalizedCheck)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private String normalizeId(String id) {
+        if (id == null) return "";
+        return id.toLowerCase().trim();
+    }
+
+    // ==================== INPUT RESTRICTIONS ====================
+
+    public boolean hasInputRestrictions() {
+        return restrictInputs && !allowedInputs.isEmpty();
+    }
+
+    public boolean isAllowedInput(ItemStack item, ItemProviderRegistry registry) {
+        if (!restrictInputs || allowedInputs.isEmpty()) {
+            return true;
+        }
+
+        if (item == null || item.getType().isAir()) {
+            return true;
+        }
+
+        for (AllowedInput allowed : allowedInputs) {
+            if (allowed.matches(item, registry)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public List<String> getAllowedInputDescriptions() {
+        List<String> descriptions = new ArrayList<>();
+        for (AllowedInput input : allowedInputs) {
+            descriptions.add(input.description());
+        }
+        return descriptions;
     }
 
     // ==================== TEMPERATURE ====================
@@ -108,6 +199,11 @@ public class FurnaceType {
     public String getItemId() { return itemId; }
     public Material getDisplayMaterial() { return displayMaterial; }
     public int getDisplayCmd() { return displayCmd; }
+
+    public String getFurnitureId() { return furnitureId; }
+    public String getBlockId() { return blockId; }
+    public Set<String> getAllowedFurnitureIds() { return allowedFurnitureIds; }
+
     public int getMaxTemperature() { return maxTemperature; }
     public int getMinIdealTemperature() { return minIdealTemperature; }
     public int getMaxIdealTemperature() { return maxIdealTemperature; }
@@ -120,12 +216,38 @@ public class FurnaceType {
     public double getBellowsInstantBoost() { return bellowsInstantBoost; }
     public long getBadOutputThresholdMs() { return badOutputThresholdMs; }
     public double getMinIdealRatio() { return minIdealRatio; }
+
+    public Set<AllowedInput> getAllowedInputs() { return allowedInputs; }
+    public boolean isRestrictInputs() { return restrictInputs; }
+
     public String getGuiTitle() { return guiTitle; }
     public int[] getInputSlots() { return inputSlots != null ? Arrays.copyOf(inputSlots, inputSlots.length) : new int[]{10, 11, 19, 20}; }
     public int getFuelSlot() { return fuelSlot; }
     public int getOutputSlot() { return outputSlot; }
     public List<FurnaceRecipe> getRecipes() { return recipes; }
     public int getRecipeCount() { return recipes.size(); }
+
+    // ==================== ALLOWED INPUT RECORD ====================
+
+    public record AllowedInput(String type, String id, String description) {
+
+        public boolean matches(ItemStack item, ItemProviderRegistry registry) {
+            if (item == null || item.getType().isAir()) return false;
+            return registry.matches(item, type, id);
+        }
+
+        public static AllowedInput minecraft(String materialName) {
+            return new AllowedInput("minecraft", materialName.toUpperCase(), materialName);
+        }
+
+        public static AllowedInput smc(String itemId) {
+            return new AllowedInput("smc", itemId, itemId);
+        }
+
+        public static AllowedInput ce(String itemId) {
+            return new AllowedInput("ce", itemId, itemId);
+        }
+    }
 
     // ==================== BUILDER ====================
 
@@ -139,29 +261,30 @@ public class FurnaceType {
         private Material displayMaterial = Material.FURNACE;
         private int displayCmd = 0;
 
-        // Temperature - reasonable defaults
+        private String furnitureId = null;
+        private String blockId = null;
+        private Set<String> allowedFurnitureIds = new HashSet<>();
+
         private int maxTemperature = 1000;
         private int minIdealTemperature = 500;
         private int maxIdealTemperature = 800;
 
-        // Heating/Cooling - BALANCED for engagement
-        private int temperatureChange = 8;       // Base temp change per tick
-        private int coolingRate = 6;             // How fast it cools (higher = faster cooling)
-        private double heatingMultiplier = 0.4;  // Slower heating (40% of base)
-        private double coolingMultiplier = 0.5;  // Moderate cooling (50% of base)
+        private int temperatureChange = 8;
+        private int coolingRate = 6;
+        private double heatingMultiplier = 0.4;
+        private double coolingMultiplier = 0.5;
 
-        // Fuel
-        private double maxFuelTempPercentage = 0.6; // Fuel alone gets to 60% of max
+        private double maxFuelTempPercentage = 0.6;
 
-        // Bellows - BALANCED for constant interaction
-        private double bellowsDecayRate = 0.08;    // 8% decay per tick - need constant bellows use
-        private double bellowsInstantBoost = 0.6;  // 60% applied instantly
+        private double bellowsDecayRate = 0.08;
+        private double bellowsInstantBoost = 0.6;
 
-        // Smelting quality
-        private long badOutputThresholdMs = 4000;  // 4 seconds outside ideal = bad
-        private double minIdealRatio = 0.5;        // Need 50% time in ideal
+        private long badOutputThresholdMs = 4000;
+        private double minIdealRatio = 0.5;
 
-        // GUI
+        private Set<AllowedInput> allowedInputs = new HashSet<>();
+        private boolean restrictInputs = false;
+
         private String guiTitle = "&8Furnace";
         private int[] inputSlots = new int[]{10, 11, 19, 20};
         private int fuelSlot = 40;
@@ -177,6 +300,18 @@ public class FurnaceType {
         public Builder itemId(String itemId) { this.itemId = itemId; return this; }
         public Builder displayMaterial(Material material) { this.displayMaterial = material != null ? material : Material.FURNACE; return this; }
         public Builder displayCmd(int cmd) { this.displayCmd = cmd; return this; }
+
+        public Builder furnitureId(String furnitureId) { this.furnitureId = furnitureId; return this; }
+        public Builder blockId(String blockId) { this.blockId = blockId; return this; }
+        public Builder allowedFurnitureIds(Set<String> ids) {
+            this.allowedFurnitureIds = ids != null ? new HashSet<>(ids) : new HashSet<>();
+            return this;
+        }
+        public Builder addAllowedFurnitureId(String id) {
+            if (id != null && !id.isEmpty()) this.allowedFurnitureIds.add(id);
+            return this;
+        }
+
         public Builder maxTemperature(int temp) { this.maxTemperature = Math.max(100, temp); return this; }
 
         public Builder idealTemperatureRange(int min, int max) {
@@ -194,6 +329,21 @@ public class FurnaceType {
         public Builder bellowsInstantBoost(double boost) { this.bellowsInstantBoost = clamp(boost, 0.0, 1.0); return this; }
         public Builder badOutputThresholdMs(long ms) { this.badOutputThresholdMs = Math.max(1000, ms); return this; }
         public Builder minIdealRatio(double ratio) { this.minIdealRatio = clamp(ratio, 0.1, 0.9); return this; }
+
+        public Builder restrictInputs(boolean restrict) { this.restrictInputs = restrict; return this; }
+        public Builder allowedInputs(Set<AllowedInput> inputs) {
+            this.allowedInputs = inputs != null ? new HashSet<>(inputs) : new HashSet<>();
+            return this;
+        }
+        public Builder addAllowedInput(AllowedInput input) {
+            if (input != null) this.allowedInputs.add(input);
+            return this;
+        }
+        public Builder addAllowedInput(String type, String id) {
+            this.allowedInputs.add(new AllowedInput(type, id, id));
+            return this;
+        }
+
         public Builder guiTitle(String title) { this.guiTitle = title != null ? title : "&8Furnace"; return this; }
         public Builder inputSlots(int[] slots) { this.inputSlots = slots; return this; }
         public Builder fuelSlot(int slot) { this.fuelSlot = slot; return this; }

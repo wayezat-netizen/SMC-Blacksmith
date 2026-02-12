@@ -25,15 +25,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 
-/**
- * Main plugin class for SMCBlacksmith.
- * Manages lifecycle, dependencies, and core systems.
- */
 public final class SMCBlacksmith extends JavaPlugin {
 
     private static SMCBlacksmith instance;
 
-    // Core managers
     private TaskManager taskManager;
     private ConfigManager configManager;
     private ItemProviderRegistry itemRegistry;
@@ -42,13 +37,11 @@ public final class SMCBlacksmith extends JavaPlugin {
     private QuenchingManager quenchingManager;
     private RepairManager repairManager;
 
-    // Lazy-loaded hooks using AtomicReference for thread safety
     private final LazyHook<PlaceholderAPIHook> papiHook = new LazyHook<>();
     private final LazyHook<SMCCoreHook> smcCoreHook = new LazyHook<>();
     private final LazyHook<CraftEngineHook> craftEngineHook = new LazyHook<>();
     private final LazyHook<NexoHook> nexoHook = new LazyHook<>();
 
-    // Plugin state
     private volatile boolean fullyEnabled = false;
 
     @Override
@@ -97,8 +90,6 @@ public final class SMCBlacksmith extends JavaPlugin {
         instance = null;
     }
 
-    // ==================== INITIALIZATION ====================
-
     private void initializeCore() {
         taskManager = new TaskManager(this);
         configManager = new ConfigManager(this);
@@ -108,12 +99,10 @@ public final class SMCBlacksmith extends JavaPlugin {
     }
 
     private void initializeManagers() {
-        // Get hooks - create them here so they initialize
         SMCCoreHook smcHook = getSmcCoreHook();
         CraftEngineHook ceHook = getCraftEngineHook();
         NexoHook nHook = getNexoHook();
 
-        // Log hook status
         getLogger().info("SMCCore hook available: " + (smcHook != null && smcHook.isAvailable()));
         getLogger().info("CraftEngine hook available: " + (ceHook != null && ceHook.isAvailable()));
         getLogger().info("Nexo hook available: " + (nHook != null && nHook.isAvailable()));
@@ -129,14 +118,20 @@ public final class SMCBlacksmith extends JavaPlugin {
     private void registerListeners() {
         PluginManager pm = getServer().getPluginManager();
 
+        // Furnace listeners
         pm.registerEvents(new FurnaceListener(furnaceManager), this);
+        pm.registerEvents(new FurnaceBlockListener(furnaceManager), this);
+        pm.registerEvents(new BellowsListener(this, furnaceManager, configManager), this);
+
+        // Forge listeners
         pm.registerEvents(new ForgeListener(forgeManager), this);
+        pm.registerEvents(new ForgeGUIListener(forgeManager), this);
+        pm.registerEvents(new ForgeCancelListener(forgeManager), this);
+
+        // Other listeners
         pm.registerEvents(new QuenchingListener(quenchingManager), this);
         pm.registerEvents(new PlayerListener(furnaceManager, forgeManager, quenchingManager), this);
-        pm.registerEvents(new FurnaceBlockListener(furnaceManager), this);
-        pm.registerEvents(new ForgeGUIListener(forgeManager), this);
         pm.registerEvents(new BlockInteractListener(furnaceManager, configManager), this);
-        pm.registerEvents(new BellowsListener(this, furnaceManager, configManager), this);
     }
 
     private void registerCommands() {
@@ -167,9 +162,8 @@ public final class SMCBlacksmith extends JavaPlugin {
     private void detectIntegrations() {
         PluginManager pm = getServer().getPluginManager();
 
-        // FIXED: Use correct plugin names (case-sensitive!)
         logIntegration("PlaceholderAPI", pm.getPlugin("PlaceholderAPI") != null);
-        logIntegration("SmcCore", pm.getPlugin("SmcCore") != null);        // <-- FIXED
+        logIntegration("SmcCore", pm.getPlugin("SmcCore") != null);
         logIntegration("CraftEngine", pm.getPlugin("CraftEngine") != null);
         logIntegration("Nexo", pm.getPlugin("Nexo") != null);
     }
@@ -193,16 +187,8 @@ public final class SMCBlacksmith extends JavaPlugin {
         getLogger().info("SMCBlacksmith v" + getDescription().getVersion());
         getLogger().info("Furnace Types: " + configManager.getFurnaceConfig().getFurnaceTypeCount());
         getLogger().info("Forge Recipes: " + configManager.getBlacksmithConfig().getRecipeCount());
-        getLogger().info("Repair Configs: " + configManager.getGrindstoneConfig().getRepairConfigCount());
-        getLogger().info("Bellows Types: " + configManager.getBellowsConfig().getBellowsTypeCount());
-        getLogger().info("Hammer Types: " + configManager.getHammerConfig().getHammerTypeCount());
-        getLogger().info("Item Providers: " + itemRegistry.getProviderCount());
-        getLogger().info("SMCCore: " + (hasSMCCore() ? "Enabled" : "Disabled"));
-        getLogger().info("CraftEngine: " + (hasCraftEngine() ? "Enabled" : "Disabled"));
         getLogger().info("========================================");
     }
-
-    // ==================== RELOAD ====================
 
     public void reload() {
         configManager.loadAll();
@@ -221,7 +207,6 @@ public final class SMCBlacksmith extends JavaPlugin {
     }
 
     public SMCCoreHook getSmcCoreHook() {
-        // FIXED: Use "SmcCore" not "SMCCore"
         return smcCoreHook.get(() -> isPluginPresent("SmcCore")
                 ? new SMCCoreHook(this) : null);
     }
@@ -239,8 +224,6 @@ public final class SMCBlacksmith extends JavaPlugin {
     private boolean isPluginPresent(String name) {
         return getServer().getPluginManager().getPlugin(name) != null;
     }
-
-    // ==================== HOOK AVAILABILITY ====================
 
     public boolean hasPAPI() {
         return Optional.ofNullable(getPapiHook()).map(PlaceholderAPIHook::isAvailable).orElse(false);
@@ -269,8 +252,6 @@ public final class SMCBlacksmith extends JavaPlugin {
     public QuenchingManager getQuenchingManager() { return quenchingManager; }
     public RepairManager getRepairManager() { return repairManager; }
     public boolean isFullyEnabled() { return fullyEnabled; }
-
-    // ==================== LAZY HOOK HELPER ====================
 
     private static class LazyHook<T> {
         private final AtomicReference<T> ref = new AtomicReference<>();

@@ -1,11 +1,16 @@
 package com.simmc.blacksmith.forge;
 
+import com.simmc.blacksmith.forge.display.ForgeDisplaySettings;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Represents a forge recipe with frames, materials, results, and scoring thresholds.
+ *
+ * ADDED:
+ * - Display settings for CE items on anvil
  */
 public class ForgeRecipe {
 
@@ -28,9 +33,12 @@ public class ForgeRecipe {
     private final Map<Integer, StarThreshold> starThresholds;
     private final Map<Integer, StarModifier> starModifiers;
 
-    // Base item mode (single item with modifications)
+    // Base item mode
     private final String baseItemId;
     private final String baseItemType;
+
+    // Display settings (CE item on anvil)
+    private final ForgeDisplaySettings displaySettings;
 
     public ForgeRecipe(String id, Map<Integer, ForgeFrame> frames, String permission,
                        String condition, int hits, double bias, double targetSize,
@@ -38,7 +46,8 @@ public class ForgeRecipe {
                        int inputAmount, Map<Integer, ForgeResult> results,
                        Map<Integer, StarThreshold> starThresholds,
                        Map<Integer, StarModifier> starModifiers,
-                       String baseItemId, String baseItemType) {
+                       String baseItemId, String baseItemType,
+                       ForgeDisplaySettings displaySettings) {
         this.id = id;
         this.frames = frames != null ? new HashMap<>(frames) : new HashMap<>();
         this.permission = nullToEmpty(permission);
@@ -55,16 +64,17 @@ public class ForgeRecipe {
         this.starModifiers = starModifiers != null ? new HashMap<>(starModifiers) : new HashMap<>();
         this.baseItemId = nullToEmpty(baseItemId);
         this.baseItemType = baseItemType != null ? baseItemType : "smc";
+        this.displaySettings = displaySettings;
     }
 
-    // Backwards compatibility
+    // Backwards compatibility constructor
     public ForgeRecipe(String id, Map<Integer, ForgeFrame> frames, String permission,
                        String condition, int hits, double bias, double targetSize,
                        String runAfterCommand, String inputId, String inputType,
                        int inputAmount, Map<Integer, ForgeResult> results,
                        Map<Integer, StarThreshold> starThresholds) {
         this(id, frames, permission, condition, hits, bias, targetSize, runAfterCommand,
-                inputId, inputType, inputAmount, results, starThresholds, null, "", "");
+                inputId, inputType, inputAmount, results, starThresholds, null, "", "", null);
     }
 
     private static String nullToEmpty(String s) {
@@ -88,11 +98,9 @@ public class ForgeRecipe {
     public ForgeResult getResult(int starRating) {
         int clamped = Math.max(0, Math.min(5, starRating));
 
-        // Try exact match first
         ForgeResult result = results.get(clamped);
         if (result != null) return result;
 
-        // Fall back to lower star ratings
         for (int i = clamped - 1; i >= 0; i--) {
             result = results.get(i);
             if (result != null) return result;
@@ -109,31 +117,25 @@ public class ForgeRecipe {
         return starModifiers.get(star);
     }
 
+    // ==================== DISPLAY SETTINGS ====================
+
+    public ForgeDisplaySettings getDisplaySettings() {
+        return displaySettings;
+    }
+
+    public ForgeDisplaySettings getDisplaySettingsOrDefault() {
+        return displaySettings != null ? displaySettings : ForgeDisplaySettings.DEFAULT;
+    }
+
     // ==================== BOOLEAN CHECKS ====================
 
-    public boolean hasPermission() {
-        return !permission.isEmpty();
-    }
-
-    public boolean hasCondition() {
-        return !condition.isEmpty();
-    }
-
-    public boolean hasInput() {
-        return !inputId.isEmpty();
-    }
-
-    public boolean hasStarThresholds() {
-        return !starThresholds.isEmpty();
-    }
-
-    public boolean hasStarModifiers() {
-        return !starModifiers.isEmpty();
-    }
-
-    public boolean usesBaseItem() {
-        return !baseItemId.isEmpty();
-    }
+    public boolean hasPermission() { return !permission.isEmpty(); }
+    public boolean hasCondition() { return !condition.isEmpty(); }
+    public boolean hasInput() { return !inputId.isEmpty(); }
+    public boolean hasStarThresholds() { return !starThresholds.isEmpty(); }
+    public boolean hasStarModifiers() { return !starModifiers.isEmpty(); }
+    public boolean usesBaseItem() { return !baseItemId.isEmpty(); }
+    public boolean hasDisplaySettings() { return displaySettings != null; }
 
     // ==================== GETTERS ====================
 

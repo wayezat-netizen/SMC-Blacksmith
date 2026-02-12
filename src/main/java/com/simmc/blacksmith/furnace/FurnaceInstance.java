@@ -11,6 +11,11 @@ import java.util.UUID;
 
 /**
  * Furnace with TIME-BASED burning (not tick-based).
+ *
+ * FIXES:
+ * - Improved fuel consumption tracking
+ * - Added fuel consumed counter for debugging
+ * - Better sync between GUI and instance
  */
 public class FurnaceInstance {
 
@@ -34,6 +39,10 @@ public class FurnaceInstance {
     private long burnEndTime;      // System time when burn ends
     private long burnStartTime;    // System time when burn started
     private long burnDurationMs;   // Total burn duration in milliseconds
+
+    // Fuel tracking
+    private int fuelConsumedCount; // Track how many fuel items consumed
+    private String currentFuelType; // Track current fuel type for debugging
 
     // Smelting
     private long smeltProgress;
@@ -62,6 +71,7 @@ public class FurnaceInstance {
         this.lastBellowsTime = 0;
         this.lastDebugLog = 0;
         this.dirty = false;
+        this.fuelConsumedCount = 0;
         reset();
     }
 
@@ -81,11 +91,12 @@ public class FurnaceInstance {
         this.timeInsideIdealRange = 0;
         this.reachedIdealDuringSmelting = false;
         this.lastBellowsTime = 0;
+        this.currentFuelType = null;
     }
 
     private void debug(String msg) {
         if (DEBUG) {
-            Bukkit.getLogger().info("[Furnace] " + msg);
+            Bukkit.getLogger().info("[Furnace " + id.toString().substring(0, 8) + "] " + msg);
         }
     }
 
@@ -93,6 +104,9 @@ public class FurnaceInstance {
         long now = System.currentTimeMillis();
         long elapsed = now - lastTickTime;
         lastTickTime = now;
+
+        // Skip if elapsed time is too small (prevent double-ticking)
+        if (elapsed < 40) return;
 
         // Check fuel removed
         checkFuelRemoved();
@@ -120,7 +134,7 @@ public class FurnaceInstance {
 
     private void checkFuelRemoved() {
         if (burning && !hasFuelInSlot()) {
-            debug("!!! FUEL REMOVED - STOPPING BURN !!!");
+            debug("!!! FUEL REMOVED WHILE BURNING - STOPPING !!!");
             stopBurning();
         }
     }
@@ -132,71 +146,85 @@ public class FurnaceInstance {
         burnEndTime = 0;
         burnStartTime = 0;
         burnDurationMs = 0;
+        currentFuelType = null;
         markDirty();
     }
 
     // ==================== BURNING (TIME-BASED) ====================
 
     private void updateBurningState(long now, FuelConfig fuelConfig, ItemProviderRegistry registry) {
-        // Debug log every 10 seconds when burning
-        if (burning && (now - lastDebugLog) >= 10000) {
+        // Debug log every 5 seconds when burning
+        if (burning && (now - lastDebugLog) >= 5000) {
             lastDebugLog = now;
             long remaining = burnEndTime - now;
-            debug("BURNING: " + (remaining / 1000) + "s remaining, temp=" + currentTemperature +
-                    ", fuel=" + (fuelSlot != null ? fuelSlot.getAmount() : 0));
+            debug("BURNING: " + (remaining / 1000) + "s left | temp=" + currentTemperature +
+                    " | fuel=" + (fuelSlot != null ? fuelSlot.getType() + " x" + fuelSlot.getAmount() : "NONE") +
+                    " | consumed=" + fuelConsumedCount);
         }
 
         // Check if burn time expired
         if (burning && now >= burnEndTime) {
-            debug("=== BURN TIME EXPIRED ===");
-            consumeFuelAndStop();
+            debug("=== BURN TIME EXPIRED for " + currentFuelType + " ===");
+            consumeOneFuel();
 
-            // Try next fuel
+            // Try to start burning next fuel
             if (hasFuelInSlot() && fuelConfig != null) {
-                debug("Starting next fuel...");
+                debug("Attempting to start next fuel...");
                 tryStartBurning(now, fuelConfig);
             } else {
-                debug("No more fuel available");
+                debug("No more fuel - stopping burn");
+                stopBurning();
             }
             return;
         }
 
-        // If not burning, try to start
+        // If not burning but has fuel, try to start
         if (!burning && hasFuelInSlot() && fuelConfig != null) {
             tryStartBurning(now, fuelConfig);
         }
     }
 
-    private void consumeFuelAndStop() {
-        if (fuelSlot != null && !fuelSlot.getType().isAir()) {
-            int prevAmount = fuelSlot.getAmount();
-            int newAmount = prevAmount - 1;
-
-            debug("CONSUMING FUEL: " + fuelSlot.getType() + " " + prevAmount + " -> " + newAmount);
-
-            if (newAmount <= 0) {
-                fuelSlot = null;
-                debug("Fuel slot is now EMPTY");
-            } else {
-                fuelSlot.setAmount(newAmount);
-            }
+    /**
+     * Consumes exactly ONE fuel item from the fuel slot.
+     * This is called when burn time expires.
+     */
+    private void consumeOneFuel() {
+        if (fuelSlot == null || fuelSlot.getType().isAir()) {
+            debug("consumeOneFuel: No fuel to consume!");
+            return;
         }
 
-        stopBurning();
+        int prevAmount = fuelSlot.getAmount();
+        String fuelName = fuelSlot.getType().name();
+
+        if (prevAmount <= 1) {
+            // Last item - clear the slot
+            fuelSlot = null;
+            debug("CONSUMED FUEL: " + fuelName + " | 1 -> 0 (slot now empty)");
+        } else {
+            // Reduce by 1
+            fuelSlot.setAmount(prevAmount - 1);
+            debug("CONSUMED FUEL: " + fuelName + " | " + prevAmount + " -> " + (prevAmount - 1));
+        }
+
+        fuelConsumedCount++;
+        markDirty();
     }
 
     private void tryStartBurning(long now, FuelConfig fuelConfig) {
         if (!hasFuelInSlot()) {
+            debug("tryStartBurning: No fuel in slot");
             return;
         }
 
         if (fuelConfig == null) {
+            debug("tryStartBurning: FuelConfig is null");
             return;
         }
 
         var fuelDataOpt = fuelConfig.getFuelData(fuelSlot);
         if (fuelDataOpt.isEmpty()) {
-            debug("Item " + fuelSlot.getType() + " is not valid fuel");
+            debug("tryStartBurning: " + fuelSlot.getType() + " is not valid fuel");
             return;
         }
 
@@ -213,11 +241,12 @@ public class FurnaceInstance {
         fuelMaxTemperature = fuelData.temperatureBoost();
         fuelBaseTemperature = (int) (fuelMaxTemperature * FUEL_BASE_HEAT_PERCENTAGE);
         burning = true;
+        currentFuelType = fuelSlot.getType().name();
 
         debug("=== STARTED BURNING ===");
-        debug("  Fuel: " + fuelSlot.getType() + " x" + fuelSlot.getAmount());
+        debug("  Fuel: " + currentFuelType + " x" + fuelSlot.getAmount());
         debug("  Duration: " + (burnDurationMs / 1000) + " seconds (" + burnTicks + " ticks)");
-        debug("  End time: " + burnEndTime + " (now: " + now + ")");
+        debug("  Will expire at: " + burnEndTime);
         debug("  Base temp: " + fuelBaseTemperature + "°C, Max: " + fuelMaxTemperature + "°C");
 
         lastDebugLog = now;
@@ -282,13 +311,13 @@ public class FurnaceInstance {
         }
 
         bellowsBoost = Math.min(bellowsBoost + effectiveBoost, maxBellowsBoost);
-        lastBellowsTime = System.currentTimeMillis();
+        lastBellowsTime = now;
 
         double instantPercent = type.getBellowsInstantBoost();
         int instantBoost = (int) (effectiveBoost * instantPercent);
         currentTemperature = Math.min(currentTemperature + instantBoost, type.getMaxTemperature());
 
-        debug("Bellows: +" + effectiveBoost + ", total=" + bellowsBoost + ", temp=" + currentTemperature);
+        debug("Bellows applied: +" + effectiveBoost + " boost, total=" + bellowsBoost + ", temp=" + currentTemperature);
 
         markDirty();
         return true;
@@ -352,6 +381,7 @@ public class FurnaceInstance {
             timeOutsideIdealRange = 0;
             timeInsideIdealRange = 0;
             reachedIdealDuringSmelting = false;
+            debug("Found matching recipe: " + currentRecipe.getId());
             markDirty();
         }
     }
@@ -412,6 +442,8 @@ public class FurnaceInstance {
 
     public void completeSmelting(boolean success, ItemProviderRegistry registry) {
         if (currentRecipe == null) return;
+
+        debug("Completing smelting: success=" + success);
         consumeInputs(registry);
 
         List<RecipeOutput> outputs = success ? currentRecipe.getOutputs() : currentRecipe.getBadOutputs();
@@ -502,6 +534,7 @@ public class FurnaceInstance {
     public Location getLocation() { return location.clone(); }
     public int getCurrentTemperature() { return currentTemperature; }
     public int getBellowsBoost() { return bellowsBoost; }
+    public int getFuelConsumedCount() { return fuelConsumedCount; }
 
     public boolean isBurning() {
         return burning && hasFuelInSlot() && System.currentTimeMillis() < burnEndTime;
@@ -621,8 +654,19 @@ public class FurnaceInstance {
     }
 
     public void setFuelSlot(ItemStack fuel) {
+        ItemStack oldFuel = this.fuelSlot;
         this.fuelSlot = fuel != null ? fuel.clone() : null;
 
+        // Debug fuel slot changes
+        if (DEBUG) {
+            String oldStr = oldFuel != null ? oldFuel.getType() + " x" + oldFuel.getAmount() : "null";
+            String newStr = this.fuelSlot != null ? this.fuelSlot.getType() + " x" + this.fuelSlot.getAmount() : "null";
+            if (!oldStr.equals(newStr)) {
+                debug("Fuel slot changed: " + oldStr + " -> " + newStr);
+            }
+        }
+
+        // Stop burning if fuel removed
         if (burning && !hasFuelInSlot()) {
             debug("setFuelSlot: Fuel removed while burning - STOPPING");
             stopBurning();

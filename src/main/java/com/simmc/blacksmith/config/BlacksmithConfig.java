@@ -1,6 +1,7 @@
 package com.simmc.blacksmith.config;
 
 import com.simmc.blacksmith.forge.*;
+import com.simmc.blacksmith.forge.display.ForgeDisplaySettings;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -8,6 +9,12 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 
+/**
+ * Configuration for forge recipes and categories.
+ *
+ * ADDED:
+ * - Display settings parsing for CE items on anvil
+ */
 public class BlacksmithConfig {
 
     private final Map<String, ForgeRecipe> recipes;
@@ -28,7 +35,7 @@ public class BlacksmithConfig {
         loadErrors.clear();
         loadWarnings.clear();
 
-        // Load categories first
+        // Load categories
         ConfigurationSection catSection = config.getConfigurationSection("categories");
         if (catSection != null) {
             for (String catId : catSection.getKeys(false)) {
@@ -56,7 +63,7 @@ public class BlacksmithConfig {
             }
         }
 
-        // Fallback: load old format (recipes at root level)
+        // Fallback: old format
         if (recipes.isEmpty()) {
             for (String key : config.getKeys(false)) {
                 if (key.equals("categories")) continue;
@@ -70,25 +77,19 @@ public class BlacksmithConfig {
             }
         }
 
-        // Auto-create default category if none exist
+        // Auto-create default category
         if (categories.isEmpty() && !recipes.isEmpty()) {
             List<String> allRecipeIds = new ArrayList<>(recipes.keySet());
             ForgeCategory defaultCat = new ForgeCategory(
-                    "all",
-                    "§6All Recipes",
-                    Material.ANVIL,
-                    0,
-                    List.of("§7All available recipes"),
-                    allRecipeIds,
-                    22
+                    "all", "§6All Recipes", Material.ANVIL, 0,
+                    List.of("§7All available recipes"), allRecipeIds, 22
             );
             categories.put("all", defaultCat);
         }
     }
 
     private ForgeCategory parseCategory(String id, ConfigurationSection section) {
-        String displayName = section.getString("display_name", "§f" + id);
-        displayName = displayName.replace("&", "§");
+        String displayName = section.getString("display_name", "§f" + id).replace("&", "§");
 
         String materialStr = section.getString("icon.material", "IRON_INGOT");
         Material material = Material.matchMaterial(materialStr);
@@ -134,14 +135,46 @@ public class BlacksmithConfig {
         // Parse star thresholds
         Map<Integer, StarThreshold> thresholds = parseStarThresholds(id, section.getConfigurationSection("star_thresholds"));
 
-        // Parse star modifiers (NEW)
+        // Parse star modifiers
         Map<Integer, StarModifier> starModifiers = parseStarModifiers(id, section.getConfigurationSection("star_modifiers"));
 
-        // Determine if using single item mode
+        // Base item
         String baseItemId = section.getString("base_item", "");
         String baseItemType = section.getString("base_item_type", "smc");
 
-        return new ForgeRecipe(id, frames, permission, condition, hits, bias, targetSize, runAfterCommand, inputId, inputType, inputAmount, results, thresholds, starModifiers, baseItemId, baseItemType);
+        // Parse display settings
+        ForgeDisplaySettings displaySettings = parseDisplaySettings(id, section.getConfigurationSection("display"));
+
+        return new ForgeRecipe(id, frames, permission, condition, hits, bias, targetSize,
+                runAfterCommand, inputId, inputType, inputAmount, results, thresholds,
+                starModifiers, baseItemId, baseItemType, displaySettings);
+    }
+
+    /**
+     * Parses display settings for anvil model.
+     */
+    private ForgeDisplaySettings parseDisplaySettings(String recipeId, ConfigurationSection section) {
+        if (section == null) {
+            return null;
+        }
+
+        String itemType = section.getString("item_type", null);
+        String itemId = section.getString("item_id", null);
+
+        double offsetX = section.getDouble("offset_x", 0.5);
+        double offsetY = section.getDouble("offset_y", 0.9);
+        double offsetZ = section.getDouble("offset_z", 0.5);
+
+        float baseScale = (float) section.getDouble("base_scale", 0.5);
+        float maxScale = (float) section.getDouble("max_scale", 0.7);
+
+        boolean layFlat = section.getBoolean("lay_flat", true);
+
+        return new ForgeDisplaySettings(
+                itemType, itemId,
+                offsetX, offsetY, offsetZ,
+                baseScale, maxScale, layFlat
+        );
     }
 
     private Map<Integer, ForgeFrame> parseFrames(String recipeId, ConfigurationSection section) {
@@ -247,11 +280,8 @@ public class BlacksmithConfig {
                 continue;
             }
 
-            String suffix = ms.getString("suffix", "");
-            suffix = suffix.replace("&", "§");
-
-            String loreLine = ms.getString("lore", "");
-            loreLine = loreLine.replace("&", "§");
+            String suffix = ms.getString("suffix", "").replace("&", "§");
+            String loreLine = ms.getString("lore", "").replace("&", "§");
 
             Map<String, Double> attrMods = new HashMap<>();
             ConfigurationSection attrSection = ms.getConfigurationSection("attributes");
@@ -261,7 +291,9 @@ public class BlacksmithConfig {
                 }
             }
 
-            modifiers.put(star, new StarModifier(star, attrMods, suffix.isEmpty() ? null : suffix, loreLine.isEmpty() ? null : loreLine));
+            modifiers.put(star, new StarModifier(star, attrMods,
+                    suffix.isEmpty() ? null : suffix,
+                    loreLine.isEmpty() ? null : loreLine));
         }
 
         return modifiers;

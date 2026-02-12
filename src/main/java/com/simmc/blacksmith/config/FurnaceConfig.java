@@ -18,15 +18,18 @@ public class FurnaceConfig {
 
     private final Map<String, FurnaceType> furnaceTypes;
     private final List<String> loadErrors;
+    private final Map<String, String> furnitureToTypeMap;
 
     public FurnaceConfig() {
         this.furnaceTypes = new LinkedHashMap<>();
         this.loadErrors = new ArrayList<>();
+        this.furnitureToTypeMap = new HashMap<>();
     }
 
     public void load(FileConfiguration config) {
         furnaceTypes.clear();
         loadErrors.clear();
+        furnitureToTypeMap.clear();
 
         for (String typeId : config.getKeys(false)) {
             ConfigurationSection section = config.getConfigurationSection(typeId);
@@ -34,8 +37,20 @@ public class FurnaceConfig {
 
             parseFurnaceType(typeId, section).ifPresent(type -> {
                 furnaceTypes.put(typeId, type);
+
+                if (type.getFurnitureId() != null && !type.getFurnitureId().isEmpty()) {
+                    furnitureToTypeMap.put(type.getFurnitureId().toLowerCase(), typeId);
+                }
+                if (type.getBlockId() != null && !type.getBlockId().isEmpty()) {
+                    furnitureToTypeMap.put(type.getBlockId().toLowerCase(), typeId);
+                }
+                for (String allowedId : type.getAllowedFurnitureIds()) {
+                    furnitureToTypeMap.put(allowedId.toLowerCase(), typeId);
+                }
+
                 Bukkit.getLogger().info("[FurnaceConfig] Loaded furnace type: " + typeId +
-                        " with " + type.getRecipeCount() + " recipes");
+                        " with " + type.getRecipeCount() + " recipes" +
+                        (type.requiresCEFurniture() ? " (requires CE furniture)" : ""));
             });
         }
     }
@@ -44,37 +59,42 @@ public class FurnaceConfig {
         try {
             FurnaceType.Builder builder = FurnaceType.builder(id);
 
-            // Basic settings
             builder.itemId(section.getString("item_id", id));
             builder.displayMaterial(parseMaterial(section.getString("display_material", "FURNACE")));
             builder.displayCmd(section.getInt("display_cmd", 0));
 
-            // Temperature settings
+            builder.furnitureId(section.getString("furniture_id", null));
+            builder.blockId(section.getString("block_id", null));
+
+            List<String> allowedList = section.getStringList("allowed_furniture_ids");
+            for (String allowed : allowedList) {
+                builder.addAllowedFurnitureId(allowed);
+            }
+
             int maxTemp = Math.max(100, section.getInt("max_temperature", 1000));
             builder.maxTemperature(maxTemp);
 
-            int minIdeal = section.getInt("min_ideal_temperature", 600);
-            int maxIdeal = section.getInt("max_ideal_temperature", 900);
+            int minIdeal = section.getInt("min_ideal_temperature",
+                    section.getInt("ideal_min", 600));
+            int maxIdeal = section.getInt("max_ideal_temperature",
+                    section.getInt("ideal_max", 900));
             builder.idealTemperatureRange(minIdeal, maxIdeal);
 
-            // Heating/Cooling rates
             builder.temperatureChange(Math.max(1, section.getInt("temperature_change", 10)));
             builder.coolingRate(Math.max(1, section.getInt("cooling_rate", 5)));
             builder.heatingMultiplier(clamp(section.getDouble("heating_multiplier", 0.5), 0.01, 1.0));
             builder.coolingMultiplier(clamp(section.getDouble("cooling_multiplier", 0.2), 0.01, 1.0));
 
-            // Fuel settings
             builder.maxFuelTempPercentage(clamp(section.getDouble("max_temperature_gain_from_fuel_percentage", 0.6), 0.1, 1.0));
 
-            // Bellows settings
             builder.bellowsDecayRate(clamp(section.getDouble("bellows_decay_rate", 0.02), 0.001, 0.5));
             builder.bellowsInstantBoost(clamp(section.getDouble("bellows_instant_boost", 0.8), 0.0, 1.0));
 
-            // Smelting quality settings
             builder.badOutputThresholdMs(Math.max(1000, section.getLong("bad_output_threshold_ms", 3000)));
             builder.minIdealRatio(clamp(section.getDouble("min_ideal_ratio", 0.4), 0.1, 0.9));
 
-            // GUI configuration
+            parseAllowedInputs(section.getConfigurationSection("allowed_inputs"), builder);
+
             ConfigurationSection guiSection = section.getConfigurationSection("gui");
             if (guiSection != null) {
                 builder.guiTitle(guiSection.getString("title", "&8Furnace"));
@@ -88,7 +108,6 @@ public class FurnaceConfig {
                 builder.outputSlot(guiSection.getInt("output_slot", 24));
             }
 
-            // Parse recipes
             ConfigurationSection recipesSection = section.getConfigurationSection("recipes");
             if (recipesSection != null) {
                 for (String recipeId : recipesSection.getKeys(false)) {
@@ -107,16 +126,40 @@ public class FurnaceConfig {
         }
     }
 
+    private void parseAllowedInputs(ConfigurationSection section, FurnaceType.Builder builder) {
+        if (section == null) return;
+
+        boolean restrict = section.getBoolean("restrict", false);
+        builder.restrictInputs(restrict);
+
+        if (!restrict) return;
+
+        List<Map<?, ?>> items = section.getMapList("items");
+        for (Map<?, ?> itemMap : items) {
+            Object typeObj = itemMap.get("type");
+            Object idObj = itemMap.get("id");
+            Object descObj = itemMap.get("description");
+
+            String type = typeObj != null ? String.valueOf(typeObj).toLowerCase() : "minecraft";
+            String itemId = idObj != null ? String.valueOf(idObj) : "";
+            String description = descObj != null ? String.valueOf(descObj) : itemId;
+
+            if (!itemId.isEmpty()) {
+                builder.addAllowedInput(new FurnaceType.AllowedInput(type, itemId, description));
+            }
+        }
+    }
+
     private Optional<FurnaceRecipe> parseRecipe(String recipeId, ConfigurationSection section) {
         try {
             long smeltTime = Math.max(1000, section.getLong("smelt_time", 8000));
             int minTemperature = Math.max(0, section.getInt("min_temperature", 0));
 
-            // Parse per-recipe ideal temperature range
-            int minIdealTemp = section.getInt("min_ideal_temperature", minTemperature + 100);
-            int maxIdealTemp = section.getInt("max_ideal_temperature", minTemperature + 300);
+            int minIdealTemp = section.getInt("min_ideal_temperature",
+                    section.getInt("ideal_min", minTemperature + 100));
+            int maxIdealTemp = section.getInt("max_ideal_temperature",
+                    section.getInt("ideal_max", minTemperature + 300));
 
-            // Validate ranges
             if (minIdealTemp > maxIdealTemp) {
                 int temp = minIdealTemp;
                 minIdealTemp = maxIdealTemp;
@@ -139,11 +182,6 @@ public class FurnaceConfig {
                 loadErrors.add("Recipe '" + recipeId + "' has no outputs");
                 return Optional.empty();
             }
-
-            Bukkit.getLogger().info("[FurnaceConfig] Loaded recipe: " + recipeId +
-                    " | smeltTime=" + smeltTime +
-                    " | minTemp=" + minTemperature +
-                    " | idealRange=" + minIdealTemp + "-" + maxIdealTemp + "°C");
 
             return Optional.of(new FurnaceRecipe(
                     recipeId, smeltTime, minTemperature,
@@ -171,8 +209,6 @@ public class FurnaceConfig {
             int amount = Math.max(1, is.getInt("amount", 1));
 
             inputs.add(new RecipeInput(slot, id, type, amount));
-
-            Bukkit.getLogger().info("[FurnaceConfig]   Input: " + type + ":" + id + " x" + amount);
         }
 
         return inputs;
@@ -198,8 +234,6 @@ public class FurnaceConfig {
         return outputs;
     }
 
-    // ==================== UTILITIES ====================
-
     private Material parseMaterial(String str) {
         if (str == null || str.isEmpty()) return Material.FURNACE;
         Material mat = Material.matchMaterial(str.toUpperCase());
@@ -208,6 +242,25 @@ public class FurnaceConfig {
 
     private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    // ==================== FURNITURE LOOKUP ====================
+
+    public Optional<String> getFurnaceTypeIdForFurniture(String furnitureId) {
+        if (furnitureId == null || furnitureId.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(furnitureToTypeMap.get(furnitureId.toLowerCase()));
+    }
+
+    public Optional<FurnaceType> getFurnaceTypeForFurniture(String furnitureId) {
+        return getFurnaceTypeIdForFurniture(furnitureId)
+                .flatMap(this::getFurnaceType);
+    }
+
+    public boolean isFurnitureRegistered(String furnitureId) {
+        if (furnitureId == null || furnitureId.isEmpty()) return false;
+        return furnitureToTypeMap.containsKey(furnitureId.toLowerCase());
     }
 
     // ==================== GETTERS ====================

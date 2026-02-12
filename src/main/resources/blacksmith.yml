@@ -53,11 +53,24 @@ recipes:
     target_size: 0.5
     condition: ""
     run_after_command: "smc skills trigger <player> smithing 50"
+
     input:
       id: iron_ingot
       type: minecraft
       amount: 3
-    # Results format - 6 star ratings (0-5)
+
+    # Display settings for anvil model
+    # Set CE item to show on anvil during forging
+    display:
+      item_type: ce                          # ce, smc, or minecraft
+      item_id: smc:kitchenware/skillet       # CE item ID (change to your model)
+      offset_x: 0.5                          # X position (0.5 = center)
+      offset_y: 0.9                          # Y position (height above anvil)
+      offset_z: 0.5                          # Z position (0.5 = center)
+      base_scale: 0.5                        # Starting size
+      max_scale: 0.7                         # Max size when hot
+      lay_flat: true                         # Lay flat on surface
+
     results:
       result_0:
         id: iron_sword
@@ -85,7 +98,6 @@ recipes:
         amount: 1
 
   # ========== LONGSWORD ==========
-  # Using star_modifiers mode - MUST also have results as fallback
   longsword:
     frames:
       frame_0:
@@ -102,11 +114,23 @@ recipes:
     target_size: 0.4
     condition: ""
     run_after_command: "smc skills trigger <player> smithing 100"
+
     input:
       id: diamond
       type: minecraft
       amount: 5
-    # REQUIRED: Results section (even with star_modifiers)
+
+    # Display settings - using CE item
+    display:
+      item_type: ce
+      item_id: smc:kitchenware_2/cookware    # Change to your sword model
+      offset_x: 0.5
+      offset_y: 0.85                         # Slightly lower
+      offset_z: 0.5
+      base_scale: 0.6
+      max_scale: 0.8
+      lay_flat: true
+
     results:
       result_0:
         id: diamond_sword
@@ -132,9 +156,11 @@ recipes:
         id: diamond_sword
         type: minecraft
         amount: 1
-    # Optional: Star modifiers (applied on top of results)
+
+    # Base item for star modifiers
     base_item: diamond_sword
     base_item_type: minecraft
+
     star_modifiers:
       1:
         suffix: "&7[Poor]"
@@ -161,6 +187,7 @@ recipes:
         attributes:
           attack_damage: 3
           attack_speed: 0.2
+
     star_thresholds:
       star_5:
         min_perfect_hits: 10
@@ -194,10 +221,15 @@ recipes:
     bias: 0.25
     target_size: 0.6
     condition: ""
+
     input:
       id: iron_ingot
       type: minecraft
       amount: 3
+
+    # Display - no custom item, uses frames instead
+    # (If display section is missing, it uses frame models)
+
     results:
       result_0:
         id: iron_pickaxe
@@ -241,10 +273,23 @@ recipes:
     target_size: 0.45
     condition: ""
     run_after_command: "smc skills trigger <player> smithing 75"
+
     input:
       id: diamond
       type: minecraft
       amount: 3
+
+    # Display with position adjustments
+    display:
+      item_type: minecraft                   # Can also use vanilla items
+      item_id: DIAMOND_PICKAXE
+      offset_x: 0.5
+      offset_y: 0.95
+      offset_z: 0.5
+      base_scale: 0.4
+      max_scale: 0.6
+      lay_flat: false                        # Stand upright instead
+
     results:
       result_0:
         id: diamond_pickaxe

@@ -6,15 +6,19 @@ import java.util.*;
 
 /**
  * Manages state for an active forging session.
- * Handles point spawning, hit tracking, and score calculation.
  */
 public class ForgeSession {
 
-    // Timing constants
-    private static final long INITIAL_INTERVAL = 1200;
-    private static final long MIN_INTERVAL = 500;
-    private static final long POINT_DURATION = 1800;
-    private static final int SPEEDUP_EVERY_N_HITS = 3;
+    // Timing constants - FIXED: Slower, single block spawns
+    private static final long INITIAL_INTERVAL = 1800;   // 1.8 seconds (was 1.2)
+    private static final long MIN_INTERVAL = 1000;       // 1.0 second minimum (was 0.5)
+    private static final long POINT_DURATION = 2500;     // 2.5 seconds visible (was 1.8)
+    private static final int SPEEDUP_EVERY_N_HITS = 5;   // Every 5 hits (was 3)
+    private static final long INTERVAL_DECREASE = 50;    // Decrease by 50ms (was 100)
+
+    // Timeout constants
+    private static final long INACTIVITY_TIMEOUT_MS = 30000;
+    private static final long MAX_SESSION_DURATION_MS = 300000;
 
     // Speed scoring thresholds
     private static final long FAST_HIT_MS = 400;
@@ -34,12 +38,15 @@ public class ForgeSession {
     // Session state
     private long lastPointSpawn;
     private long currentInterval;
-    private int pointsToSpawn;
     private int hitsCompleted;
     private int perfectHits;
     private int missedPoints;
     private int currentFrame;
     private boolean active;
+
+    // Timeout tracking
+    private long lastActivityTime;
+    private boolean timedOut;
 
     // Hammer bonuses
     private double hammerSpeedBonus;
@@ -58,13 +65,15 @@ public class ForgeSession {
 
         this.lastPointSpawn = startTime;
         this.currentInterval = INITIAL_INTERVAL;
-        this.pointsToSpawn = 1;
 
         this.hitsCompleted = 0;
         this.perfectHits = 0;
         this.missedPoints = 0;
         this.currentFrame = 0;
         this.active = true;
+
+        this.lastActivityTime = startTime;
+        this.timedOut = false;
 
         this.hammerSpeedBonus = 0.0;
         this.hammerAccuracyBonus = 0.0;
@@ -77,15 +86,36 @@ public class ForgeSession {
 
         long now = System.currentTimeMillis();
 
-        // Update and cleanup points
+        if (checkTimeout(now)) {
+            return;
+        }
+
         updateActivePoints();
 
-        // Spawn new points if needed
         if (shouldSpawnPoints(now)) {
-            spawnPoints();
+            spawnPoint();  // FIXED: Always spawn single point
             lastPointSpawn = now;
             updateRhythm();
         }
+    }
+
+    private boolean checkTimeout(long now) {
+        if (now - startTime > MAX_SESSION_DURATION_MS) {
+            timedOut = true;
+            active = false;
+            return true;
+        }
+
+        long timeSinceActivity = now - lastActivityTime;
+        if (timeSinceActivity > INACTIVITY_TIMEOUT_MS) {
+            if (missedPoints >= 3 || hitsCompleted == 0) {
+                timedOut = true;
+                active = false;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void updateActivePoints() {
@@ -103,38 +133,31 @@ public class ForgeSession {
     }
 
     private boolean shouldSpawnPoints(long now) {
-        return now - lastPointSpawn >= currentInterval && hitsCompleted < recipe.getHits();
+        // FIXED: Only spawn if no active points (one at a time)
+        return now - lastPointSpawn >= currentInterval
+                && hitsCompleted < recipe.getHits()
+                && activePoints.isEmpty();
     }
 
-    private void spawnPoints() {
-        int remaining = recipe.getHits() - hitsCompleted;
-        int count = Math.min(pointsToSpawn, remaining);
-
-        for (int i = 0; i < count; i++) {
-            Location pointLoc = generatePointLocation();
-            ForgePoint point = new ForgePoint(pointLoc, POINT_DURATION);
-            point.spawn();
-            activePoints.add(point);
-        }
+    /**
+     * Spawns a single point. FIXED: Always one at a time.
+     */
+    private void spawnPoint() {
+        Location pointLoc = generatePointLocation();
+        ForgePoint point = new ForgePoint(pointLoc, POINT_DURATION);
+        point.spawn();
+        activePoints.add(point);
     }
 
+    /**
+     * Updates spawn rhythm. FIXED: Slower speed increase.
+     */
     private void updateRhythm() {
-        // Speed up every N hits
+        // Speed up every N hits (slower progression)
         if (hitsCompleted > 0 && hitsCompleted % SPEEDUP_EVERY_N_HITS == 0) {
-            currentInterval = Math.max(MIN_INTERVAL, currentInterval - 100);
+            currentInterval = Math.max(MIN_INTERVAL, currentInterval - INTERVAL_DECREASE);
         }
-
-        // Rhythm variation - sometimes spawn multiple points
-        double progress = getProgress();
-        double roll = random.nextDouble();
-
-        if (progress > 0.75 && roll < 0.10) {
-            pointsToSpawn = 3;
-        } else if (progress > 0.5 && roll < 0.20) {
-            pointsToSpawn = 2;
-        } else {
-            pointsToSpawn = 1;
-        }
+        // REMOVED: Multi-spawn logic - always 1 block now
     }
 
     private Location generatePointLocation() {
@@ -148,13 +171,13 @@ public class ForgeSession {
 
     public double processHit(UUID hitboxId) {
         long hitTime = System.currentTimeMillis();
+        lastActivityTime = hitTime;
 
         for (int i = 0; i < activePoints.size(); i++) {
             ForgePoint point = activePoints.get(i);
             if (point.matchesHitbox(hitboxId) && point.isActive()) {
                 double accuracy = point.hit();
 
-                // Apply hammer bonus
                 accuracy = Math.min(1.0, accuracy + hammerAccuracyBonus);
 
                 hitAccuracies.add(accuracy);
@@ -182,7 +205,10 @@ public class ForgeSession {
     // ==================== SCORING ====================
 
     public int calculateStarRating() {
-        // Check custom thresholds first
+        if (timedOut && hitsCompleted == 0) {
+            return 0;
+        }
+
         Map<Integer, StarThreshold> thresholds = recipe.getStarThresholds();
         if (thresholds != null && !thresholds.isEmpty()) {
             double avg = getAverageAccuracy();
@@ -195,12 +221,14 @@ public class ForgeSession {
             return 0;
         }
 
-        // Default: combined accuracy + speed score
         double combinedScore = calculateFinalScore();
 
-        // Penalty for missed points
         double missedPenalty = missedPoints * 0.05;
         combinedScore = Math.max(0, combinedScore - missedPenalty);
+
+        if (timedOut) {
+            combinedScore *= 0.5;
+        }
 
         if (combinedScore >= 0.95) return 5;
         if (combinedScore >= 0.85) return 4;
@@ -279,6 +307,7 @@ public class ForgeSession {
     public int getMissedPoints() { return missedPoints; }
     public int getCurrentFrame() { return currentFrame; }
     public boolean isActive() { return active; }
+    public boolean isTimedOut() { return timedOut; }
     public List<ForgePoint> getActivePoints() { return new ArrayList<>(activePoints); }
 
     public double getProgress() {
@@ -292,6 +321,17 @@ public class ForgeSession {
 
     public long getElapsedTime() {
         return System.currentTimeMillis() - startTime;
+    }
+
+    public long getTimeUntilTimeout() {
+        if (timedOut) return 0;
+        long timeSinceActivity = System.currentTimeMillis() - lastActivityTime;
+        return Math.max(0, INACTIVITY_TIMEOUT_MS - timeSinceActivity);
+    }
+
+    public long getTimeUntilMaxDuration() {
+        long elapsed = System.currentTimeMillis() - startTime;
+        return Math.max(0, MAX_SESSION_DURATION_MS - elapsed);
     }
 
     public ForgeResult getResultItem() {

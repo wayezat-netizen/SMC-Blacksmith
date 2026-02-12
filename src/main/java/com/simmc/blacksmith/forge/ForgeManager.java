@@ -25,7 +25,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages all active forge sessions.
- * Handles session lifecycle, hit processing, and completion.
+ *
+ * FIXES:
+ * - Added timeout handling
+ * - Added proper cancel functionality
+ * - Fixed session cleanup for GUI reopening
+ * - Added forceEndSession for disconnects
  */
 public class ForgeManager {
 
@@ -40,8 +45,6 @@ public class ForgeManager {
     private final ConfigManager configManager;
     private final ItemProviderRegistry itemRegistry;
 
-
-    // Session tracking
     private final Map<UUID, ForgeSession> sessions;
     private final Map<UUID, ForgeDisplay> displays;
     private final Map<UUID, Location> playerAnvilLocations;
@@ -70,7 +73,6 @@ public class ForgeManager {
     private void tick() {
         if (sessions.isEmpty()) return;
 
-        // Copy keys to avoid ConcurrentModificationException
         List<UUID> playerIds = new ArrayList<>(sessions.keySet());
 
         for (UUID playerId : playerIds) {
@@ -82,6 +84,16 @@ public class ForgeManager {
         ForgeSession session = sessions.get(playerId);
         if (session == null) return;
 
+        if (session.isTimedOut()) {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player != null && player.isOnline()) {
+                handleTimeout(player, session);
+            } else {
+                cleanup(playerId);
+            }
+            return;
+        }
+
         if (!session.isActive()) {
             cleanup(playerId);
             return;
@@ -89,13 +101,11 @@ public class ForgeManager {
 
         session.tick();
 
-        // Update display
         ForgeDisplay display = displays.get(playerId);
         if (display != null && display.isValid()) {
             display.tick(session);
         }
 
-        // Check completion
         if (session.isComplete()) {
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
@@ -106,13 +116,45 @@ public class ForgeManager {
         }
     }
 
+    private void handleTimeout(Player player, ForgeSession session) {
+        UUID playerId = player.getUniqueId();
+        MessageConfig messages = configManager.getMessageConfig();
+
+        if (session.getHitsCompleted() > 0) {
+            player.sendMessage("§c§lTIME OUT! §7Forging incomplete...");
+
+            int stars = session.calculateStarRating();
+            ForgeRecipe recipe = session.getRecipe();
+
+            if (stars > 0) {
+                ItemStack resultItem = createResultItem(recipe, stars);
+                if (resultItem != null) {
+                    player.sendMessage("§7You managed to salvage a §e" + stars + "-star §7item.");
+                    handleForgeResult(player, resultItem, stars, session, recipe);
+                } else {
+                    refundMaterials(player, recipe);
+                    player.sendMessage("§7Your materials have been refunded.");
+                }
+            } else {
+                refundMaterials(player, recipe);
+                player.sendMessage("§7Your materials have been refunded.");
+            }
+        } else {
+            player.sendMessage("§c§lTIME OUT! §7No progress was made.");
+            refundMaterials(player, session.getRecipe());
+            player.sendMessage("§7Your materials have been refunded.");
+        }
+
+        player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 0.5f);
+        cleanup(playerId);
+    }
+
     // ==================== SESSION LIFECYCLE ====================
 
     public boolean startSession(Player player, String recipeId, Location anvilLocation) {
         UUID playerId = player.getUniqueId();
         MessageConfig messages = configManager.getMessageConfig();
 
-        // Validation checks
         ValidationResult validation = validateSessionStart(player, recipeId);
         if (!validation.success()) {
             player.sendMessage(validation.message());
@@ -121,38 +163,33 @@ public class ForgeManager {
 
         ForgeRecipe recipe = validation.recipe();
 
-        // Find anvil location
         Location actualAnvil = resolveAnvilLocation(player, anvilLocation);
         if (actualAnvil == null) {
             player.sendMessage("§cYou must be near an anvil to forge!");
             return false;
         }
 
-        // Consume materials
         if (!consumeMaterials(player, recipe)) {
             player.sendMessage(messages.getMissingMaterials(recipe.getInputAmount(), recipe.getInputId()));
             return false;
         }
 
-        // Create session
         ForgeSession session = new ForgeSession(playerId, recipe, actualAnvil);
         sessions.put(playerId, session);
 
-        // Apply hammer bonuses
         HammerConfig.HammerType hammerType = playerHammerTypes.remove(playerId);
         if (hammerType != null) {
             session.setHammerBonuses(hammerType.speedBonus(), hammerType.accuracyBonus());
         }
 
-        // Create display
         ForgeDisplay display = new ForgeDisplay(playerId, actualAnvil, recipe);
         display.spawn();
         displays.put(playerId, display);
 
-        // Feedback
         player.playSound(actualAnvil, Sound.BLOCK_ANVIL_PLACE, 0.8f, 0.9f);
         player.sendMessage(messages.getForgeStarted());
         player.sendMessage("§e§lLEFT CLICK §7the targets with your §6HAMMER§7!");
+        player.sendMessage("§7Type §c/forge cancel §7or §cSNEAK + RIGHT-CLICK §7to cancel.");
 
         return true;
     }
@@ -161,29 +198,24 @@ public class ForgeManager {
         UUID playerId = player.getUniqueId();
         MessageConfig messages = configManager.getMessageConfig();
 
-        // Already in session
         if (sessions.containsKey(playerId)) {
             return ValidationResult.fail(messages.getForgeSessionActive());
         }
 
-        // In quenching
         QuenchingManager quenchManager = SMCBlacksmith.getInstance().getQuenchingManager();
         if (quenchManager != null && quenchManager.hasActiveSession(playerId)) {
             return ValidationResult.fail("§cComplete your current session first!");
         }
 
-        // Recipe exists
         ForgeRecipe recipe = configManager.getBlacksmithConfig().getRecipe(recipeId);
         if (recipe == null) {
             return ValidationResult.fail(messages.getForgeUnknownRecipe(recipeId));
         }
 
-        // Permission
         if (recipe.hasPermission() && !player.hasPermission(recipe.getPermission())) {
             return ValidationResult.fail(messages.getNoPermission());
         }
 
-        // PAPI condition
         if (!checkCondition(player, recipe)) {
             return ValidationResult.fail(messages.getConditionNotMet());
         }
@@ -210,29 +242,23 @@ public class ForgeManager {
         int stars = session.calculateStarRating();
         ForgeRecipe recipe = session.getRecipe();
 
-        // Show completion effects
         ForgeDisplay display = displays.get(playerId);
         if (display != null) {
             display.showCompletion(stars);
         }
         playCompletionEffects(player, session.getAnvilLocation(), stars);
 
-        // Get result item
         ItemStack resultItem = createResultItem(recipe, stars);
 
-        // Send completion message
         String starDisplay = ColorUtil.formatStars(stars, 5);
         player.sendMessage(configManager.getMessageConfig().getForgeComplete(stars, starDisplay));
 
-        // Execute post-forge command
         executeCommand(player, recipe, stars);
 
-        // Handle result - start quenching or give item directly
         if (resultItem != null) {
             handleForgeResult(player, resultItem, stars, session, recipe);
         }
 
-        // Delayed cleanup
         Bukkit.getScheduler().runTaskLater(plugin, () -> cleanup(playerId), CLEANUP_DELAY_TICKS);
     }
 
@@ -274,6 +300,14 @@ public class ForgeManager {
         cleanup(playerId);
     }
 
+    public void forceEndSession(UUID playerId) {
+        ForgeSession session = sessions.get(playerId);
+        if (session == null) return;
+
+        session.cancel();
+        cleanup(playerId);
+    }
+
     private void cleanup(UUID playerId) {
         ForgeSession session = sessions.remove(playerId);
         if (session != null) {
@@ -286,6 +320,7 @@ public class ForgeManager {
         }
 
         playerAnvilLocations.remove(playerId);
+        playerHammerTypes.remove(playerId);
     }
 
     // ==================== HIT PROCESSING ====================
@@ -298,6 +333,11 @@ public class ForgeManager {
 
         double accuracy = session.processHit(hitboxId);
         if (accuracy < 0) return;
+
+        ForgeDisplay display = displays.get(playerId);
+        if (display != null) {
+            display.onHit(accuracy);
+        }
 
         sendHitFeedback(player, accuracy);
     }
@@ -321,7 +361,6 @@ public class ForgeManager {
             return provided;
         }
 
-        // Check stored location
         Location stored = playerAnvilLocations.remove(player.getUniqueId());
         if (stored != null && isAnvilBlock(stored.getBlock())) {
             return stored;
@@ -331,7 +370,6 @@ public class ForgeManager {
     }
 
     private Location findNearbyAnvil(Player player) {
-        // First check raycast
         RayTraceResult rayTrace = player.rayTraceBlocks(5.0);
         if (rayTrace != null && rayTrace.getHitBlock() != null) {
             Block hitBlock = rayTrace.getHitBlock();
@@ -340,7 +378,6 @@ public class ForgeManager {
             }
         }
 
-        // Then search nearby
         Location center = player.getLocation();
         for (int x = -ANVIL_SEARCH_RADIUS; x <= ANVIL_SEARCH_RADIUS; x++) {
             for (int y = -2; y <= 2; y++) {
@@ -361,47 +398,26 @@ public class ForgeManager {
     }
 
     private boolean checkCondition(Player player, ForgeRecipe recipe) {
-        // No condition = always pass
         if (!recipe.hasCondition()) {
-            plugin.getLogger().info("[Forge] No condition for recipe - PASS");
             return true;
         }
 
         String condition = recipe.getCondition();
-
-        // Empty or blank condition = always pass
         if (condition == null || condition.trim().isEmpty()) {
-            plugin.getLogger().info("[Forge] Empty condition - PASS");
             return true;
         }
 
         PlaceholderAPIHook papi = SMCBlacksmith.getInstance().getPapiHook();
 
-        // If PAPI not available, skip condition check (allow forging)
-        if (papi == null) {
-            plugin.getLogger().warning("[Forge] PAPI hook is null - PASS (skipping condition)");
-            return true;
-        }
-
-        if (!papi.isAvailable()) {
-            plugin.getLogger().warning("[Forge] PAPI not available - PASS (skipping condition)");
+        if (papi == null || !papi.isAvailable()) {
             return true;
         }
 
         try {
-            // DEBUG: Log the raw and parsed condition
-            String parsed = papi.parse(player, condition);
-            plugin.getLogger().info("[Forge] Condition check for " + player.getName());
-            plugin.getLogger().info("[Forge]   Raw condition: " + condition);
-            plugin.getLogger().info("[Forge]   Parsed: " + parsed);
-
-            boolean result = papi.checkCondition(player, condition);
-            plugin.getLogger().info("[Forge]   Result: " + result);
-
-            return result;
+            return papi.checkCondition(player, condition);
         } catch (Exception e) {
             plugin.getLogger().warning("[Forge] Error checking condition: " + e.getMessage());
-            return true;  // Allow on error
+            return true;
         }
     }
 
@@ -412,7 +428,6 @@ public class ForgeManager {
         String id = recipe.getInputId();
         int required = recipe.getInputAmount();
 
-        // Count available
         int found = 0;
         ItemStack[] contents = player.getInventory().getContents();
         for (ItemStack item : contents) {
@@ -424,7 +439,6 @@ public class ForgeManager {
 
         if (found < required) return false;
 
-        // Consume
         int remaining = required;
         for (int i = 0; i < contents.length && remaining > 0; i++) {
             ItemStack item = contents[i];
@@ -483,16 +497,10 @@ public class ForgeManager {
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsed);
     }
 
-    /**
-     * Gets and removes the stored anvil location for a player.
-     */
     public Location getAndRemovePlayerAnvilLocation(UUID playerId) {
         return playerAnvilLocations.remove(playerId);
     }
 
-    /**
-     * Gets and removes the stored hammer type for a player.
-     */
     public HammerConfig.HammerType getAndRemovePlayerHammerType(UUID playerId) {
         return playerHammerTypes.remove(playerId);
     }
