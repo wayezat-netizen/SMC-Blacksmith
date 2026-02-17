@@ -110,10 +110,16 @@ public class FurnaceConfig {
 
             ConfigurationSection recipesSection = section.getConfigurationSection("recipes");
             if (recipesSection != null) {
+                // Get furnace-level ideal temps as defaults for recipes
+                int furnaceMinIdeal = section.getInt("min_ideal_temperature",
+                        section.getInt("ideal_min", 60));
+                int furnaceMaxIdeal = section.getInt("max_ideal_temperature",
+                        section.getInt("ideal_max", 100));
+
                 for (String recipeId : recipesSection.getKeys(false)) {
                     ConfigurationSection rs = recipesSection.getConfigurationSection(recipeId);
                     if (rs != null) {
-                        parseRecipe(recipeId, rs).ifPresent(builder::addRecipe);
+                        parseRecipe(recipeId, rs, furnaceMinIdeal, furnaceMaxIdeal).ifPresent(builder::addRecipe);
                     }
                 }
             }
@@ -150,15 +156,17 @@ public class FurnaceConfig {
         }
     }
 
-    private Optional<FurnaceRecipe> parseRecipe(String recipeId, ConfigurationSection section) {
+    private Optional<FurnaceRecipe> parseRecipe(String recipeId, ConfigurationSection section,
+                                                 int furnaceMinIdeal, int furnaceMaxIdeal) {
         try {
             long smeltTime = Math.max(1000, section.getLong("smelt_time", 8000));
             int minTemperature = Math.max(0, section.getInt("min_temperature", 0));
 
+            // Use furnace-level ideal temps as defaults if not specified per-recipe
             int minIdealTemp = section.getInt("min_ideal_temperature",
-                    section.getInt("ideal_min", minTemperature + 100));
+                    section.getInt("ideal_min", furnaceMinIdeal));
             int maxIdealTemp = section.getInt("max_ideal_temperature",
-                    section.getInt("ideal_max", minTemperature + 300));
+                    section.getInt("ideal_max", furnaceMaxIdeal));
 
             if (minIdealTemp > maxIdealTemp) {
                 int temp = minIdealTemp;

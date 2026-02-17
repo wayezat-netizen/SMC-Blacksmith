@@ -135,7 +135,13 @@ public class ConfigManager {
 
     private void loadGrindstoneConfig() {
         FileConfiguration config = loadConfig(ConfigType.GRINDSTONE);
-        validateSections(config, validator::validateRepairConfig);
+
+        // Validate nested 'repairs:' section if it exists
+        ConfigurationSection repairsSection = config.getConfigurationSection("repairs");
+        if (repairsSection != null) {
+            validateSections(repairsSection, validator::validateRepairConfig);
+        }
+
         grindstoneConfig = new GrindstoneConfig();
         grindstoneConfig.load(config);
     }
@@ -149,7 +155,15 @@ public class ConfigManager {
 
     private void loadBellowsConfig() {
         FileConfiguration config = loadConfig(ConfigType.BELLOWS);
-        validateSections(config, validator::validateBellowsConfig);
+
+        // Validate nested 'bellows:' section if it exists, otherwise validate root
+        ConfigurationSection bellowsSection = config.getConfigurationSection("bellows");
+        if (bellowsSection != null) {
+            validateSections(bellowsSection, validator::validateBellowsConfig);
+        } else {
+            validateSections(config, validator::validateBellowsConfig);
+        }
+
         bellowsConfig = new BellowsConfig();
         bellowsConfig.load(config);
     }

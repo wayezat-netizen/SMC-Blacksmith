@@ -1,42 +1,179 @@
-# ==========================================
+﻿# ==========================================
 # SMCBlacksmith - Forge Recipes Configuration
 # ==========================================
-
+#
+# DISPLAY MODEL CONFIGURATION:
+# The 'display' section controls the model shown ON TOP of the anvil during forging.
+#
+# OPTION 1: Single Display Item (simple)
+#   display:
+#     item_type: ce
+#     item_id: smc:blacksmith/sword
+#     offset_y: 1.0
+#     base_scale: 0.6
+#     max_scale: 0.9
+#     lay_flat: true
+#
+#If the model appears floating, lower offset_y (e.g., 0.8)
+#If the model is buried in anvil, raise offset_y (e.g., 1.2)
 # ==========================================
-# CATEGORIES
-# ==========================================
-
 categories:
-  iron_series:
+  special_armor:
+    display_name: "&6Special Equipment"
+    icon:
+      material: NETHERITE_CHESTPLATE
+      cmd: 0
+    slot: 10
+    description:
+      - "&eSpecial armor sets (dy_ series)"
+    recipes:
+      - dy_ry_1
+      - dy_ry_2
+      - dy_ry_3
+      - dy_ry_4
+      - dy_ry_5
+      - dy_ly_1
+      - dy_ly_2
+      - dy_ly_3
+      - dy_ly_4
+      - dy_ly_5
+      - dy_wz_1
+      - dy_wz_2
+      - dy_wz_3
+      - dy_wz_4
+      - dy_wz_5
+      - dy_pb_1
+      - dy_pb_2
+      - dy_pb_3
+      - dy_pb_4
+      - dy_pb_5
+      - dy_cy_1
+      - dy_cy_2
+      - dy_cy_3
+      - dy_cy_4
+      - dy_cy_5
+      - dy_gs_1
+      - dy_gs_2
+      - dy_gs_3
+      - dy_gs_4
+      - dy_gs_5
+      - dy_fp_1
+      - dy_fp_2
+      - dy_fp_3
+      - dy_fp_4
+      - dy_fp_5
+      - dy_sj_1
+      - dy_sj_2
+      - dy_sj_3
+      - dy_sj_4
+      - dy_sj_5
+      - dy_qd_1
+      - dy_qd_2
+      - dy_qd_3
+      - dy_qd_4
+      - dy_qd_5
+      - dy_cz_1
+      - dy_cz_2
+      - dy_cz_3
+      - dy_cz_4
+      - dy_cz_5
+  iron_equipment:
     display_name: "&7Iron Equipment"
     icon:
-      material: IRON_INGOT
+      material: IRON_CHESTPLATE
       cmd: 0
-    slot: 20
+    slot: 11
     description:
-      - "&7Basic iron weapons and tools"
+      - "&7Iron armor and tools (zf_jg, gongju_zf_jg series)"
     recipes:
-      - shortsword
-      - iron_pickaxe
-
-  diamond_series:
+      - zf_jg_1
+      - zf_jg_2
+      - zf_jg_3
+      - zf_jg_4
+      - gongju_zf_jgct
+      - gongju_zf_jgc
+      - gongju_zf_jgg
+  diamond_equipment:
     display_name: "&bDiamond Equipment"
     icon:
-      material: DIAMOND
+      material: DIAMOND_CHESTPLATE
       cmd: 0
-    slot: 22
+    slot: 12
     description:
-      - "&bAdvanced diamond gear"
+      - "&bDiamond armor and tools (zf_zs, gongju_zf_zs series)"
     recipes:
-      - longsword
-      - diamond_pickaxe
-
-# ==========================================
-# RECIPES
-# ==========================================
-
+      - zf_zs_1
+      - zf_zs_2
+      - zf_zs_3
+      - zf_zs_4
+      - gongju_zf_zsgct
+      - gongju_zf_zsgc
+      - gongju_zf_zsgg
+  netherite_equipment:
+    display_name: "&4Netherite Equipment"
+    icon:
+      material: NETHERITE_CHESTPLATE
+      cmd: 0
+    slot: 13
+    description:
+      - "&4Netherite armor and tools (zf_hj, gongju_zf_xjhj series)"
+    recipes:
+      - zf_hj_1
+      - zf_hj_2
+      - zf_hj_3
+      - zf_hj_4
+      - gongju_zf_xjhjct
+      - gongju_zf_xjhjc
+      - gongju_zf_xjhjg
+  weapons:
+    display_name: "&cWeapons"
+    icon:
+      material: NETHERITE_SWORD
+      cmd: 0
+    slot: 14
+    description:
+      - "&cAll weapons (wuqi_ series)"
+    recipes:
+      - shortsword
+      - wuqi_zf_hjj
+      - wuqi_zf_hjqq
+      - wuqi_zf_hjdj
+      - wuqi_zf_hjpf
+      - wuqi_zf_jgj
+      - wuqi_zf_jgqq
+      - wuqi_zf_jgdj
+      - wuqi_zf_jgpfq
+      - wuqi_zf_zsj
+      - wuqi_zf_zsqq
+      - wuqi_zf_zsdj
+      - wuqi_zf_zspf
+      - huoqiang
+  exploration:
+    display_name: "&dExploration"
+    icon:
+      material: COMPASS
+      cmd: 0
+    slot: 15
+    description:
+      - "&dExploration sets"
+    recipes:
+      - skill_tansuo_set1
+      - skill_tansuo_set2
+      - skill_tansuo_set3
+  fishing:
+    display_name: "&9Fishing"
+    icon:
+      material: FISHING_ROD
+      cmd: 0
+    slot: 16
+    description:
+      - "&9Fishing equipment"
+    recipes:
+      - diaoyu_zf_1
+      - diaoyu_zf_2
+      - diaoyu_zf_3
+      - shenhaiyugan
 recipes:
-  # ========== SHORTSWORD ==========
   shortsword:
     frames:
       frame_0:
@@ -48,165 +185,2659 @@ recipes:
       frame_2:
         material: STICK
         cmd: 33
-    hits: 8
-    bias: 0.2
+    permission: smithing.shortsword # player needs this permission to smith the item
+    hits: 8 # how many times you have to hit it with hammer
+    bias: 0.2 # bias is added to score from the smashing minigame. if sword has 8 hits and you want 6 hits to give 5 star then bias should be 0.25 because 1-(6/8)=0.25, should be between 0 and 1
+    run_after_command: "smc skills trigger <player> tiejiang 50" # can be excluded
     target_size: 0.5
-    condition: ""
-    run_after_command: "smc skills trigger <player> smithing 50"
-
     input:
       id: iron_ingot
       type: minecraft
       amount: 3
-
-    # Display settings for anvil model
-    # Set CE item to show on anvil during forging
-    display:
-      item_type: ce                          # ce, smc, or minecraft
-      item_id: smc:kitchenware/skillet       # CE item ID (change to your model)
-      offset_x: 0.5                          # X position (0.5 = center)
-      offset_y: 0.9                          # Y position (height above anvil)
-      offset_z: 0.5                          # Z position (0.5 = center)
-      base_scale: 0.5                        # Starting size
-      max_scale: 0.7                         # Max size when hot
-      lay_flat: true                         # Lay flat on surface
-
     results:
       result_0:
-        id: iron_sword
-        type: minecraft
-        amount: 1
+        id: shortsword_0
+        type: smc
+        #amount: 1 # if no amount it will be 1
       result_1:
-        id: iron_sword
-        type: minecraft
-        amount: 1
+        id: shortsword_1
+        type: smc
       result_2:
-        id: iron_sword
-        type: minecraft
-        amount: 1
+        id: shortsword_2
+        type: smc
       result_3:
-        id: iron_sword
-        type: minecraft
-        amount: 1
+        id: shortsword_3
+        type: smc
       result_4:
-        id: iron_sword
-        type: minecraft
-        amount: 1
+        id: shortsword_4
+        type: smc
       result_5:
-        id: iron_sword
-        type: minecraft
-        amount: 1
-
-  # ========== LONGSWORD ==========
-  longsword:
+        id: shortsword_5
+        type: smc
+  dy_ry_1:
+    # 定义武器锻造的各个阶段
     frames:
+      # 第一阶段：使用木棍材料，命令ID为31
       frame_0:
         material: STICK
-        cmd: 41
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
       frame_1:
         material: STICK
-        cmd: 42
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
       frame_2:
         material: STICK
-        cmd: 43
-    hits: 12
-    bias: 0.15
-    target_size: 0.4
-    condition: ""
-    run_after_command: "smc skills trigger <player> smithing 100"
-
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（可选）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
     input:
-      id: diamond
-      type: minecraft
-      amount: 5
-
-    # Display settings - using CE item
-    display:
-      item_type: ce
-      item_id: smc:kitchenware_2/cookware    # Change to your sword model
-      offset_x: 0.5
-      offset_y: 0.85                         # Slightly lower
-      offset_z: 0.5
-      base_scale: 0.6
-      max_scale: 0.8
-      lay_flat: true
-
+      id: smc:diyu_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
     results:
+      # 品质0的短剑
       result_0:
-        id: diamond_sword
-        type: minecraft
-        amount: 1
+        id: smc:diyu_ry_1
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
       result_1:
-        id: diamond_sword
-        type: minecraft
-        amount: 1
+        id: rongyannairetoukui
+        type: smc
+      # 品质2的短剑
       result_2:
-        id: diamond_sword
-        type: minecraft
-        amount: 1
+        id: rongyannairetoukui
+        type: smc
+      # 品质3的短剑
       result_3:
-        id: diamond_sword
-        type: minecraft
-        amount: 1
+        id: rongyannairetoukui
+        type: smc
+      # 品质4的短剑
       result_4:
-        id: diamond_sword
-        type: minecraft
-        amount: 1
+        id: rongyannairetoukui
+        type: smc
+      # 品质5的短剑
       result_5:
-        id: diamond_sword
-        type: minecraft
-        amount: 1
-
-    # Base item for star modifiers
-    base_item: diamond_sword
-    base_item_type: minecraft
-
-    star_modifiers:
-      1:
-        suffix: "&7[Poor]"
-        lore: "&7A poorly made sword"
-        attributes:
-          attack_damage: -1
-      2:
-        suffix: "&f[Common]"
-        lore: "&fA standard sword"
-      3:
-        suffix: "&a[Good]"
-        lore: "&aA well-crafted sword"
-        attributes:
-          attack_damage: 1
-      4:
-        suffix: "&b[Excellent]"
-        lore: "&bAn excellent sword"
-        attributes:
-          attack_damage: 2
-          attack_speed: 0.1
-      5:
-        suffix: "&6[Masterwork]"
-        lore: "&6A masterfully forged sword"
-        attributes:
-          attack_damage: 3
-          attack_speed: 0.2
-
-    star_thresholds:
-      star_5:
-        min_perfect_hits: 10
-        min_accuracy: 0.9
-      star_4:
-        min_perfect_hits: 8
-        min_accuracy: 0.8
-      star_3:
-        min_perfect_hits: 5
-        min_accuracy: 0.7
-      star_2:
-        min_perfect_hits: 2
-        min_accuracy: 0.5
-      star_1:
-        min_perfect_hits: 0
-        min_accuracy: 0.3
-
-  # ========== IRON PICKAXE ==========
-  iron_pickaxe:
+        id: rongyannairetoukui
+        type: smc
+  dy_ry_2:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（可选）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diyu_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:diyu_ry_2
+        type: craftengine
+      result_1:
+        id: rongyannairexiongjia
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: rongyannairexiongjia
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: rongyannairexiongjia
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: rongyannairexiongjia
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: rongyannairexiongjia
+        type: smc
+  dy_ry_3:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（可选）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diyu_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:diyu_ry_3
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: rongyannairehutui
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: rongyannairehutui
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: rongyannairehutui
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: rongyannairehutui
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: rongyannairehutui
+        type: smc
+  dy_ry_4:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（可选）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diyu_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:diyu_ry_4
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: rongyannairexuezi
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: rongyannairexuezi
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: rongyannairexuezi
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: rongyannairexuezi
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: rongyannairexuezi
+        type: smc
+  dy_ry_5:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（可选）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diyu_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:diyu_ry_5
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: rongyannairejian
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: rongyannairejian
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: rongyannairejian
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: rongyannairejian
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: rongyannairejian
+        type: smc
+  dy_ly_1:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（可选）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diyu_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:diyu_ly_1
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: lianyuhexintoukui
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: lianyuhexintoukui
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: lianyuhexintoukui
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: lianyuhexintoukui
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: lianyuhexintoukui
+        type: smc
+  dy_ly_2:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（可选）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diyu_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:diyu_ly_2
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: lianyuhexinxiongjia
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: lianyuhexinxiongjia
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: lianyuhexinxiongjia
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: lianyuhexinxiongjia
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: lianyuhexinxiongjia
+        type: smc
+  dy_ly_3:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（可选）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diyu_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:diyu_ly_3
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: lianyuhexinhutui
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: lianyuhexinhutui
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: lianyuhexinhutui
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: lianyuhexinhutui
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: lianyuhexinhutui
+        type: smc
+  dy_ly_4:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（可选）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diyu_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:diyu_ly_4
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: lianyuhexinxuezi
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: lianyuhexinxuezi
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: lianyuhexinxuezi
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: lianyuhexinxuezi
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: lianyuhexinxuezi
+        type: smc
+  dy_ly_5:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（可选）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diyu_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:diyu_ly_5
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: lianyuhejinjian
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: lianyuhejinjian
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: lianyuhejinjian
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: lianyuhejinjian
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: lianyuhejinjian
+        type: smc
+  zf_jg_1:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予精钢经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:jinggangtoukui0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: jinggangtoukui
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: jinggangtoukui
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: jinggangtoukui
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: jinggangtoukui2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: jinggangtoukui3
+        type: smc
+  zf_jg_2:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予精钢经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:jinggangxiongjia0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: jinggangxiongjia
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: jinggangxiongjia
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: jinggangxiongjia
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: jinggangxiongjia2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: jinggangxiongjia3
+        type: smc
+  zf_jg_3:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予精钢经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:jingganghutui0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: jingganghutui
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: jingganghutui
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: jingganghutui
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: jingganghutui2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: jingganghutui3
+        type: smc
+  zf_jg_4:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予精钢经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:jinggangxuezi0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: jinggangxuezi
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: jinggangxuezi
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: jinggangxuezi
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: jinggangxuezi2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: jinggangxuezi3
+        type: smc
+  zf_zs_1:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.zuanshi.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予钻石经验200）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:zuanshitoukui0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: zuanshitoukui
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: zuanshitoukui
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: zuanshitoukui
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: zuanshitoukui2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: zuanshitoukui3
+        type: smc
+  zf_zs_2:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.zuanshi.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予钻石经验200）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:zuanshixiongjia0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: zuanshixiongjia
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: zuanshixiongjia
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: zuanshixiongjia
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: zuanshixiongjia2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: zuanshixiongjia3
+        type: smc
+  zf_zs_3:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.zuanshi.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予钻石经验200）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:zuanshihutui0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: zuanshihutui
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: zuanshihutui
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: zuanshihutui
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: zuanshihutui2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: zuanshihutui3
+        type: smc
+  zf_zs_4:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.zuanshi.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予钻石经验200）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:zuanshixuezi0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: zuanshixuezi
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: zuanshixuezi
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: zuanshixuezi
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: zuanshixuezi2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: zuanshixuezi3
+        type: smc
+  zf_hj_1:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.hejin.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予合金经验500）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:xiajiehejintoukui0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: xiajiehejintoukui
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: xiajiehejintoukui
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: xiajiehejintoukui
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: xiajiehejintoukui2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: xiajiehejintoukui3
+        type: smc
+  zf_hj_2:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.hejin.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予合金经验500）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:xiajiehejinxiongjia0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: xiajiehejinxiongjia
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: xiajiehejinxiongjia
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: xiajiehejinxiongjia
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: xiajiehejinxiongjia2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: xiajiehejinxiongjia3
+        type: smc
+  zf_hj_3:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.hejin.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予合金经验500）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:xiajiehejinhutui0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: xiajiehejinhutui
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: xiajiehejinhutui
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: xiajiehejinhutui
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: xiajiehejinhutui2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: xiajiehejinhutui3
+        type: smc
+  zf_hj_4:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.hejin.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予合金经验500）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:xiajiehejinxuezi0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: xiajiehejinxuezi
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: xiajiehejinxuezi
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: xiajiehejinxuezi
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: xiajiehejinxuezi2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: xiajiehejinxuezi3
+        type: smc
+  wuqi_zf_hjj:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.hejin.wuqi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（合金武器经验500）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:wuqi_zf_hjj0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: wuqi_zf_hjj1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: wuqi_zf_hjj1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: wuqi_zf_hjj1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: wuqi_zf_hjj2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: wuqi_zf_hjj3
+        type: smc
+  wuqi_zf_hjqq:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.hejin.wuqi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（合金武器经验500）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:wuqi_zf_hjqq0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: wuqi_zf_hjqq1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: wuqi_zf_hjqq1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: wuqi_zf_hjqq1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: wuqi_zf_hjqq2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: wuqi_zf_hjqq3
+        type: smc
+  wuqi_zf_hjdj:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.hejin.wuqi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（合金武器经验500）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:wuqi_zf_hjdj0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: wuqi_zf_hjdj1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: wuqi_zf_hjdj1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: wuqi_zf_hjdj1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: wuqi_zf_hjdj2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: wuqi_zf_hjdj3
+        type: smc
+  wuqi_zf_hjpf:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.hejin.wuqi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（合金武器经验500）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:wuqi_zf_hjpf0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: wuqi_zf_hjpf1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: wuqi_zf_hjpf1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: wuqi_zf_hjpf1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: wuqi_zf_hjpf2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: wuqi_zf_hjpf3
+        type: smc
+  wuqi_zf_jgj:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.wuqi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 2         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:wuqi_zf_jgj0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: wuqi_zf_jgj1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: wuqi_zf_jgj1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: wuqi_zf_jgj1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: wuqi_zf_jgj2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: wuqi_zf_jgj3
+        type: smc
+  wuqi_zf_jgqq:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.wuqi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 2         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:wuqi_zf_jgqq0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: wuqi_zf_jgqq1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: wuqi_zf_jgqq1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: wuqi_zf_jgqq1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: wuqi_zf_jgqq2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: wuqi_zf_jgqq3
+        type: smc
+  wuqi_zf_jgdj:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.wuqi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 2         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:wuqi_zf_jgdj0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: wuqi_zf_jgdj1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: wuqi_zf_jgdj1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: wuqi_zf_jgdj1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: wuqi_zf_jgdj2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: wuqi_zf_jgdj3
+        type: smc
+  wuqi_zf_jgpfq:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.tie.wuqi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 2         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:wuqi_zf_jgpf0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: wuqi_zf_jgpf1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: wuqi_zf_jgpf1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: wuqi_zf_jgpf1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: wuqi_zf_jgpf2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: wuqi_zf_jgpf3
+        type: smc
+  
+  skill_tansuo_set1:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.region_discover.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（探索套装经验150）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:maoxian_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:skill_tansuo_set10
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: skill_tansuo_set1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: skill_tansuo_set1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: skill_tansuo_set1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: skill_tansuo_set1
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: skill_tansuo_set1
+        type: smc
+  #工具类
+  gongju_zf_jgct:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.mining.tools.jingang
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:gongju_zf_jgct0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: gongju_zf_jgct1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: gongju_zf_jgct1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: gongju_zf_jgct1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: gongju_zf_jgct2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: gongju_zf_jgct3
+        type: smc
+  
+  gongju_zf_jgc:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.mining.tools.jingang
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:gongju_zf_jgc0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: gongju_zf_jgc1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: gongju_zf_jgc1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: gongju_zf_jgc1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: gongju_zf_jgc2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: gongju_zf_jgc3
+        type: smc
+  
+  gongju_zf_jgg:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.mining.tools.jingang
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:gongju_zf_jgg0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: gongju_zf_jgg1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: gongju_zf_jgg1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: gongju_zf_jgg1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: gongju_zf_jgg2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: gongju_zf_jgg3
+        type: smc
+  
+  gongju_zf_zsgct:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.mining.tools.zuanshi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:gongju_zf_zsgct0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: gongju_zf_zsgct1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: gongju_zf_zsgct1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: gongju_zf_zsgct1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: gongju_zf_zsgct2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: gongju_zf_zsgct3
+        type: smc
+  
+  gongju_zf_zsgc:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.mining.tools.zuanshi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:gongju_zf_zsgc0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: gongju_zf_zsgc1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: gongju_zf_zsgc1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: gongju_zf_zsgc1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: gongju_zf_zsgc2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: gongju_zf_zsgc3
+        type: smc
+  
+  gongju_zf_zsgg:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.mining.tools.zuanshi
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:gongju_zf_zsgg0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: gongju_zf_zsgg1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: gongju_zf_zsgg1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: gongju_zf_zsgg1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: gongju_zf_zsgg2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: gongju_zf_zsgg3
+        type: smc
+  
+  gongju_zf_xjhjct:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.mining.tools.hejin
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:gongju_zf_xjhjct0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: gongju_zf_xjhjct1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: gongju_zf_xjhjct1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: gongju_zf_xjhjct1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: gongju_zf_xjhjct2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: gongju_zf_xjhjct3
+        type: smc
+  
+  gongju_zf_xjhjc:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.mining.tools.hejin
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:gongju_zf_xjhjc0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: gongju_zf_xjhjc1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: gongju_zf_xjhjc1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: gongju_zf_xjhjc1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: gongju_zf_xjhjc2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: gongju_zf_xjhjc3
+        type: smc
+  
+  gongju_zf_xjhjg:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.mining.tools.hejin
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（精钢武器经验100）
+    run_after_command: "smc skills trigger <player> tiejiang 500"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:gongju_zf_xjhjg0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: gongju_zf_xjhjg1
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: gongju_zf_xjhjg1
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: gongju_zf_xjhjg1
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: gongju_zf_xjhjg2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: gongju_zf_xjhjg3
+        type: smc
+  
+  skill_tansuo_set2:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.region_discover.kuijia2
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（探索套装经验300）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:maoxian_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:skill_tansuo_set20
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: skill_tansuo_set2
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: skill_tansuo_set2
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: skill_tansuo_set2
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: skill_tansuo_set2
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: skill_tansuo_set2
+        type: smc
+  
+  skill_tansuo_set3:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.region_discover.kuijia3
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（探索套装经验600）
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:maoxian_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:skill_tansuo_set30
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: skill_tansuo_set3
+        type: smc
+      # 品质2的短剑
+      result_2:
+        id: skill_tansuo_set3
+        type: smc
+      # 品质3的短剑
+      result_3:
+        id: skill_tansuo_set3
+        type: smc
+      # 品质4的短剑
+      result_4:
+        id: skill_tansuo_set3
+        type: smc
+      # 品质5的短剑
+      result_5:
+        id: skill_tansuo_set3
+        type: smc
+  
+  diaoyu_zf_1:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.diaoyu.dengji1
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（鱼竿经验50）
+    run_after_command: "smc skills trigger <player> tiejiang 50"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diaoyu_yp_1          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:lvl1_rod0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: lvl1_rod_new
+        type: customfishing
+      # 品质2的短剑
+      result_2:
+        id: lvl1_rod_new
+        type: customfishing
+      # 品质3的短剑
+      result_3:
+        id: lvl1_rod_new
+        type: customfishing
+      # 品质4的短剑
+      result_4:
+        id: lvl1_rod_new
+        type: customfishing
+      # 品质5的短剑
+      result_5:
+        id: lvl1_rod_new
+        type: customfishing
+  
+  diaoyu_zf_2:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.diaoyu.dengji2
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（鱼竿经验50）
+    run_after_command: "smc skills trigger <player> tiejiang 50"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diaoyu_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:lvl2_rod0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: lvl2_rod_new
+        type: customfishing
+      # 品质2的短剑
+      result_2:
+        id: lvl2_rod_new
+        type: customfishing
+      # 品质3的短剑
+      result_3:
+        id: lvl2_rod_new
+        type: customfishing
+      # 品质4的短剑
+      result_4:
+        id: lvl2_rod_new
+        type: customfishing
+      # 品质5的短剑
+      result_5:
+        id: lvl2_rod_new
+        type: customfishing
+  
+  diaoyu_zf_3:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.diaoyu.dengji3
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0-1
+    bias: 0.2
+    # 锻造完成后执行的命令（鱼竿经验50）
+    run_after_command: "smc skills trigger <player> tiejiang 50"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:diaoyu_yp_3          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 1         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的短剑
+      result_0:
+        id: smc:lvl3_rod0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的短剑
+      result_1:
+        id: lvl3_rod_new
+        type: customfishing
+      # 品质2的短剑
+      result_2:
+        id: lvl3_rod_new
+        type: customfishing
+      # 品质3的短剑
+      result_3:
+        id: lvl3_rod_new
+        type: customfishing
+      # 品质4的短剑
+      result_4:
+        id: lvl3_rod_new
+        type: customfishing
+      # 品质5的短剑
+      result_5:
+        id: lvl3_rod_new
+        type: customfishing
+  # 钻石剑锻造配置
+  wuqi_zf_zsj:
     frames:
       frame_0:
         material: STICK
@@ -217,101 +2848,1893 @@ recipes:
       frame_2:
         material: STICK
         cmd: 33
-    hits: 6
-    bias: 0.25
-    target_size: 0.6
-    condition: ""
-
+    permission: skill.tiejiang.zuanshi.kuijia
+    hits: 8
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.5
     input:
-      id: iron_ingot
-      type: minecraft
-      amount: 3
-
-    # Display - no custom item, uses frames instead
-    # (If display section is missing, it uses frame models)
-
+      id: smc:zf_yp_2
+      type: craftengine
+      amount: 2
     results:
       result_0:
-        id: iron_pickaxe
-        type: minecraft
-        amount: 1
+        id: smc:wuqi_zf_zsj0
+        type: craftengine
       result_1:
-        id: iron_pickaxe
-        type: minecraft
-        amount: 1
+        id: wuqi_zf_zsj1
+        type: smc
       result_2:
-        id: iron_pickaxe
-        type: minecraft
-        amount: 1
+        id: wuqi_zf_zsj1
+        type: smc
       result_3:
-        id: iron_pickaxe
-        type: minecraft
-        amount: 1
+        id: wuqi_zf_zsj1
+        type: smc
       result_4:
-        id: iron_pickaxe
-        type: minecraft
-        amount: 1
+        id: wuqi_zf_zsj2
+        type: smc
       result_5:
-        id: iron_pickaxe
-        type: minecraft
-        amount: 1
-
-  # ========== DIAMOND PICKAXE ==========
-  diamond_pickaxe:
+        id: wuqi_zf_zsj3
+        type: smc
+  
+  # 钻石骑枪锻造配置
+  wuqi_zf_zsqq:
     frames:
       frame_0:
         material: STICK
-        cmd: 41
+        cmd: 31
       frame_1:
         material: STICK
-        cmd: 42
+        cmd: 32
       frame_2:
         material: STICK
-        cmd: 43
-    hits: 10
+        cmd: 33
+    permission: skill.tiejiang.zuanshi.kuijia
+    hits: 8
     bias: 0.2
-    target_size: 0.45
-    condition: ""
-    run_after_command: "smc skills trigger <player> smithing 75"
-
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.5
     input:
-      id: diamond
-      type: minecraft
-      amount: 3
-
-    # Display with position adjustments
-    display:
-      item_type: minecraft                   # Can also use vanilla items
-      item_id: DIAMOND_PICKAXE
-      offset_x: 0.5
-      offset_y: 0.95
-      offset_z: 0.5
-      base_scale: 0.4
-      max_scale: 0.6
-      lay_flat: false                        # Stand upright instead
-
+      id: smc:zf_yp_2
+      type: craftengine
+      amount: 2
     results:
       result_0:
-        id: diamond_pickaxe
-        type: minecraft
-        amount: 1
+        id: smc:wuqi_zf_zsqq0
+        type: craftengine
       result_1:
-        id: diamond_pickaxe
-        type: minecraft
-        amount: 1
+        id: wuqi_zf_zsqq1
+        type: smc
       result_2:
-        id: diamond_pickaxe
-        type: minecraft
-        amount: 1
+        id: wuqi_zf_zsqq1
+        type: smc
       result_3:
-        id: diamond_pickaxe
-        type: minecraft
-        amount: 1
+        id: wuqi_zf_zsqq1
+        type: smc
       result_4:
-        id: diamond_pickaxe
-        type: minecraft
-        amount: 1
+        id: wuqi_zf_zsqq2
+        type: smc
       result_5:
-        id: diamond_pickaxe
-        type: minecraft
-        amount: 1
+        id: wuqi_zf_zsqq3
+        type: smc
+  
+  # 钻石短剑锻造配置
+  wuqi_zf_zsdj:
+    frames:
+      frame_0:
+        material: STICK
+        cmd: 31
+      frame_1:
+        material: STICK
+        cmd: 32
+      frame_2:
+        material: STICK
+        cmd: 33
+    permission: skill.tiejiang.zuanshi.kuijia
+    hits: 8
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.5
+    input:
+      id: smc:zf_yp_2
+      type: craftengine
+      amount: 2
+    results:
+      result_0:
+        id: smc:wuqi_zf_zsdj0
+        type: craftengine
+      result_1:
+        id: wuqi_zf_zsdj1
+        type: smc
+      result_2:
+        id: wuqi_zf_zsdj1
+        type: smc
+      result_3:
+        id: wuqi_zf_zsdj1
+        type: smc
+      result_4:
+        id: wuqi_zf_zsdj2
+        type: smc
+      result_5:
+        id: wuqi_zf_zsdj3
+        type: smc
+  
+  # 钻石劈斧锻造配置
+  wuqi_zf_zspf:
+    # 定义武器锻造的各个阶段
+    frames:
+      # 第一阶段：使用木棍材料，命令ID为31
+      frame_0:
+        material: STICK
+        cmd: 31
+      # 第二阶段：使用木棍材料，命令ID为32
+      frame_1:
+        material: STICK
+        cmd: 32
+      # 第三阶段：使用木棍材料，命令ID为33
+      frame_2:
+        material: STICK
+        cmd: 33
+    # 玩家锻造此物品所需的权限节点
+    permission: skill.tiejiang.zuanshi.kuijia
+    # 锻造时需要用锤子敲击的次数
+    hits: 8
+    # 锻造小游戏评分的修正系数，范围0 - 1
+    bias: 0.2
+    # 锻造完成后执行的命令（给予钻石经验200）
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    # 锻造小游戏的目标区域大小
+    target_size: 0.5
+    # 锻造所需的原材料
+    input:
+      id: smc:zf_yp_2          # 材料ID
+      type: craftengine         # 材料类型
+      amount: 2         # 材料数量
+    # 锻造可能产出的结果物品
+    results:
+      # 品质0的钻石劈斧
+      result_0:
+        id: smc:wuqi_zf_zspf0
+        type: craftengine
+        # 数量默认1，可以不写
+        #amount: 1
+      # 品质1的钻石劈斧
+      result_1:
+        id: wuqi_zf_zspf1
+        type: smc
+      # 品质2的钻石劈斧
+      result_2:
+        id: wuqi_zf_zspf1
+        type: smc
+      # 品质3的钻石劈斧
+      result_3:
+        id: wuqi_zf_zspf1
+        type: smc
+      # 品质4的钻石劈斧
+      result_4:
+        id: wuqi_zf_zspf2
+        type: smc
+      # 品质5的钻石劈斧
+      result_5:
+        id: wuqi_zf_zspf3
+        type: smc
+  
+  # 王者头盔
+  dy_wz_1:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: GOLD_INGOT
+        cmd: 32
+      frame_2:
+        material: DIAMOND
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 8
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    target_size: 0.5
+    input:
+      id: smc:diyu_yp_wzkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_wz_1
+        type: craftengine
+      result_1:
+        id: wangzhehexintoukui
+        type: smc
+      result_2:
+        id: wangzhehexintoukui
+        type: smc
+      result_3:
+        id: wangzhehexintoukui
+        type: smc
+      result_4:
+        id: wangzhehexintoukui
+        type: smc
+      result_5:
+        id: wangzhehexintoukui
+        type: smc
+  
+  # 王者胸甲
+  dy_wz_2:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: GOLD_INGOT
+        cmd: 32
+      frame_2:
+        material: DIAMOND
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 12
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 150"
+    target_size: 0.4
+    input:
+      id: smc:diyu_yp_wzkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_wz_2
+        type: craftengine
+      result_1:
+        id: wangzhehexinxiongjia
+        type: smc
+      result_2:
+        id: wangzhehexinxiongjia
+        type: smc
+      result_3:
+        id: wangzhehexinxiongjia
+        type: smc
+      result_4:
+        id: wangzhehexinxiongjia
+        type: smc
+      result_5:
+        id: wangzhehexinxiongjia
+        type: smc
+  
+  # 王者护腿
+  dy_wz_3:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: GOLD_INGOT
+        cmd: 32
+      frame_2:
+        material: DIAMOND
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 10
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 120"
+    target_size: 0.45
+    input:
+      id: smc:diyu_yp_wzkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_wz_3
+        type: craftengine
+      result_1:
+        id: wangzhehexinhutui
+        type: smc
+      result_2:
+        id: wangzhehexinhutui
+        type: smc
+      result_3:
+        id: wangzhehexinhutui
+        type: smc
+      result_4:
+        id: wangzhehexinhutui
+        type: smc
+      result_5:
+        id: wangzhehexinhutui
+        type: smc
+  
+  # 王者靴子
+  dy_wz_4:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: GOLD_INGOT
+        cmd: 32
+      frame_2:
+        material: DIAMOND
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 8
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    target_size: 0.5
+    input:
+      id: smc:diyu_yp_wzkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_wz_4
+        type: craftengine
+      result_1:
+        id: wangzhehexinxuezi
+        type: smc
+      result_2:
+        id: wangzhehexinxuezi
+        type: smc
+      result_3:
+        id: wangzhehexinxuezi
+        type: smc
+      result_4:
+        id: wangzhehexinxuezi
+        type: smc
+      result_5:
+        id: wangzhehexinxuezi
+        type: smc
+  
+  # 王者长剑
+  dy_wz_5:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: GOLD_INGOT
+        cmd: 32
+      frame_2:
+        material: DIAMOND
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_wzwq
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_wz_5
+        type: craftengine
+      result_1:
+        id: wangzhezhishichangjian
+        type: smc
+      result_2:
+        id: wangzhezhishichangjian
+        type: smc
+      result_3:
+        id: wangzhezhishichangjian
+        type: smc
+      result_4:
+        id: wangzhezhishichangjian
+        type: smc
+      result_5:
+        id: wangzhezhishichangjian
+        type: smc
+  
+  # 破败头盔
+  dy_pb_1:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 8
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    target_size: 0.5
+    input:
+      id: smc:diyu_yp_pbkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_pb_1
+        type: craftengine
+      result_1:
+        id: pobaihexintoukui
+        type: smc
+      result_2:
+        id: pobaihexintoukui
+        type: smc
+      result_3:
+        id: pobaihexintoukui
+        type: smc
+      result_4:
+        id: pobaihexintoukui
+        type: smc
+      result_5:
+        id: pobaihexintoukui
+        type: smc
+  
+  # 破败胸甲
+  dy_pb_2:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 12
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 150"
+    target_size: 0.4
+    input:
+      id: smc:diyu_yp_pbkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_pb_2
+        type: craftengine
+      result_1:
+        id: pobaihexinxiongjia
+        type: smc
+      result_2:
+        id: pobaihexinxiongjia
+        type: smc
+      result_3:
+        id: pobaihexinxiongjia
+        type: smc
+      result_4:
+        id: pobaihexinxiongjia
+        type: smc
+      result_5:
+        id: pobaihexinxiongjia
+        type: smc
+  
+  # 破败护腿
+  dy_pb_3:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 10
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 120"
+    target_size: 0.45
+    input:
+      id: smc:diyu_yp_pbkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_pb_3
+        type: craftengine
+      result_1:
+        id: pobaihexinhutui
+        type: smc
+      result_2:
+        id: pobaihexinhutui
+        type: smc
+      result_3:
+        id: pobaihexinhutui
+        type: smc
+      result_4:
+        id: pobaihexinhutui
+        type: smc
+      result_5:
+        id: pobaihexinhutui
+        type: smc
+  
+  # 破败靴子
+  dy_pb_4:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 8
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 100"
+    target_size: 0.5
+    input:
+      id: smc:diyu_yp_pbkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_pb_4
+        type: craftengine
+      result_1:
+        id: pobaihexinxuezi
+        type: smc
+      result_2:
+        id: pobaihexinxuezi
+        type: smc
+      result_3:
+        id: pobaihexinxuezi
+        type: smc
+      result_4:
+        id: pobaihexinxuezi
+        type: smc
+      result_5:
+        id: pobaihexinxuezi
+        type: smc
+  
+  # 破败长剑
+  dy_pb_5:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_pbwq
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_pb_5
+        type: craftengine
+      result_1:
+        id: pobaironghechangjian
+        type: smc
+      result_2:
+        id: pobaironghechangjian
+        type: smc
+      result_3:
+        id: pobaironghechangjian
+        type: smc
+      result_4:
+        id: pobaironghechangjian
+        type: smc
+      result_5:
+        id: pobaironghechangjian
+        type: smc
+  
+  # 头盔 - 赤炎系列
+  dy_cy_1:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_cykj  # 赤炎防具input ID
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_cy_1
+        type: craftengine
+      result_1:
+        id: chiyanhexintoukui
+        type: smc
+      result_2:
+        id: chiyanhexintoukui
+        type: smc
+      result_3:
+        id: chiyanhexintoukui
+        type: smc
+      result_4:
+        id: chiyanhexintoukui
+        type: smc
+      result_5:
+        id: chiyanhexintoukui
+        type: smc
+  
+  # 头盔 - 古霜系列
+  dy_gs_1:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_gskj  # 古霜防具input ID
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_gs_1
+        type: craftengine
+      result_1:
+        id: gushuanghexintoukui
+        type: smc
+      result_2:
+        id: gushuanghexintoukui
+        type: smc
+      result_3:
+        id: gushuanghexintoukui
+        type: smc
+      result_4:
+        id: gushuanghexintoukui
+        type: smc
+      result_5:
+        id: gushuanghexintoukui
+        type: smc
+  
+  # 胸甲 - 赤炎系列
+  dy_cy_2:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_cykj  # 赤炎防具input ID
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_cy_2
+        type: craftengine
+      result_1:
+        id: chiyanhexinxiongjia
+        type: smc
+      result_2:
+        id: chiyanhexinxiongjia
+        type: smc
+      result_3:
+        id: chiyanhexinxiongjia
+        type: smc
+      result_4:
+        id: chiyanhexinxiongjia
+        type: smc
+      result_5:
+        id: chiyanhexinxiongjia
+        type: smc
+  
+  # 胸甲 - 古霜系列
+  dy_gs_2:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_gskj  # 古霜防具input ID
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_gs_2
+        type: craftengine
+      result_1:
+        id: gushuanghexinxiongjia
+        type: smc
+      result_2:
+        id: gushuanghexinxiongjia
+        type: smc
+      result_3:
+        id: gushuanghexinxiongjia
+        type: smc
+      result_4:
+        id: gushuanghexinxiongjia
+        type: smc
+      result_5:
+        id: gushuanghexinxiongjia
+        type: smc
+  
+  # 护腿 - 赤炎系列
+  dy_cy_3:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_cykj  # 赤炎防具input ID
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_cy_3
+        type: craftengine
+      result_1:
+        id: chiyanhexinhutui
+        type: smc
+      result_2:
+        id: chiyanhexinhutui
+        type: smc
+      result_3:
+        id: chiyanhexinhutui
+        type: smc
+      result_4:
+        id: chiyanhexinhutui
+        type: smc
+      result_5:
+        id: chiyanhexinhutui
+        type: smc
+  
+  # 护腿 - 古霜系列
+  dy_gs_3:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_gskj  # 古霜防具input ID
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_gs_3
+        type: craftengine
+      result_1:
+        id: gushuanghexinhutui
+        type: smc
+      result_2:
+        id: gushuanghexinhutui
+        type: smc
+      result_3:
+        id: gushuanghexinhutui
+        type: smc
+      result_4:
+        id: gushuanghexinhutui
+        type: smc
+      result_5:
+        id: gushuanghexinhutui
+        type: smc
+  
+  # 靴子 - 赤炎系列
+  dy_cy_4:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_cykj  # 赤炎防具input ID
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_cy_4
+        type: craftengine
+      result_1:
+        id: chiyanhexinxuezi
+        type: smc
+      result_2:
+        id: chiyanhexinxuezi
+        type: smc
+      result_3:
+        id: chiyanhexinxuezi
+        type: smc
+      result_4:
+        id: chiyanhexinxuezi
+        type: smc
+      result_5:
+        id: chiyanhexinxuezi
+        type: smc
+  
+  # 靴子 - 古霜系列
+  dy_gs_4:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_gskj  # 古霜防具input ID
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_gs_4
+        type: craftengine
+      result_1:
+        id: gushuanghexinxuezi
+        type: smc
+      result_2:
+        id: gushuanghexinxuezi
+        type: smc
+      result_3:
+        id: gushuanghexinxuezi
+        type: smc
+      result_4:
+        id: gushuanghexinxuezi
+        type: smc
+      result_5:
+        id: gushuanghexinxuezi
+        type: smc
+  
+  # 武器 - 赤炎系列
+  dy_cy_5:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_cywq  # 赤炎武器input ID
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_cy_5
+        type: craftengine
+      result_1:
+        id: chiyanzhishichangqiang
+        type: smc
+      result_2:
+        id: chiyanzhishichangqiang
+        type: smc
+      result_3:
+        id: chiyanzhishichangqiang
+        type: smc
+      result_4:
+        id: chiyanzhishichangqiang
+        type: smc
+      result_5:
+        id: chiyanzhishichangqiang
+        type: smc
+  
+  # 武器 - 古霜系列
+  dy_gs_5:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_gswq  # 古霜武器input ID
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_gs_5
+        type: craftengine
+      result_1:
+        id: gushuangronghechangjian
+        type: smc
+      result_2:
+        id: gushuangronghechangjian
+        type: smc
+      result_3:
+        id: gushuangronghechangjian
+        type: smc
+      result_4:
+        id: gushuangronghechangjian
+        type: smc
+      result_5:
+        id: gushuangronghechangjian
+        type: smc
+  
+  # 头盔 - 反叛系列
+  dy_fp_1:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_fpkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_fp_1
+        type: craftengine
+      result_1:
+        id: fanpanhexintoukui
+        type: smc
+      result_2:
+        id: fanpanhexintoukui
+        type: smc
+      result_3:
+        id: fanpanhexintoukui
+        type: smc
+      result_4:
+        id: fanpanhexintoukui
+        type: smc
+      result_5:
+        id: fanpanhexintoukui
+        type: smc
+  
+  # 头盔 - 弑君系列
+  dy_sj_1:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_sjkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_sj_1
+        type: craftengine
+      result_1:
+        id: shijunhexintoukui
+        type: smc
+      result_2:
+        id: shijunhexintoukui
+        type: smc
+      result_3:
+        id: shijunhexintoukui
+        type: smc
+      result_4:
+        id: shijunhexintoukui
+        type: smc
+      result_5:
+        id: shijunhexintoukui
+        type: smc
+  
+  # 胸甲 - 反叛系列
+  dy_fp_2:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_fpkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_fp_2
+        type: craftengine
+      result_1:
+        id: fanpanhexinxiongjia
+        type: smc
+      result_2:
+        id: fanpanhexinxiongjia
+        type: smc
+      result_3:
+        id: fanpanhexinxiongjia
+        type: smc
+      result_4:
+        id: fanpanhexinxiongjia
+        type: smc
+      result_5:
+        id: fanpanhexinxiongjia
+        type: smc
+  
+  # 胸甲 - 弑君系列
+  dy_sj_2:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_sjkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_sj_2
+        type: craftengine
+      result_1:
+        id: shijunhexinxiongjia
+        type: smc
+      result_2:
+        id: shijunhexinxiongjia
+        type: smc
+      result_3:
+        id: shijunhexinxiongjia
+        type: smc
+      result_4:
+        id: shijunhexinxiongjia
+        type: smc
+      result_5:
+        id: shijunhexinxiongjia
+        type: smc
+  
+  # 护腿 - 反叛系列
+  dy_fp_3:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_fpkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_fp_3
+        type: craftengine
+      result_1:
+        id: fanpanhexinhutui
+        type: smc
+      result_2:
+        id: fanpanhexinhutui
+        type: smc
+      result_3:
+        id: fanpanhexinhutui
+        type: smc
+      result_4:
+        id: fanpanhexinhutui
+        type: smc
+      result_5:
+        id: fanpanhexinhutui
+        type: smc
+  
+  # 护腿 - 弑君系列
+  dy_sj_3:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_sjkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_sj_3
+        type: craftengine
+      result_1:
+        id: shijunhexinhutui
+        type: smc
+      result_2:
+        id: shijunhexinhutui
+        type: smc
+      result_3:
+        id: shijunhexinhutui
+        type: smc
+      result_4:
+        id: shijunhexinhutui
+        type: smc
+      result_5:
+        id: shijunhexinhutui
+        type: smc
+  
+  # 靴子 - 反叛系列
+  dy_fp_4:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_fpkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_fp_4
+        type: craftengine
+      result_1:
+        id: fanpanhexinxuezi
+        type: smc
+      result_2:
+        id: fanpanhexinxuezi
+        type: smc
+      result_3:
+        id: fanpanhexinxuezi
+        type: smc
+      result_4:
+        id: fanpanhexinxuezi
+        type: smc
+      result_5:
+        id: fanpanhexinxuezi
+        type: smc
+  
+  # 靴子 - 弑君系列
+  dy_sj_4:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_sjkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_sj_4
+        type: craftengine
+      result_1:
+        id: shijunhexinxuezi
+        type: smc
+      result_2:
+        id: shijunhexinxuezi
+        type: smc
+      result_3:
+        id: shijunhexinxuezi
+        type: smc
+      result_4:
+        id: shijunhexinxuezi
+        type: smc
+      result_5:
+        id: shijunhexinxuezi
+        type: smc
+  
+  # 武器 - 反叛系列
+  dy_fp_5:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_fpwq
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_fp_5
+        type: craftengine
+      result_1:
+        id: fanpanzhishichangjian
+        type: smc
+      result_2:
+        id: fanpanzhishichangjian
+        type: smc
+      result_3:
+        id: fanpanzhishichangjian
+        type: smc
+      result_4:
+        id: fanpanzhishichangjian
+        type: smc
+      result_5:
+        id: fanpanzhishichangjian
+        type: smc
+  
+  # 武器 - 弑君系列
+  dy_sj_5:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_sjwq
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_sj_5
+        type: craftengine
+      result_1:
+        id: shijunronghechangjian
+        type: smc
+      result_2:
+        id: shijunronghechangjian
+        type: smc
+      result_3:
+        id: shijunronghechangjian
+        type: smc
+      result_4:
+        id: shijunronghechangjian
+        type: smc
+      result_5:
+        id: shijunronghechangjian
+        type: smc
+  
+  # 气动头盔
+  dy_qd_1:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_qdkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_qd_1
+        type: craftengine
+      result_1:
+        id: qidonghexintoukui
+        type: smc
+      result_2:
+        id: qidonghexintoukui
+        type: smc
+      result_3:
+        id: qidonghexintoukui
+        type: smc
+      result_4:
+        id: qidonghexintoukui
+        type: smc
+      result_5:
+        id: qidonghexintoukui
+        type: smc
+  
+  # 超载头盔
+  dy_cz_1:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_czkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_cz_1
+        type: craftengine
+      result_1:
+        id: chaozaihexintoukui
+        type: smc
+      result_2:
+        id: chaozaihexintoukui
+        type: smc
+      result_3:
+        id: chaozaihexintoukui
+        type: smc
+      result_4:
+        id: chaozaihexintoukui
+        type: smc
+      result_5:
+        id: chaozaihexintoukui
+        type: smc
+  
+  # 气动胸甲
+  dy_qd_2:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_qdkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_qd_2
+        type: craftengine
+      result_1:
+        id: qidonghexinxiongjia
+        type: smc
+      result_2:
+        id: qidonghexinxiongjia
+        type: smc
+      result_3:
+        id: qidonghexinxiongjia
+        type: smc
+      result_4:
+        id: qidonghexinxiongjia
+        type: smc
+      result_5:
+        id: qidonghexinxiongjia
+        type: smc
+  
+  # 超载胸甲
+  dy_cz_2:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_czkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_cz_2
+        type: craftengine
+      result_1:
+        id: chaozaihexinxiongjia
+        type: smc
+      result_2:
+        id: chaozaihexinxiongjia
+        type: smc
+      result_3:
+        id: chaozaihexinxiongjia
+        type: smc
+      result_4:
+        id: chaozaihexinxiongjia
+        type: smc
+      result_5:
+        id: chaozaihexinxiongjia
+        type: smc
+  
+  # 气动护腿
+  dy_qd_3:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_qdkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_qd_3
+        type: craftengine
+      result_1:
+        id: qidonghexinhutui
+        type: smc
+      result_2:
+        id: qidonghexinhutui
+        type: smc
+      result_3:
+        id: qidonghexinhutui
+        type: smc
+      result_4:
+        id: qidonghexinhutui
+        type: smc
+      result_5:
+        id: qidonghexinhutui
+        type: smc
+  
+  # 超载护腿
+  dy_cz_3:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_czkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_cz_3
+        type: craftengine
+      result_1:
+        id: chaozaihexinhutui
+        type: smc
+      result_2:
+        id: chaozaihexinhutui
+        type: smc
+      result_3:
+        id: chaozaihexinhutui
+        type: smc
+      result_4:
+        id: chaozaihexinhutui
+        type: smc
+      result_5:
+        id: chaozaihexinhutui
+        type: smc
+  
+  # 气动靴子
+  dy_qd_4:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_qdkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_qd_4
+        type: craftengine
+      result_1:
+        id: qidonghexinxuezi
+        type: smc
+      result_2:
+        id: qidonghexinxuezi
+        type: smc
+      result_3:
+        id: qidonghexinxuezi
+        type: smc
+      result_4:
+        id: qidonghexinxuezi
+        type: smc
+      result_5:
+        id: qidonghexinxuezi
+        type: smc
+  
+  # 超载靴子
+  dy_cz_4:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_czkj
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_cz_4
+        type: craftengine
+      result_1:
+        id: chaozaihexinxuezi
+        type: smc
+      result_2:
+        id: chaozaihexinxuezi
+        type: smc
+      result_3:
+        id: chaozaihexinxuezi
+        type: smc
+      result_4:
+        id: chaozaihexinxuezi
+        type: smc
+      result_5:
+        id: chaozaihexinxuezi
+        type: smc
+  
+  # 气动武器
+  dy_qd_5:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_qdwq
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_qd_5
+        type: craftengine
+      result_1:
+        id: qidongzhishichangjian
+        type: smc
+      result_2:
+        id: qidongzhishichangjian
+        type: smc
+      result_3:
+        id: qidongzhishichangjian
+        type: smc
+      result_4:
+        id: qidongzhishichangjian
+        type: smc
+      result_5:
+        id: qidongzhishichangjian
+        type: smc
+  
+  # 超载武器
+  dy_cz_5:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: REDSTONE
+        cmd: 32
+      frame_2:
+        material: EMERALD
+        cmd: 33
+    permission: skill.tiejiang.tie.kuijia
+    hits: 15
+    bias: 0.15
+    run_after_command: "smc skills trigger <player> tiejiang 200"
+    target_size: 0.3
+    input:
+      id: smc:diyu_yp_czwq
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:diyu_cz_5
+        type: craftengine
+      result_1:
+        id: chaozaironghechangjian
+        type: smc
+      result_2:
+        id: chaozaironghechangjian
+        type: smc
+      result_3:
+        id: chaozaironghechangjian
+        type: smc
+      result_4:
+        id: chaozaironghechangjian
+        type: smc
+      result_5:
+        id: chaozaironghechangjian
+        type: smc
+  
+  huoqiang:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: GOLD_INGOT
+        cmd: 32
+      frame_2:
+        material: DIAMOND
+        cmd: 33
+    permission: skill.tiejiang.hqdz
+    hits: 12
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 150"
+    target_size: 0.4
+    input:
+      id: smc:huoqiang_yp_1
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: smc:shenhai_huoqiang
+        type: craftengine
+      result_1:
+        id: smc:shenhai_huoqiang
+        type: craftengine
+      result_2:
+        id: smc:shenhai_huoqiang
+        type: craftengine
+      result_3:
+        id: smc:shenhai_huoqiang
+        type: craftengine
+      result_4:
+        id: smc:shenhai_huoqiang
+        type: craftengine
+      result_5:
+        id: smc:shenhai_huoqiang
+        type: craftengine
+  
+  shenhaiyugan:
+    frames:
+      frame_0:
+        material: IRON_INGOT
+        cmd: 31
+      frame_1:
+        material: GOLD_INGOT
+        cmd: 32
+      frame_2:
+        material: DIAMOND
+        cmd: 33
+    permission: skill.diaoyu.shenyuanrod
+    hits: 12
+    bias: 0.2
+    run_after_command: "smc skills trigger <player> tiejiang 150"
+    target_size: 0.4
+    input:
+      id: smc:shenhai_yp_diaoyu
+      type: craftengine
+      amount: 1
+    results:
+      result_0:
+        id: shenhai_rod_new
+        type: customfishing
+      result_1:
+        id: shenhai_rod_new
+        type: customfishing
+      result_2:
+        id: shenhai_rod_new
+        type: customfishing
+      result_3:
+        id: shenhai_rod_new
+        type: customfishing
+      result_4:
+        id: shenhai_rod_new
+        type: customfishing
+      result_5:
+        id: shenhai_rod_new
+        type: customfishing

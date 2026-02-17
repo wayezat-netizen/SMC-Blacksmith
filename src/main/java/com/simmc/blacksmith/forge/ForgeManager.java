@@ -25,12 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages all active forge sessions.
- *
- * FIXES:
- * - Added timeout handling
- * - Added proper cancel functionality
- * - Fixed session cleanup for GUI reopening
- * - Added forceEndSession for disconnects
  */
 public class ForgeManager {
 
@@ -40,6 +34,7 @@ public class ForgeManager {
 
     private static final int ANVIL_SEARCH_RADIUS = 5;
     private static final int CLEANUP_DELAY_TICKS = 40;
+    private static final int MAX_SESSIONS_PER_TICK = 20;
 
     private final JavaPlugin plugin;
     private final ConfigManager configManager;
@@ -49,6 +44,9 @@ public class ForgeManager {
     private final Map<UUID, ForgeDisplay> displays;
     private final Map<UUID, Location> playerAnvilLocations;
     private final Map<UUID, HammerConfig.HammerType> playerHammerTypes;
+
+    private final Set<UUID> sessionsBeingCleaned;
+    private final List<UUID> tickProcessList;
 
     private BukkitTask tickTask;
 
@@ -60,6 +58,8 @@ public class ForgeManager {
         this.displays = new ConcurrentHashMap<>();
         this.playerAnvilLocations = new ConcurrentHashMap<>();
         this.playerHammerTypes = new ConcurrentHashMap<>();
+        this.sessionsBeingCleaned = ConcurrentHashMap.newKeySet();
+        this.tickProcessList = new ArrayList<>(64);
 
         startTickTask();
     }
@@ -70,12 +70,20 @@ public class ForgeManager {
         tickTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 0L, 1L);
     }
 
+    /**
+     * Main tick method - processes all active forge sessions.
+     */
     private void tick() {
         if (sessions.isEmpty()) return;
 
-        List<UUID> playerIds = new ArrayList<>(sessions.keySet());
+        tickProcessList.clear();
+        tickProcessList.addAll(sessions.keySet());
 
-        for (UUID playerId : playerIds) {
+        int processed = 0;
+        for (UUID playerId : tickProcessList) {
+            if (sessionsBeingCleaned.contains(playerId)) continue;
+            if (++processed > MAX_SESSIONS_PER_TICK) break;
+
             tickSession(playerId);
         }
     }
@@ -84,40 +92,50 @@ public class ForgeManager {
         ForgeSession session = sessions.get(playerId);
         if (session == null) return;
 
+        // Check timeout
         if (session.isTimedOut()) {
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
                 handleTimeout(player, session);
             } else {
-                cleanup(playerId);
+                cleanupImmediate(playerId);
             }
             return;
         }
 
+        // Check if session is no longer active
         if (!session.isActive()) {
-            cleanup(playerId);
+            cleanupImmediate(playerId);
             return;
         }
 
+        // Tick session
         session.tick();
 
+        // Update display
         ForgeDisplay display = displays.get(playerId);
         if (display != null && display.isValid()) {
             display.tick(session);
         }
 
+        // Check completion
         if (session.isComplete()) {
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
                 completeSession(player);
             } else {
-                cleanup(playerId);
+                cleanupImmediate(playerId);
             }
         }
     }
 
     private void handleTimeout(Player player, ForgeSession session) {
         UUID playerId = player.getUniqueId();
+
+        // Prevent double handling
+        if (sessionsBeingCleaned.contains(playerId)) return;
+        sessionsBeingCleaned.add(playerId);
+
         MessageConfig messages = configManager.getMessageConfig();
 
         if (session.getHitsCompleted() > 0) {
@@ -146,7 +164,7 @@ public class ForgeManager {
         }
 
         player.playSound(player.getLocation(), Sound.BLOCK_FIRE_EXTINGUISH, 1.0f, 0.5f);
-        cleanup(playerId);
+        cleanupImmediate(playerId);
     }
 
     // ==================== SESSION LIFECYCLE ====================
@@ -154,6 +172,12 @@ public class ForgeManager {
     public boolean startSession(Player player, String recipeId, Location anvilLocation) {
         UUID playerId = player.getUniqueId();
         MessageConfig messages = configManager.getMessageConfig();
+
+        // Check if session is being cleaned up
+        if (sessionsBeingCleaned.contains(playerId)) {
+            player.sendMessage("§cPlease wait a moment before starting a new forge...");
+            return false;
+        }
 
         ValidationResult validation = validateSessionStart(player, recipeId);
         if (!validation.success()) {
@@ -174,18 +198,28 @@ public class ForgeManager {
             return false;
         }
 
-        ForgeSession session = new ForgeSession(playerId, recipe, actualAnvil);
+        // Get hit target settings from config
+        double hitTargetOffsetY = configManager.getMainConfig().getForgeHitTargetOffsetY();
+        double hitTargetSpreadX = configManager.getMainConfig().getForgeHitTargetSpreadX();
+        double hitTargetSpreadZ = configManager.getMainConfig().getForgeHitTargetSpreadZ();
+
+        // Create session with configurable hit target position
+        ForgeSession session = new ForgeSession(playerId, recipe, actualAnvil,
+                hitTargetOffsetY, hitTargetSpreadX, hitTargetSpreadZ);
         sessions.put(playerId, session);
 
+        // Apply hammer bonuses
         HammerConfig.HammerType hammerType = playerHammerTypes.remove(playerId);
         if (hammerType != null) {
             session.setHammerBonuses(hammerType.speedBonus(), hammerType.accuracyBonus());
         }
 
+        // Create display
         ForgeDisplay display = new ForgeDisplay(playerId, actualAnvil, recipe);
         display.spawn();
         displays.put(playerId, display);
 
+        // Play sounds and send messages
         player.playSound(actualAnvil, Sound.BLOCK_ANVIL_PLACE, 0.8f, 0.9f);
         player.sendMessage(messages.getForgeStarted());
         player.sendMessage("§e§lLEFT CLICK §7the targets with your §6HAMMER§7!");
@@ -198,7 +232,8 @@ public class ForgeManager {
         UUID playerId = player.getUniqueId();
         MessageConfig messages = configManager.getMessageConfig();
 
-        if (sessions.containsKey(playerId)) {
+        // FIXED: More robust session check
+        if (hasActiveSession(playerId)) {
             return ValidationResult.fail(messages.getForgeSessionActive());
         }
 
@@ -237,17 +272,23 @@ public class ForgeManager {
         ForgeSession session = sessions.get(playerId);
         if (session == null || !session.isActive()) return;
 
+        // Prevent double completion
+        if (sessionsBeingCleaned.contains(playerId)) return;
+        sessionsBeingCleaned.add(playerId);
+
         session.setActive(false);
 
         int stars = session.calculateStarRating();
         ForgeRecipe recipe = session.getRecipe();
 
+        // Show completion on display
         ForgeDisplay display = displays.get(playerId);
         if (display != null) {
             display.showCompletion(stars);
         }
         playCompletionEffects(player, session.getAnvilLocation(), stars);
 
+        // Create result
         ItemStack resultItem = createResultItem(recipe, stars);
 
         String starDisplay = ColorUtil.formatStars(stars, 5);
@@ -255,11 +296,32 @@ public class ForgeManager {
 
         executeCommand(player, recipe, stars);
 
-        if (resultItem != null) {
-            handleForgeResult(player, resultItem, stars, session, recipe);
+        if (resultItem == null || resultItem.getType().isAir()) {
+            // Log warning for debugging
+            plugin.getLogger().warning("Could not create result item for recipe: " + recipe.getId() +
+                    " (star: " + stars + "). Using fallback item.");
+            ForgeResult result = recipe.getResult(stars);
+            if (result != null) {
+                plugin.getLogger().warning("  Result config: type=" + result.type() + ", id=" + result.id());
+            }
+            // Create a fallback iron ingot so quenching can still proceed
+            resultItem = new ItemStack(org.bukkit.Material.IRON_INGOT);
+            org.bukkit.inventory.meta.ItemMeta meta = resultItem.getItemMeta();
+            if (meta != null) {
+                meta.setDisplayName("§c[Item Creation Failed]");
+                java.util.List<String> lore = new java.util.ArrayList<>();
+                lore.add("§7Recipe: " + recipe.getId());
+                lore.add("§7Stars: " + stars);
+                lore.add("§7Check console for details");
+                meta.setLore(lore);
+                resultItem.setItemMeta(meta);
+            }
         }
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> cleanup(playerId), CLEANUP_DELAY_TICKS);
+        handleForgeResult(player, resultItem, stars, session, recipe);
+
+        // Delayed cleanup to let effects play
+        Bukkit.getScheduler().runTaskLater(plugin, () -> cleanupImmediate(playerId), CLEANUP_DELAY_TICKS);
     }
 
     private ItemStack createResultItem(ForgeRecipe recipe, int stars) {
@@ -285,9 +347,19 @@ public class ForgeManager {
         }
     }
 
+    /**
+     * Cancel session with proper cleanup and refund.
+     */
     public void cancelSession(UUID playerId) {
+        // Check if there's actually a session
         ForgeSession session = sessions.get(playerId);
-        if (session == null) return;
+        if (session == null) {
+            return;
+        }
+
+        // Prevent double cancel
+        if (sessionsBeingCleaned.contains(playerId)) return;
+        sessionsBeingCleaned.add(playerId);
 
         Player player = Bukkit.getPlayer(playerId);
         if (player != null && player.isOnline()) {
@@ -297,18 +369,27 @@ public class ForgeManager {
         }
 
         session.cancel();
-        cleanup(playerId);
+        cleanupImmediate(playerId);
     }
 
+    /**
+     * Force end session without refund (for disconnects).
+     */
     public void forceEndSession(UUID playerId) {
         ForgeSession session = sessions.get(playerId);
         if (session == null) return;
 
+        if (sessionsBeingCleaned.contains(playerId)) return;
+        sessionsBeingCleaned.add(playerId);
+
         session.cancel();
-        cleanup(playerId);
+        cleanupImmediate(playerId);
     }
 
-    private void cleanup(UUID playerId) {
+    /**
+     * Immediate cleanup that removes all session state.
+     */
+    private void cleanupImmediate(UUID playerId) {
         ForgeSession session = sessions.remove(playerId);
         if (session != null) {
             session.cleanup();
@@ -321,6 +402,7 @@ public class ForgeManager {
 
         playerAnvilLocations.remove(playerId);
         playerHammerTypes.remove(playerId);
+        sessionsBeingCleaned.remove(playerId);
     }
 
     // ==================== HIT PROCESSING ====================
@@ -531,8 +613,15 @@ public class ForgeManager {
         cancelAllSessions();
     }
 
+    /**
+     * FIXED: More robust session check.
+     *
+     * CLIENT ISSUE: "when i type this forge cancel it says i dont have an active forging session"
+     */
     public boolean hasActiveSession(UUID playerId) {
-        return sessions.containsKey(playerId);
+        if (sessionsBeingCleaned.contains(playerId)) return false;
+        ForgeSession session = sessions.get(playerId);
+        return session != null && session.isActive();
     }
 
     public ForgeSession getSession(UUID playerId) {

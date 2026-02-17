@@ -1,221 +1,1342 @@
-# ==========================================
+﻿# ==========================================
 # Furnace Types Configuration
 # ==========================================
-
+# Input slots: 10, 11, 12, 19, 20, 21
+# Fuel slot: 47 (row 5, centered under inputs)
+# Output slot: 24
+# ==========================================
 basic_furnace:
   item_id: "basic_furnace"
-  max_temperature: 800
-  display_material: "FURNACE"
-  display_cmd: 0
-
-  # ==========================================
-  # CE Furniture Restriction (Optional)
-  # ==========================================
-  # furniture_id: smc:blacksmith/basic_forge
-  # block_id: smc:blacksmith/forge_block
-  # allowed_furniture_ids:
-  #   - smc:blacksmith/basic_forge
-  #   - smc:blacksmith/small_forge
-
-  # ==========================================
-  # Input Restrictions (Optional)
-  # ==========================================
-  # allowed_inputs:
-  #   restrict: true
-  #   items:
-  #     - type: minecraft
-  #       id: RAW_IRON
-  #       description: "Raw Iron"
-  #     - type: minecraft
-  #       id: RAW_COPPER
-  #       description: "Raw Copper"
-  #     - type: minecraft
-  #       id: RAW_GOLD
-  #       description: "Raw Gold"
-
-  # Temperature
-  temperature_change: 8
-  cooling_rate: 6
-  heating_multiplier: 0.4
-  cooling_multiplier: 0.5
-
-  # Bellows
-  bellows_decay_rate: 0.08
-  bellows_instant_boost: 0.6
-
-  # Fuel
-  max_temperature_gain_from_fuel_percentage: 0.5
-
-  # Quality
+  # Temperature scale: 0-100 (percentage-based)
+  # Coal can raise temp to 20% (20 degrees), bellows needed for higher
+  max_temperature: 100
+  display_material: "STICK"
+  display_cmd: 1401
+  temperature_change: 5
+  # Ideal smelting range: 80-100 degrees
+  min_ideal_temperature: 80
+  max_ideal_temperature: 100
+  # Coal alone can only get to 20% of max temp
+  max_temperature_gain_from_fuel_percentage: 0.2
+  # CE Furniture Configuration
+  furniture_id: smc:kitchenware_2/stove
+  # Temperature settings - adjusted for 0-100 scale
+  cooling_rate: 2
+  heating_multiplier: 1.0
+  cooling_multiplier: 0.4
+  # Bellows settings
+  bellows_decay_rate: 0.01
+  bellows_instant_boost: 1.0
+  # Quality settings
   bad_output_threshold_ms: 4000
   min_ideal_ratio: 0.5
-
   gui:
     title: "&8Basic Furnace"
-    input_slots: [10, 11, 19, 20]
-    fuel_slot: 40
-    output_slot: 24
-
-  recipes:
-    iron_ingot:
-      smelt_time: 10000
-      min_temperature: 150
-      ideal_min: 350
-      ideal_max: 550
-      inputs:
-        input_0:
-          id: RAW_IRON
-          type: minecraft
-          amount: 1
-      outputs:
-        output_0:
-          id: IRON_INGOT
-          type: minecraft
-          amount: 1
-      bad_outputs:
-        output_0:
-          id: IRON_NUGGET
-          type: minecraft
-          amount: 3
-
-    copper_ingot:
-      smelt_time: 8000
-      min_temperature: 100
-      ideal_min: 250
-      ideal_max: 450
-      inputs:
-        input_0:
-          id: RAW_COPPER
-          type: minecraft
-          amount: 1
-      outputs:
-        output_0:
-          id: COPPER_INGOT
-          type: minecraft
-          amount: 1
-      bad_outputs:
-        output_0:
-          id: RAW_COPPER
-          type: minecraft
-          amount: 1
-
-    gold_ingot:
-      smelt_time: 12000
-      min_temperature: 200
-      ideal_min: 400
-      ideal_max: 600
-      inputs:
-        input_0:
-          id: RAW_GOLD
-          type: minecraft
-          amount: 1
-      outputs:
-        output_0:
-          id: GOLD_INGOT
-          type: minecraft
-          amount: 1
-      bad_outputs:
-        output_0:
-          id: GOLD_NUGGET
-          type: minecraft
-          amount: 3
-
-
-# Advanced furnace for high-tier recipes
-advanced_furnace:
-  item_id: "advanced_furnace"
-  max_temperature: 1500
-  display_material: "BLAST_FURNACE"
-  display_cmd: 0
-
-  # ==========================================
-  # CE Furniture Restriction (Optional)
-  # ==========================================
-  # furniture_id: smc:blacksmith/advanced_forge
-
-  # ==========================================
-  # Input Restrictions (Optional)
-  # ==========================================
-  # allowed_inputs:
-  #   restrict: true
-  #   items:
-  #     - type: minecraft
-  #       id: IRON_INGOT
-  #       description: "Iron Ingot"
-  #     - type: minecraft
-  #       id: COAL
-  #       description: "Coal"
-  #     - type: minecraft
-  #       id: ANCIENT_DEBRIS
-  #       description: "Ancient Debris"
-  #     - type: smc
-  #       id: steel_ingot
-  #       description: "Steel Ingot"
-
-  # Temperature - higher base idle temp (200-250)
-  min_ideal_temperature: 200
-  max_ideal_temperature: 250
-
-  temperature_change: 12
-  cooling_rate: 5
-  heating_multiplier: 0.65
-  cooling_multiplier: 0.25
-
-  # Bellows - more responsive
-  bellows_decay_rate: 0.03
-  bellows_instant_boost: 0.85
-
-  # Fuel
-  max_temperature_gain_from_fuel_percentage: 0.7
-
-  # Quality
-  bad_output_threshold_ms: 3500
-  min_ideal_ratio: 0.55
-
-  gui:
-    title: "&8Advanced Furnace"
+    # Input slots in a 2x3 grid (rows 1-2)
     input_slots: [10, 11, 12, 19, 20, 21]
-    fuel_slot: 40
+    # Fuel slot at bottom row (row 5), centered under inputs
+    fuel_slot: 47
+    # Output slot on the right side
     output_slot: 24
-
   recipes:
-    steel_ingot:
-      smelt_time: 15000
-      min_temperature: 500
-      ideal_min: 850
-      ideal_max: 1100
+    # Simple iron smelting recipe
+    iron_smelting:
+      smelt_time: 5000
       inputs:
-        input_0:
-          id: IRON_INGOT
-          type: minecraft
-          amount: 2
-        input_1:
-          id: COAL
+        a:
+          id: raw_iron
           type: minecraft
           amount: 1
       outputs:
-        output_0:
-          id: steel_ingot
+        a:
+          id: iron_ingot
+          type: minecraft
+          amount: 1
+      bad_outputs:
+        a:
+          id: iron_nugget
+          type: minecraft
+          amount: 3
+    dy_ty_1:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        b:  # 输入槽位b的唯一标识
+          id: soul_sand  # 输入物品ID：灵魂沙
+          type: minecraft  # 输入物品类型
+          amount: 4  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_3  # 输入物品ID：炼狱生物水晶碎片
+          type: craftengine  # 输入物品类型
+          amount: 4  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_ty_1  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:
+          id: slag
+          type: smc
+    dy_ty_2:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位b的唯一标识
+          id: gold_ingot  # 输入物品ID：灵魂沙
+          type: minecraft  # 输入物品类型
+          amount: 8  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_4  # 输入物品ID：炼狱生物水晶碎片
+          type: craftengine  # 输入物品类型
+          amount: 4  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_ty_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:
+          id: slag
+          type: smc
+    dy_ys_1:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        b:  # 输入槽位b的唯一标识
+          id: soul_sand  # 输入物品ID：灵魂沙
+          type: minecraft  # 输入物品类型
+          amount: 128  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ys_0  # 输入物品ID：炼狱生物水晶碎片
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_ys_1  # 输出物品ID：钥匙1
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:
+          id: smc:diyu_ys_0
+          type: craftengine 
+    dy_ys_2:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_3  # 输入物品ID：生物碎片
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: smc:diyu_ys_0  # 输入物品ID：炼狱生物水晶碎片
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_ys_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:
+          id: smc:diyu_ys_0
+          type: craftengine
+    jinggang:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: iron_ingot  # 输入物品ID：铁锭
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 6  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: coal  # 输入物品ID：金锭
+          type: minecraft  # 输入物品类型（原版Minecraft）
+          amount: 3  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:zf_yp_1  # 输出物品ID：熔岩装备原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: slag  # 失败输出物品ID：炉渣
+          type: smc # 失败输出物品类型
+    hejing:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: netherite_ingot  # 输入物品ID：合金锭
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 5  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: netherite_upgrade_smithing_template  # 输入物品ID：下界合金升级
+          type: minecraft  # 输入物品类型（原版Minecraft）
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:zf_yp_3  # 输出物品ID：熔岩装备原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: slag  # 失败输出物品ID：炉渣
+          type: smc # 失败输出物品类型
+    rongyan:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: iron_ingot  # 输入物品ID：铁锭
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 32  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: gold_ingot  # 输入物品ID：金锭
+          type: minecraft  # 输入物品类型（原版Minecraft）
+          amount: 4  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: diamond  # 输入物品ID：钻石
+          type: minecraft  # 输入物品类型（原版Minecraft）
+          amount: 6  # 输入物品数量：1个
+        d:  # 输入槽位b的唯一标识
+          id: netherrack  # 输入物品ID：下界岩
+          type: minecraft  # 输入物品类型（原版Minecraft）
+          amount: 16  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_yp_1  # 输出物品ID：熔岩装备原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: slag  # 失败输出物品ID：炉渣
+          type: smc  # 失败输出物品类型
+
+    wangzhekuijia:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: lianyuhexintoukui  # 输入物品ID：头盔
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: lianyuhexinxiongjia  # 输入物品ID：金锭
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: lianyuhexinhutui  # 输入物品ID：残骸碎片
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        d:  # 输入槽位b的唯一标识
+          id: lianyuhexinxuezi  # 输入物品ID：岩浆块
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_1  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 12  # 输入物品数量：1个
+        f:  # 输入槽位b的唯一标识
+          id: smc:diyu_tz_3  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        g:  # 输入槽位b的唯一标识
+          id: smc:diyu_xd_1  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        h:  # 输入槽位b的唯一标识
+          id: smc:diyu_xd_2  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        y:  # 输入槽位b的唯一标识
+          id: smc:diyu_xd_3  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_yp_wzkj  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+          amount: 4  # 输入物品数量：1个
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: smc:diyu_yp_wzkj  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型
+          amount: 4  # 输入物品数量：1个
+
+    wangzhewuqi:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: lianyuhejinjian  # 输入物品ID：熔岩头盔
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位a的唯一标识
+          id: netherite_ingot  # 输入物品ID：合金锭
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 5  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_1  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 3  # 输入物品数量：1个
+        f:  # 输入槽位b的唯一标识
+          id: smc:diyu_tz_3  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        g:  # 输入槽位b的唯一标识
+          id: smc:diyu_xd_1  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        h:  # 输入槽位b的唯一标识
+          id: smc:diyu_xd_2  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        y:  # 输入槽位b的唯一标识
+          id: smc:diyu_xd_3  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_yp_wzwq  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+          amount: 1  # 输入物品数量：1个
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: smc:diyu_yp_wzwq # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型
+          amount: 1  # 输入物品数量：1个
+
+    pobaikuijia:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: wangzhehexintoukui  # 输入物品ID：熔岩头盔
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: wangzhehexinxiongjia  # 输入物品ID：金锭
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: wangzhehexinhutui  # 输入物品ID：残骸碎片
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        d:  # 输入槽位b的唯一标识
+          id: wangzhehexinxuezi  # 输入物品ID：岩浆块
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_2  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 15  # 输入物品数量：1个
+        f:  # 输入槽位b的唯一标识
+          id: smc:diyu_tz_7  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 2  # 输入物品数量：1个
+        g:  # 输入槽位a的唯一标识
+          id: netherite_ingot  # 输入物品ID：合金锭
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 5  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_yp_pbkj  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+          amount: 4  # 输入物品数量：1个
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: smc:diyu_yp_pbkj  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型
+          amount: 4  # 输入物品数量：1个
+
+    pobaiwuqi:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: wangzhezhishichangjian  # 输入物品ID：熔岩头盔
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位a的唯一标识
+          id: netherite_ingot  # 输入物品ID：合金锭
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 5  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_2  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 5  # 输入物品数量：1个
+        f:  # 输入槽位b的唯一标识
+          id: smc:diyu_tz_7  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_yp_pbwq  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+          amount: 1  # 输入物品数量：1个
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: smc:diyu_yp_pbwq # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型
+          amount: 1  # 输入物品数量：1个
+#反叛装备
+    fanpankuijia:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: lianyuhexintoukui
+          type: smc
+          amount: 1
+        b:
+          id: lianyuhexinxiongjia
+          type: smc
+          amount: 1
+        c:
+          id: lianyuhexinhutui
+          type: smc
+          amount: 1
+        d:
+          id: lianyuhexinxuezi
+          type: smc
+          amount: 1
+        e:
+          id: smc:diyu_ty_1
+          type: craftengine
+          amount: 12
+        f:
+          id: smc:diyu_tz_1
+          type: craftengine
+          amount: 1
+        g:
+          id: smc:diyu_xd_1
+          type: craftengine
+          amount: 1
+        h:
+          id: smc:diyu_xd_2
+          type: craftengine
+          amount: 1
+        y:
+          id: smc:diyu_xd_3
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: smc:diyu_yp_fpkj
+          type: craftengine
+          amount: 4
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_fpkj
+          type: craftengine
+          amount: 4
+
+    fanpanwuqi:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: lianyuhejinjian
+          type: smc
+          amount: 1
+        b:
+          id: netherite_ingot
+          type: minecraft
+          amount: 5
+        e:
+          id: smc:diyu_ty_1
+          type: craftengine
+          amount: 3
+        f:
+          id: smc:diyu_tz_1
+          type: craftengine
+          amount: 1
+        g:
+          id: smc:diyu_xd_1
+          type: craftengine
+          amount: 1
+        h:
+          id: smc:diyu_xd_2
+          type: craftengine
+          amount: 1
+        y:
+          id: smc:diyu_xd_3
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: smc:diyu_yp_fpwq
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_fpwq
+          type: craftengine
+          amount: 1
+#弑君装备
+    shijunkuijia:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: fanpanhexintoukui
+          type: smc
+          amount: 1
+        b:
+          id: fanpanhexinxiongjia
+          type: smc
+          amount: 1
+        c:
+          id: fanpanhexinhutui
+          type: smc
+          amount: 1
+        d:
+          id: fanpanhexinxuezi
+          type: smc
+          amount: 1
+        e:
+          id: smc:diyu_ty_2
+          type: craftengine
+          amount: 15
+        f:
+          id: smc:diyu_tz_5
+          type: craftengine
+          amount: 2
+        g:
+          id: netherite_ingot
+          type: minecraft
+          amount: 5
+      outputs:
+        a:
+          id: smc:diyu_yp_sjkj
+          type: craftengine
+          amount: 4
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_sjkj
+          type: craftengine
+          amount: 4
+
+    shijunwuqi:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: fanpanzhishichangjian
+          type: smc
+          amount: 1
+        b:
+          id: netherite_ingot
+          type: minecraft
+          amount: 5
+        e:
+          id: smc:diyu_ty_2
+          type: craftengine
+          amount: 5
+        f:
+          id: smc:diyu_tz_5
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: smc:diyu_yp_sjwq
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_sjwq
+          type: craftengine
+          amount: 1
+#赤炎装备
+    chiyankuijia:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: lianyuhexintoukui
+          type: smc
+          amount: 1
+        b:
+          id: lianyuhexinxiongjia
+          type: smc
+          amount: 1
+        c:
+          id: lianyuhexinhutui
+          type: smc
+          amount: 1
+        d:
+          id: lianyuhexinxuezi
+          type: smc
+          amount: 1
+        e:
+          id: smc:diyu_ty_1
+          type: craftengine
+          amount: 12
+        f:
+          id: smc:diyu_tz_4
+          type: craftengine
+          amount: 1
+        g:
+          id: smc:diyu_xd_4
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: smc:diyu_yp_cykj
+          type: craftengine
+          amount: 4
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_cykj
+          type: craftengine
+          amount: 4
+
+    chiyanwuqi:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: lianyuhejinjian
+          type: smc
+          amount: 1
+        b:
+          id: netherite_ingot
+          type: minecraft
+          amount: 5
+        e:
+          id: smc:diyu_ty_1
+          type: craftengine
+          amount: 3
+        f:
+          id: smc:diyu_tz_4
+          type: craftengine
+          amount: 1
+        g:
+          id: smc:diyu_xd_4
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: smc:diyu_yp_cywq
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_cywq
+          type: craftengine
+          amount: 1
+#古霜
+    gushuangkuijia:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: chiyanhexintoukui
+          type: smc
+          amount: 1
+        b:
+          id: chiyanhexinxiongjia
+          type: smc
+          amount: 1
+        c:
+          id: chiyanhexinhutui
+          type: smc
+          amount: 1
+        d:
+          id: chiyanhexinxuezi
+          type: smc
+          amount: 1
+        e:
+          id: smc:diyu_ty_2
+          type: craftengine
+          amount: 15
+        f:
+          id: smc:diyu_tz_8
+          type: craftengine
+          amount: 2
+        g:
+          id: netherite_ingot
+          type: minecraft
+          amount: 5
+      outputs:
+        a:
+          id: smc:diyu_yp_gskj
+          type: craftengine
+          amount: 4
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_gskj
+          type: craftengine
+          amount: 4
+
+    gushuangwuqi:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: chiyanzhishichangqiang
+          type: smc
+          amount: 1
+        b:
+          id: netherite_ingot
+          type: minecraft
+          amount: 5
+        e:
+          id: smc:diyu_ty_2
+          type: craftengine
+          amount: 5
+        f:
+          id: smc:diyu_tz_8
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: smc:diyu_yp_gswq
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_gswq
+          type: craftengine
+          amount: 1
+
+#气动装备
+    qidongkuijia:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: lianyuhexintoukui
+          type: smc
+          amount: 1
+        b:
+          id: lianyuhexinxiongjia
+          type: smc
+          amount: 1
+        c:
+          id: lianyuhexinhutui
+          type: smc
+          amount: 1
+        d:
+          id: lianyuhexinxuezi
+          type: smc
+          amount: 1
+        e:
+          id: smc:diyu_ty_1
+          type: craftengine
+          amount: 12
+        f:
+          id: smc:diyu_tz_2
+          type: craftengine
+          amount: 1
+        g:
+          id: smc:diyu_xd_1
+          type: craftengine
+          amount: 1
+        h:
+          id: smc:diyu_xd_2
+          type: craftengine
+          amount: 1
+        y:
+          id: smc:diyu_xd_3
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: smc:diyu_yp_qdkj
+          type: craftengine
+          amount: 4
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_qdkj
+          type: craftengine
+          amount: 4
+
+    qidongwuqi:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: lianyuhejinjian
+          type: smc
+          amount: 1
+        b:
+          id: netherite_ingot
+          type: minecraft
+          amount: 5
+        e:
+          id: smc:diyu_ty_1
+          type: craftengine
+          amount: 3
+        f:
+          id: smc:diyu_tz_2
+          type: craftengine
+          amount: 1
+        g:
+          id: smc:diyu_xd_1
+          type: craftengine
+          amount: 1
+        h:
+          id: smc:diyu_xd_2
+          type: craftengine
+          amount: 1
+        y:
+          id: smc:diyu_xd_3
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: smc:diyu_yp_qdwq
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_qdwq
+          type: craftengine
+          amount: 1
+#超载
+    chaozaikuijia:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: qidonghexintoukui
+          type: smc
+          amount: 1
+        b:
+          id: qidonghexinxiongjia
+          type: smc
+          amount: 1
+        c:
+          id: qidonghexinhutui
+          type: smc
+          amount: 1
+        d:
+          id: qidonghexinxuezi
+          type: smc
+          amount: 1
+        e:
+          id: smc:diyu_ty_2
+          type: craftengine
+          amount: 15
+        f:
+          id: smc:diyu_tz_6
+          type: craftengine
+          amount: 2
+        g:
+          id: netherite_ingot
+          type: minecraft
+          amount: 5
+      outputs:
+        a:
+          id: smc:diyu_yp_czkj
+          type: craftengine
+          amount: 4
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_czkj
+          type: craftengine
+          amount: 4
+
+    chaozaiwuqi:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: qidongzhishichangjian
+          type: smc
+          amount: 1
+        b:
+          id: netherite_ingot
+          type: minecraft
+          amount: 5
+        e:
+          id: smc:diyu_ty_2
+          type: craftengine
+          amount: 5
+        f:
+          id: smc:diyu_tz_6
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: smc:diyu_yp_czwq
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: smc:diyu_yp_czwq
+          type: craftengine
+          amount: 1
+
+    lianyu1:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: rongyannairetoukui  # 输入物品ID：熔岩头盔
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: gold_ingot  # 输入物品ID：金锭
+          type: minecraft  # 输入物品类型
+          amount: 16  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: netherite_scrap  # 输入物品ID：残骸碎片
+          type: minecraft  # 输入物品类型
+          amount: 6  # 输入物品数量：1个
+        d:  # 输入槽位b的唯一标识
+          id: magma_block  # 输入物品ID：岩浆块
+          type: minecraft  # 输入物品类型
+          amount: 16  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_1  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_yp_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: smc:diyu_yp_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型
+    lianyu2:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: rongyannairexiongjia  # 输入物品ID：熔岩头盔
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: gold_ingot  # 输入物品ID：金锭
+          type: minecraft  # 输入物品类型
+          amount: 16  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: netherite_scrap  # 输入物品ID：残骸碎片
+          type: minecraft  # 输入物品类型
+          amount: 6  # 输入物品数量：1个
+        d:  # 输入槽位b的唯一标识
+          id: magma_block  # 输入物品ID：岩浆块
+          type: minecraft  # 输入物品类型
+          amount: 16  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_1  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_yp_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: smc:diyu_yp_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型
+    lianyu3:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: rongyannairehutui  # 输入物品ID：熔岩头盔
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: gold_ingot  # 输入物品ID：金锭
+          type: minecraft  # 输入物品类型
+          amount: 16  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: netherite_scrap  # 输入物品ID：残骸碎片
+          type: minecraft  # 输入物品类型
+          amount: 6  # 输入物品数量：1个
+        d:  # 输入槽位b的唯一标识
+          id: magma_block  # 输入物品ID：岩浆块
+          type: minecraft  # 输入物品类型
+          amount: 16  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_1  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_yp_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: smc:diyu_yp_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型
+    lianyu4:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: rongyannairexuezi  # 输入物品ID：熔岩头盔
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: gold_ingot  # 输入物品ID：金锭
+          type: minecraft  # 输入物品类型
+          amount: 16  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: netherite_scrap  # 输入物品ID：残骸碎片
+          type: minecraft  # 输入物品类型
+          amount: 6  # 输入物品数量：1个
+        d:  # 输入槽位b的唯一标识
+          id: magma_block  # 输入物品ID：岩浆块
+          type: minecraft  # 输入物品类型
+          amount: 16  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_1  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_yp_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: smc:diyu_yp_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型
+    lianyu5:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: rongyannairejian  # 输入物品ID：熔岩头盔
+          type: smc  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: gold_ingot  # 输入物品ID：金锭
+          type: minecraft  # 输入物品类型
+          amount: 16  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: netherite_scrap  # 输入物品ID：残骸碎片
+          type: minecraft  # 输入物品类型
+          amount: 6  # 输入物品数量：1个
+        d:  # 输入槽位b的唯一标识
+          id: magma_block  # 输入物品ID：岩浆块
+          type: minecraft  # 输入物品类型
+          amount: 16  # 输入物品数量：1个
+        e:  # 输入槽位b的唯一标识
+          id: smc:diyu_ty_1  # 输入物品ID：炼狱生物水晶
+          type: craftengine  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:diyu_yp_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: smc:diyu_yp_2  # 输出物品ID：炼狱原胚
+          type: craftengine  # 输出物品类型
+    hejingding:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: ancient_debris  # 输入物品ID：残骸
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 4  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: gold_ingot  # 输入物品ID：金锭
+          type: minecraft  # 输入物品类型
+          amount: 4  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: netherite_ingot  # 输出物品ID：合金锭
+          type: minecraft  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: slag  # 失败输出物品ID：炉渣
+          type: smc  # 失败输出物品类型
+    hejingding2:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: netherite_scrap  # 输入物品ID：残骸
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 4  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: gold_ingot  # 输入物品ID：金锭
+          type: minecraft  # 输入物品类型
+          amount: 4  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: netherite_ingot  # 输出物品ID：合金锭
+          type: minecraft  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: slag  # 失败输出物品ID：炉渣
+          type: smc  # 失败输出物品类型
+    skill_tansuo_set1:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: iron_ingot  # 输入物品ID：铁锭
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 10  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: slime_ball  # 输入物品ID：粘液球
+          type: minecraft  # 输入物品类型
+          amount: 1  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: feather  # 输入物品ID：羽毛
+          type: minecraft  # 输入物品类型
+          amount: 5  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:maoxian_yp_1  # 输出物品ID：合金锭
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: slag  # 失败输出物品ID：炉渣
+          type: smc  # 失败输出物品类型
+    skill_tansuo_set2:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: diamond  # 输入物品ID：钻石
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 3  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: slime_ball  # 输入物品ID：粘液球
+          type: minecraft  # 输入物品类型
+          amount: 10  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: feather  # 输入物品ID：羽毛
+          type: minecraft  # 输入物品类型
+          amount: 20  # 输入物品数量：1个
+        d:  # 输入槽位b的唯一标识
+          id: gold_ingot  # 输入物品ID：金锭
+          type: minecraft  # 输入物品类型
+          amount: 2  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:maoxian_yp_2  # 输出物品ID：合金锭
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: slag  # 失败输出物品ID：炉渣
+          type: smc  # 失败输出物品类型
+    skill_tansuo_set3:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: netherite_ingot  # 输入物品ID：合金锭
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 1  # 输入物品数量：1个
+        b:  # 输入槽位b的唯一标识
+          id: slime_ball  # 输入物品ID：粘液球
+          type: minecraft  # 输入物品类型
+          amount: 20  # 输入物品数量：1个
+        c:  # 输入槽位b的唯一标识
+          id: feather  # 输入物品ID：羽毛
+          type: minecraft  # 输入物品类型
+          amount: 32  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:maoxian_yp_3  # 输出物品ID：合金锭
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: slag  # 失败输出物品ID：炉渣
+          type: smc  # 失败输出物品类型
+    zuanshi:  # 配方b的唯一标识（新增的第二个配方）
+      smelt_time: 8000  # 该配方的熔炼时间
+      inputs:  # 配方b的输入物品配置
+        a:  # 输入槽位a的唯一标识
+          id: diamond  # 输入物品ID：铁锭
+          type: minecraft  # 输入物品类型（自定义模组SMC）
+          amount: 6  # 输入物品数量：1个
+      outputs:  # 配方b的输出物品配置
+        a:  # 输出槽位a的唯一标识
+          id: smc:zf_yp_2  # 输出物品ID：熔岩装备原胚
+          type: craftengine  # 输出物品类型（原版Minecraft）
+      bad_outputs:  # 配方b熔炼失败时的输出物品
+        a:  # 失败输出槽位a的唯一标识
+          id: slag  # 失败输出物品ID：炉渣
+          type: smc  # 失败输出物品类型
+#深海精密钢锭
+    shenhaigang:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: smc:shenhai_shenhaicanhai
+          type: craftengine
+          amount: 8
+        b:
+          id: copper_block
+          type: minecraft
+          amount: 32
+        c:
+          id: iron_ingot
+          type: minecraft
+          amount: 8
+      outputs:
+        a:
+          id: smc:shenhai_jingmigang
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: slag
+          type: smc
+          amount: 1
+
+#火枪射程模块升级
+    shechengshengji:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: netherite_upgrade_smithing_template
+          type: minecraft
+          amount: 8
+        b:
+          id: smc:pingguo_p4
+          type: craftengine
+          amount: 1
+        c:
+          id: redstone_block
+          type: minecraft
+          amount: 64
+        d:
+          id: heart_of_the_sea
+          type: minecraft
+          amount: 1
+      outputs:
+        a:
+          id: smc:shenhai_shechengshengji
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: slag
+          type: smc
+          amount: 1
+
+#火枪散射模块升级
+    sansheshengji:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: netherite_upgrade_smithing_template
+          type: minecraft
+          amount: 8
+        b:
+          id: smc:nangua_j
+          type: craftengine
+          amount: 1
+        c:
+          id: coal_block
+          type: minecraft
+          amount: 64
+        d:
+          id: heart_of_the_sea
+          type: minecraft
+          amount: 1
+      outputs:
+        a:
+          id: smc:shenhai_sansheshengji
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: slag
+          type: smc
+          amount: 1
+
+#火枪散射模块装配
+    sanshezhuangpei:
+      smelt_time: 8000
+      inputs:
+        a:
+          id: smc:shenhai_sansheshengji
+          type: craftengine
+          amount: 1
+        b:
+          id: netherite_ingot
+          type: minecraft
+          amount: 1
+        c:
+          id: smc:shenhai_huoqiang
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: sanshehuoshengqiang
           type: smc
           amount: 1
       bad_outputs:
-        output_0:
-          id: IRON_NUGGET
-          type: minecraft
-          amount: 5
-
-    netherite_scrap:
-      smelt_time: 20000
-      min_temperature: 700
-      ideal_min: 1000
-      ideal_max: 1300
+        a:
+          id: sanshehuoshengqiang
+          type: smc
+          amount: 1
+#火枪射程模块装配
+    shechengzhuangpei:
+      smelt_time: 8000
       inputs:
-        input_0:
-          id: ANCIENT_DEBRIS
+        a:
+          id: smc:shenhai_shechengshengji
+          type: craftengine
+          amount: 1
+        b:
+          id: netherite_ingot
+          type: minecraft
+          amount: 1
+        c:
+          id: smc:shenhai_huoqiang
+          type: craftengine
+          amount: 1
+      outputs:
+        a:
+          id: shechenghuoqiang
+          type: smc
+          amount: 1
+      bad_outputs:
+        a:
+          id: shechenghuoqiang
+          type: smc
+          amount: 1
+
+#火枪射程复原
+    huoqiangfuyuan1:
+      smelt_time: 1000
+      inputs:
+        a:
+          id: shechenghuoqiang
+          type: smc
+          amount: 1
+      outputs:
+        a:
+          id: smc:shenhai_huoqiang
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: smc:shenhai_huoqiang
+          type: craftengine
+          amount: 1
+#火枪散射复原
+    huoqiangfuyuan2:
+      smelt_time: 1000
+      inputs:
+        a:
+          id: sanshehuoshengqiang
+          type: smc
+          amount: 1
+      outputs:
+        a:
+          id: smc:shenhai_huoqiang
+          type: craftengine
+          amount: 1
+      bad_outputs:
+        a:
+          id: smc:shenhai_huoqiang
+          type: craftengine
+          amount: 1
+
+stellar_furnace:
+  item_id: "stellar_furnace"
+  max_temperature: 100
+  display_material: "STICK"
+  display_cmd: 1402
+  temperature_change: 8
+  min_ideal_temperature: 80
+  max_ideal_temperature: 100
+  max_temperature_gain_from_fuel_percentage: 0.3
+  furniture_id: smc:blacksmith/stellar_forge
+  cooling_rate: 3
+  heating_multiplier: 1.0
+  cooling_multiplier: 0.5
+  bellows_decay_rate: 0.01
+  bellows_instant_boost: 1.0
+  bad_output_threshold_ms: 3000
+  min_ideal_ratio: 0.5
+  gui:
+    title: "&5Stellar Furnace"
+    input_slots: [10, 11, 12, 19, 20, 21]
+    fuel_slot: 47
+    output_slot: 24
+  recipes:
+    stellar_a:
+      smelt_time: 4000
+      inputs:
+        a:
+          id: raw_iron
           type: minecraft
           amount: 1
       outputs:
-        output_0:
-          id: NETHERITE_SCRAP
-          type: minecraft
-          amount: 1i
+        a:
+          id: jade
+          type: smc
+          amount: 1
+      bad_outputs:
+        a:
+          id: slag
+          type: smc
+          amount: 1

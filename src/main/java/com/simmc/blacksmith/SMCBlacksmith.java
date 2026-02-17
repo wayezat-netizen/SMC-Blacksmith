@@ -6,6 +6,7 @@ import com.simmc.blacksmith.config.ConfigManager;
 import com.simmc.blacksmith.forge.ForgeManager;
 import com.simmc.blacksmith.furnace.FurnaceManager;
 import com.simmc.blacksmith.integration.CraftEngineHook;
+import com.simmc.blacksmith.integration.CustomFishingHook;
 import com.simmc.blacksmith.integration.NexoHook;
 import com.simmc.blacksmith.integration.PlaceholderAPIHook;
 import com.simmc.blacksmith.integration.SMCCoreHook;
@@ -41,6 +42,7 @@ public final class SMCBlacksmith extends JavaPlugin {
     private final LazyHook<SMCCoreHook> smcCoreHook = new LazyHook<>();
     private final LazyHook<CraftEngineHook> craftEngineHook = new LazyHook<>();
     private final LazyHook<NexoHook> nexoHook = new LazyHook<>();
+    private final LazyHook<CustomFishingHook> customFishingHook = new LazyHook<>();
 
     private volatile boolean fullyEnabled = false;
 
@@ -102,12 +104,14 @@ public final class SMCBlacksmith extends JavaPlugin {
         SMCCoreHook smcHook = getSmcCoreHook();
         CraftEngineHook ceHook = getCraftEngineHook();
         NexoHook nHook = getNexoHook();
+        CustomFishingHook cfHook = getCustomFishingHook();
 
         getLogger().info("SMCCore hook available: " + (smcHook != null && smcHook.isAvailable()));
         getLogger().info("CraftEngine hook available: " + (ceHook != null && ceHook.isAvailable()));
         getLogger().info("Nexo hook available: " + (nHook != null && nHook.isAvailable()));
+        getLogger().info("CustomFishing hook available: " + (cfHook != null && cfHook.isAvailable()));
 
-        itemRegistry = new ItemProviderRegistry(this, smcHook, ceHook, nHook);
+        itemRegistry = new ItemProviderRegistry(this, smcHook, ceHook, nHook, cfHook);
 
         furnaceManager = new FurnaceManager(this, configManager, itemRegistry);
         forgeManager = new ForgeManager(this, configManager, itemRegistry);
@@ -122,11 +126,15 @@ public final class SMCBlacksmith extends JavaPlugin {
         pm.registerEvents(new FurnaceListener(furnaceManager), this);
         pm.registerEvents(new FurnaceBlockListener(furnaceManager), this);
         pm.registerEvents(new BellowsListener(this, furnaceManager, configManager), this);
+        pm.registerEvents(new FurnaceInteractionListener(furnaceManager, configManager), this);
 
         // Forge listeners
         pm.registerEvents(new ForgeListener(forgeManager), this);
         pm.registerEvents(new ForgeGUIListener(forgeManager), this);
         pm.registerEvents(new ForgeCancelListener(forgeManager), this);
+
+        // Repair/Grindstone listener
+        pm.registerEvents(new GrindstoneListener(repairManager, configManager), this);
 
         // Other listeners
         pm.registerEvents(new QuenchingListener(quenchingManager), this);
@@ -166,6 +174,7 @@ public final class SMCBlacksmith extends JavaPlugin {
         logIntegration("SmcCore", pm.getPlugin("SmcCore") != null);
         logIntegration("CraftEngine", pm.getPlugin("CraftEngine") != null);
         logIntegration("Nexo", pm.getPlugin("Nexo") != null);
+        logIntegration("CustomFishing", pm.getPlugin("CustomFishing") != null);
     }
 
     private void logIntegration(String name, boolean found) {
@@ -221,6 +230,11 @@ public final class SMCBlacksmith extends JavaPlugin {
                 ? new NexoHook(this) : null);
     }
 
+    public CustomFishingHook getCustomFishingHook() {
+        return customFishingHook.get(() -> isPluginPresent("CustomFishing")
+                ? new CustomFishingHook(this) : null);
+    }
+
     private boolean isPluginPresent(String name) {
         return getServer().getPluginManager().getPlugin(name) != null;
     }
@@ -239,6 +253,10 @@ public final class SMCBlacksmith extends JavaPlugin {
 
     public boolean hasNexo() {
         return Optional.ofNullable(getNexoHook()).map(NexoHook::isAvailable).orElse(false);
+    }
+
+    public boolean hasCustomFishing() {
+        return Optional.ofNullable(getCustomFishingHook()).map(CustomFishingHook::isAvailable).orElse(false);
     }
 
     // ==================== GETTERS ====================

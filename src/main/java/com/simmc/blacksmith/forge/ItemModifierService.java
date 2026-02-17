@@ -23,7 +23,7 @@ public class ItemModifierService {
      */
     public ItemStack applyStarModifiers(ItemStack item, int stars,
                                         Map<Integer, StarModifier> modifiers,
-                                        String forgerName) {
+                                        String forgerName, String forgerFormat) {
         if (item == null || item.getType().isAir()) return item;
 
         ItemStack result = item.clone();
@@ -33,7 +33,7 @@ public class ItemModifierService {
         StarModifier modifier = modifiers != null ? modifiers.get(stars) : null;
 
         applyDisplayName(meta, modifier);
-        applyLore(meta, stars, modifier, forgerName);
+        applyLore(meta, stars, modifier, forgerName, forgerFormat);
         applyAttributes(meta, modifier);
 
         result.setItemMeta(meta);
@@ -47,7 +47,7 @@ public class ItemModifierService {
         meta.setDisplayName(currentName + " " + modifier.getDisplaySuffix());
     }
 
-    private void applyLore(ItemMeta meta, int stars, StarModifier modifier, String forgerName) {
+    private void applyLore(ItemMeta meta, int stars, StarModifier modifier, String forgerName, String forgerFormat) {
         List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
 
         // Star rating
@@ -59,8 +59,11 @@ public class ItemModifierService {
             lore.add(modifier.getLoreLine());
         }
 
-        // Forger signature
-        if (forgerName != null && !forgerName.isEmpty()) {
+        // Forger signature - use the pre-formatted line
+        if (forgerFormat != null && !forgerFormat.isEmpty()) {
+            lore.add("");
+            lore.add(forgerFormat);
+        } else if (forgerName != null && !forgerName.isEmpty()) {
             lore.add("");
             lore.add("§7Forged by §e" + forgerName);
         }

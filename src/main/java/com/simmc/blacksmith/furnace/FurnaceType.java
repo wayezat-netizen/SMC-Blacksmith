@@ -8,10 +8,6 @@ import java.util.*;
 
 /**
  * Represents a type of custom furnace with fully configurable properties.
- *
- * ADDED:
- * - CE furniture/block ID restrictions
- * - Allowed input items list
  */
 public class FurnaceType {
 
@@ -247,6 +243,33 @@ public class FurnaceType {
         public static AllowedInput ce(String itemId) {
             return new AllowedInput("ce", itemId, itemId);
         }
+    }
+
+    // ==================== CE FURNITURE MATCHING ====================
+
+    /**
+     * Check if this furnace type matches a CE furniture ID.
+     */
+    public boolean matchesFurnitureId(String furnitureId) {
+        if (furnitureId == null || furnitureId.isEmpty()) return false;
+
+        // Check single furniture_id
+        if (this.furnitureId != null && !this.furnitureId.isEmpty()) {
+            if (this.furnitureId.equalsIgnoreCase(furnitureId)) {
+                return true;
+            }
+        }
+
+        // Check allowed_furniture_ids list
+        if (this.allowedFurnitureIds != null && !this.allowedFurnitureIds.isEmpty()) {
+            for (String allowedId : this.allowedFurnitureIds) {
+                if (allowedId.equalsIgnoreCase(furnitureId)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     // ==================== BUILDER ====================

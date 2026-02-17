@@ -8,9 +8,6 @@ import java.util.Map;
 
 /**
  * Represents a forge recipe with frames, materials, results, and scoring thresholds.
- *
- * ADDED:
- * - Display settings for CE items on anvil
  */
 public class ForgeRecipe {
 
@@ -37,7 +34,7 @@ public class ForgeRecipe {
     private final String baseItemId;
     private final String baseItemType;
 
-    // Display settings (CE item on anvil)
+    // Display settings (CE item on anvil with 3 stages)
     private final ForgeDisplaySettings displaySettings;
 
     public ForgeRecipe(String id, Map<Integer, ForgeFrame> frames, String permission,
@@ -67,7 +64,7 @@ public class ForgeRecipe {
         this.displaySettings = displaySettings;
     }
 
-    // Backwards compatibility constructor
+    // Backwards compatibility constructor (without star modifiers)
     public ForgeRecipe(String id, Map<Integer, ForgeFrame> frames, String permission,
                        String condition, int hits, double bias, double targetSize,
                        String runAfterCommand, String inputId, String inputType,
@@ -133,7 +130,7 @@ public class ForgeRecipe {
     public boolean hasCondition() { return !condition.isEmpty(); }
     public boolean hasInput() { return !inputId.isEmpty(); }
     public boolean hasStarThresholds() { return !starThresholds.isEmpty(); }
-    public boolean hasStarModifiers() { return !starModifiers.isEmpty(); }
+    public boolean hasStarModifiers() { return starModifiers != null && !starModifiers.isEmpty(); }
     public boolean usesBaseItem() { return !baseItemId.isEmpty(); }
     public boolean hasDisplaySettings() { return displaySettings != null; }
 
@@ -152,7 +149,7 @@ public class ForgeRecipe {
     public int getInputAmount() { return inputAmount; }
     public Map<Integer, ForgeResult> getResults() { return Collections.unmodifiableMap(results); }
     public Map<Integer, StarThreshold> getStarThresholds() { return Collections.unmodifiableMap(starThresholds); }
-    public Map<Integer, StarModifier> getStarModifiers() { return Collections.unmodifiableMap(starModifiers); }
+    public Map<Integer, StarModifier> getStarModifiers() { return starModifiers != null ? Collections.unmodifiableMap(starModifiers) : Collections.emptyMap(); }
     public String getBaseItemId() { return baseItemId; }
     public String getBaseItemType() { return baseItemType; }
 }

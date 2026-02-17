@@ -36,6 +36,22 @@ forge:
   # Enable forge particles
   particles_enabled: true
 
+  # HIT TARGET POSITIONING:
+  # These control where the clickable hit squares appear above the anvil.
+  # Adjust these if targets appear floating or buried.
+  #
+  # hit_target_offset_y: Height above anvil block
+  #   - 1.0 = directly on top surface (default)
+  #   - 0.8-0.9 = lower, closer to anvil
+  #   - 1.1-1.2 = higher, above anvil
+  hit_target_offset_y: 1.0
+
+  # hit_target_spread_x/z: How far targets spread horizontally
+  #   - 0.0 = always center
+  #   - 0.5 = spread within half a block
+  hit_target_spread_x: 0.6
+  hit_target_spread_z: 0.4
+
 # ==========================================
 # QUENCHING SETTINGS
 # ==========================================

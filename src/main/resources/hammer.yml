@@ -1,29 +1,18 @@
-# Hammer Configuration
-# Hammers are required to start forging (right-click anvil) and hit dots (left-click attack)
+# ==========================================
+# Blacksmith Hammer Configuration
+# ==========================================
+# Hammers are used to initiate forging on anvils.
+# Each hammer type provides different bonuses.
 
-# Each hammer type has:
-# - id: Item ID (SMCCore item ID or vanilla material name)
-# - type: "smc" for SMCCore items, "minecraft" for vanilla items
-# - max_durability: Number of hits before the hammer breaks
-# - speed_bonus: Bonus to speed scoring (0.0 = no bonus, 0.1 = 10% bonus)
-# - accuracy_bonus: Bonus to accuracy scoring (0.0 = no bonus, 0.1 = 10% bonus)
-
-basic_hammer:
-  id: basic_hammer
+blacksmith_hammer:
+  id: blacksmith_hammer
   type: smc
-  max_durability: 200
+  max_durability: 500
   speed_bonus: 0.0
   accuracy_bonus: 0.0
 
-iron_hammer:
-  id: iron_hammer
-  type: smc
-  max_durability: 500
-  speed_bonus: 0.05
-  accuracy_bonus: 0.05
-
-steel_hammer:
-  id: steel_hammer
+advanced_hammer:
+  id: advanced_hammer
   type: smc
   max_durability: 1000
   speed_bonus: 0.1
@@ -33,20 +22,13 @@ master_hammer:
   id: master_hammer
   type: smc
   max_durability: 2000
-  speed_bonus: 0.15
-  accuracy_bonus: 0.15
+  speed_bonus: 0.2
+  accuracy_bonus: 0.2
 
-# Vanilla test hammer - MUST match exactly
-test_hammer:
-  id: GOLDEN_PICKAXE
-  type: minecraft
-  max_durability: 9999
-  speed_bonus: 0.0
-  accuracy_bonus: 0.0
-
-test_hammer_axe:
+# Vanilla item for testing
+iron_hammer:
   id: IRON_AXE
   type: minecraft
-  max_durability: 9999
+  max_durability: 250
   speed_bonus: 0.0
   accuracy_bonus: 0.0

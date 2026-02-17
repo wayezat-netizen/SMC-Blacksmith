@@ -10,18 +10,21 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Furnace with TIME-BASED burning (not tick-based).
- *
- * FIXES:
- * - Improved fuel consumption tracking
- * - Added fuel consumed counter for debugging
- * - Better sync between GUI and instance
+ * Furnace with time-based burning system.
  */
 public class FurnaceInstance {
 
     private static final int DEFAULT_INPUT_SLOTS = 9;
-    private static final boolean DEBUG = true;
-    private static final double FUEL_BASE_HEAT_PERCENTAGE = 0.25;
+
+    // Disable debug logging for production
+    private static final boolean DEBUG = false;
+
+    // Base heat from fuel as percentage of fuel's max temperature
+    // Lower value = bellows have more impact (20% base, 80% from bellows)
+    private static final double FUEL_BASE_HEAT_PERCENTAGE = 0.2;
+
+    // Minimum tick interval to prevent excessive processing
+    private static final long MIN_TICK_INTERVAL_MS = 40;
 
     private final UUID id;
     private final FurnaceType type;
@@ -100,38 +103,53 @@ public class FurnaceInstance {
         }
     }
 
+    /**
+     * Main tick method - called periodically by FurnaceManager.
+     */
     public void tick(ItemProviderRegistry registry, FuelConfig fuelConfig) {
         long now = System.currentTimeMillis();
         long elapsed = now - lastTickTime;
+
+        // Skip if elapsed time is too small
+        if (elapsed < MIN_TICK_INTERVAL_MS) return;
+
         lastTickTime = now;
 
-        // Skip if elapsed time is too small (prevent double-ticking)
-        if (elapsed < 40) return;
+        // Check fuel state first
+        boolean hasFuel = hasFuelInSlot();
 
-        // Check fuel removed
-        checkFuelRemoved();
-
-        // Update burning (time-based)
-        updateBurningState(now, fuelConfig, registry);
-
-        // Decay bellows
-        updateBellowsDecay(now);
-
-        // Update temp
-        updateTemperature();
-
-        // Recipe
-        if (currentRecipe == null && currentTemperature > 0) {
-            findMatchingRecipe(registry);
+        if (!hasFuel) {
+            // No fuel - stop burning and cool down
+            if (burning) {
+                stopBurning();
+            }
+            // Still need to update temperature (cooling) and bellows decay
+            updateBellowsDecay(now);
+            updateTemperature();
+            return;
         }
 
-        if (currentRecipe != null && currentTemperature > 0) {
-            processSmelting(elapsed, registry);
+        // Has fuel - normal processing
+        updateBurningState(now, fuelConfig, registry);
+        updateBellowsDecay(now);
+        updateTemperature();
+
+        // Recipe processing - only if temperature > 0
+        if (currentTemperature > 0) {
+            if (currentRecipe == null) {
+                findMatchingRecipe(registry);
+            }
+            if (currentRecipe != null) {
+                processSmelting(elapsed, registry);
+            }
         }
     }
 
     // ==================== FUEL CHECK ====================
 
+    /**
+     * Checks if fuel was removed and stops burning if needed.
+     */
     private void checkFuelRemoved() {
         if (burning && !hasFuelInSlot()) {
             debug("!!! FUEL REMOVED WHILE BURNING - STOPPING !!!");
@@ -185,7 +203,7 @@ public class FurnaceInstance {
     }
 
     /**
-     * Consumes exactly ONE fuel item from the fuel slot.
+     * Consumes exactly one fuel item from the fuel slot.
      * This is called when burn time expires.
      */
     private void consumeOneFuel() {
@@ -259,27 +277,60 @@ public class FurnaceInstance {
 
     // ==================== BELLOWS ====================
 
+    /**
+     * Updates bellows boost decay over time.
+     * Decay accelerates significantly after extended inactivity (20-30 seconds).
+     */
     private void updateBellowsDecay(long currentTime) {
         if (bellowsBoost <= 0) {
             bellowsBoost = 0;
             return;
         }
 
-        double decayRate = type.getBellowsDecayRate();
         long timeSinceBellows = currentTime - lastBellowsTime;
 
-        if (timeSinceBellows > 1500) decayRate *= 1.5;
-        if (timeSinceBellows > 3000) decayRate *= 2.0;
-        if (timeSinceBellows > 5000) decayRate *= 2.5;
-
-        if (!burning) {
-            decayRate *= 5.0;
+        // Grace period - no decay for 2 seconds after last bellows use
+        if (timeSinceBellows < 2000) {
+            return;
         }
 
-        int decay = Math.max(2, (int) (bellowsBoost * decayRate));
+        // Base decay rate from config (default 0.08)
+        double decayRate = type.getBellowsDecayRate();
+
+        // Progressive decay based on inactivity time
+        if (timeSinceBellows > 30000) {
+            // 30+ seconds: rapid cooling (5x)
+            decayRate *= 5.0;
+        } else if (timeSinceBellows > 20000) {
+            // 20-30 seconds: fast cooling (3x)
+            decayRate *= 3.0;
+        } else if (timeSinceBellows > 10000) {
+            // 10-20 seconds: moderate cooling (2x)
+            decayRate *= 2.0;
+        } else if (timeSinceBellows > 6000) {
+            // 6-10 seconds: slight increase (1.5x)
+            decayRate *= 1.5;
+        }
+
+        // Without active fuel, decay even faster
+        if (!burning || !hasFuelInSlot()) {
+            decayRate *= 4.0;
+        }
+
+        // Calculate decay amount - minimum 2 for faster cooling
+        int decay = Math.max(2, (int) (bellowsBoost * decayRate * 0.5));
+
+        // Extra flat decay after long inactivity
+        if (timeSinceBellows > 20000) {
+            decay += 5;
+        }
+
         bellowsBoost = Math.max(0, bellowsBoost - decay);
     }
 
+    /**
+     * Apply bellows to increase temperature.
+     */
     public boolean applyBellows(int temperatureBoost) {
         if (!burning) {
             debug("Bellows REJECTED: not burning");
@@ -298,26 +349,36 @@ public class FurnaceInstance {
             return false;
         }
 
-        int maxBellowsBoost = fuelMaxTemperature - fuelBaseTemperature;
-        maxBellowsBoost = Math.min(maxBellowsBoost, (int) (type.getMaxTemperature() * 0.5));
+        int maxTemp = type.getMaxTemperature();
 
+        // Calculate max bellows boost - fuel provides 20%, bellows provide the remaining 80%
+        // This allows bellows to push temp from ~20% to 100%
+        int maxBellowsBoost = (int) (maxTemp * 0.8);
+
+        // Apply FULL bellows boost with minimal diminishing returns
         int effectiveBoost = temperatureBoost;
         double currentRatio = maxBellowsBoost > 0 ? (double) bellowsBoost / maxBellowsBoost : 0;
 
-        if (currentRatio > 0.8) {
-            effectiveBoost = (int) (temperatureBoost * 0.3);
-        } else if (currentRatio > 0.5) {
+        // Only slight reduction when very close to max (95%+)
+        if (currentRatio > 0.95) {
             effectiveBoost = (int) (temperatureBoost * 0.6);
+        } else if (currentRatio > 0.85) {
+            effectiveBoost = (int) (temperatureBoost * 0.8);
         }
 
+        // Ensure minimum boost of 1 degree per click
+        effectiveBoost = Math.max(1, effectiveBoost);
+
+        // Add to bellows boost pool
         bellowsBoost = Math.min(bellowsBoost + effectiveBoost, maxBellowsBoost);
         lastBellowsTime = now;
 
-        double instantPercent = type.getBellowsInstantBoost();
-        int instantBoost = (int) (effectiveBoost * instantPercent);
-        currentTemperature = Math.min(currentTemperature + instantBoost, type.getMaxTemperature());
+        // Apply instant temperature increase (70% of boost)
+        double instantPercent = 0.7;
+        int instantBoost = Math.max(1, (int) (effectiveBoost * instantPercent));
+        currentTemperature = Math.min(currentTemperature + instantBoost, maxTemp);
 
-        debug("Bellows applied: +" + effectiveBoost + " boost, total=" + bellowsBoost + ", temp=" + currentTemperature);
+        debug("Bellows applied: +" + effectiveBoost + " boost (instant: " + instantBoost + "), total=" + bellowsBoost + "/" + maxBellowsBoost + ", temp=" + currentTemperature);
 
         markDirty();
         return true;
@@ -330,31 +391,78 @@ public class FurnaceInstance {
     // ==================== TEMPERATURE ====================
 
     private void updateTemperature() {
+        long now = System.currentTimeMillis();
+        long timeSinceBellows = now - lastBellowsTime;
+
+        // Calculate inactivity cooling multiplier
+        double inactivityMultiplier = 1.0;
+        if (timeSinceBellows > 30000) {
+            inactivityMultiplier = 4.0; // 30+ seconds: very fast cooling
+        } else if (timeSinceBellows > 20000) {
+            inactivityMultiplier = 2.5; // 20-30 seconds: fast cooling
+        } else if (timeSinceBellows > 10000) {
+            inactivityMultiplier = 1.5; // 10-20 seconds: moderate cooling
+        }
+
+        // No fuel means no heat source - must cool down
+        if (!hasFuelInSlot()) {
+            if (burning) {
+                debug("updateTemperature: No fuel - stopping burn");
+                stopBurning();
+            }
+            // Cool down rapidly without fuel
+            if (currentTemperature > 0) {
+                int coolRate = Math.max(2, (int) (type.getCoolingRate() * 1.5 * inactivityMultiplier));
+                currentTemperature = Math.max(0, currentTemperature - coolRate);
+            }
+            // Clear bellows boost without fuel
+            if (bellowsBoost > 0) {
+                bellowsBoost = Math.max(0, bellowsBoost - 2);
+            }
+            return;
+        }
+
+        // Not burning and no bellows - cool down
         if (!burning && bellowsBoost <= 0) {
             if (currentTemperature > 0) {
-                int coolRate = Math.max(5, (int) (type.getCoolingRate() * 2.0));
+                int coolRate = Math.max(1, (int) (type.getCoolingRate() * inactivityMultiplier));
                 currentTemperature = Math.max(0, currentTemperature - coolRate);
             }
             return;
         }
 
+        // Not burning but has bellows boost - still cool down but slower
         if (!burning && bellowsBoost > 0) {
-            int coolRate = Math.max(3, (int) (type.getCoolingRate() * 1.5));
+            int coolRate = Math.max(1, (int) (type.getCoolingRate() * 0.5 * inactivityMultiplier));
             currentTemperature = Math.max(0, currentTemperature - coolRate);
             return;
         }
 
+        // Burning with fuel - calculate target temperature and adjust
         int targetTemp = calculateTargetTemperature();
+        int maxTemp = type.getMaxTemperature();
 
         if (currentTemperature < targetTemp) {
+            // SLOW automatic heating - bellows should be primary heat source
             double heatingMult = type.getHeatingMultiplier();
-            int heatRate = Math.max(1, (int) (type.getTemperatureChange() * heatingMult));
+            int baseHeatRate = type.getTemperatureChange();
+
+            // Scale heating based on how far we are from target (percentages of max temp)
             int diff = targetTemp - currentTemperature;
-            if (diff > 150) heatRate = (int) (heatRate * 1.3);
+            double diffPercent = (double) diff / maxTemp;
+            double scaleFactor = 0.5; // Base is slow
+            if (diffPercent > 0.3) scaleFactor = 1.0;      // Very far - normal speed
+            else if (diffPercent > 0.2) scaleFactor = 0.75; // Far - slightly faster
+            else if (diffPercent > 0.1) scaleFactor = 0.6;   // Medium - slow
+
+            // Scale heat rate to max temp (1-2 degrees for 0-100 scale)
+            int heatRate = Math.max(1, (int) (baseHeatRate * heatingMult * scaleFactor * maxTemp / 500.0));
+            heatRate = Math.min(heatRate, Math.max(1, maxTemp / 30)); // Cap based on scale
             currentTemperature = Math.min(currentTemperature + heatRate, targetTemp);
         } else if (currentTemperature > targetTemp) {
-            double coolingMult = type.getCoolingMultiplier();
-            int coolRate = Math.max(2, (int) (type.getCoolingRate() * coolingMult));
+            // Apply inactivity multiplier to cooling when above target
+            double coolingMult = type.getCoolingMultiplier() * inactivityMultiplier;
+            int coolRate = Math.max(1, (int) (type.getCoolingRate() * coolingMult));
             currentTemperature = Math.max(targetTemp, currentTemperature - coolRate);
         }
 

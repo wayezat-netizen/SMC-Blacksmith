@@ -3,14 +3,20 @@ package com.simmc.blacksmith.listeners;
 import com.simmc.blacksmith.SMCBlacksmith;
 import com.simmc.blacksmith.config.BellowsConfig;
 import com.simmc.blacksmith.config.ConfigManager;
+import com.simmc.blacksmith.config.FurnaceConfig;
 import com.simmc.blacksmith.furnace.FurnaceInstance;
 import com.simmc.blacksmith.furnace.FurnaceManager;
+import com.simmc.blacksmith.furnace.FurnaceType;
+import com.simmc.blacksmith.integration.CraftEngineHook;
 import com.simmc.blacksmith.integration.SMCCoreHook;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -29,18 +35,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Handles bellows usage - right-click furnace with bellows to increase temperature.
- *
- * CRITICAL: Bellows REQUIRE fuel to be burning!
- * - Bellows fan flames, they don't create fire
- * - Without fuel, bellows do nothing
- * - With fuel, bellows increase temperature significantly
- *
- * FIXED: Only consume 1 bellows from stack when breaking
+ * Bellows require fuel to be burning to work.
  */
 public class BellowsListener implements Listener {
 
     private static final String DURABILITY_LORE_PREFIX = "§7Durability: §f";
-    private static final long DEFAULT_COOLDOWN_MS = 400; // 8 ticks default
+    private static final long DEFAULT_COOLDOWN_MS = 400;
+    private static final double FURNITURE_SEARCH_RADIUS = 1.5;
 
     private final SMCBlacksmith plugin;
     private final FurnaceManager furnaceManager;
@@ -58,11 +59,7 @@ public class BellowsListener implements Listener {
         this.durabilityKey = new NamespacedKey(plugin, "bellows_durability");
     }
 
-    /**
-     * HIGHEST priority + ignoreCancelled=false to intercept BEFORE other listeners.
-     * This ensures bellows are detected before the furnace GUI opens.
-     */
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = false)
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (!isValidBellowsInteraction(event)) return;
 
@@ -80,13 +77,17 @@ public class BellowsListener implements Listener {
         Block clickedBlock = event.getClickedBlock();
         Location furnaceLocation = clickedBlock.getLocation();
 
-        // Check if it's a custom furnace
-        if (!furnaceManager.isFurnace(furnaceLocation)) return;
-
+        // Check if holding bellows first
         ItemStack heldItem = player.getInventory().getItemInMainHand();
         Optional<BellowsConfig.BellowsType> bellowsType = getBellowsType(heldItem);
 
         if (bellowsType.isEmpty()) {
+            return;
+        }
+
+        // Check if it's an existing furnace OR a CE furniture that can be a furnace
+        FurnaceInstance furnace = getOrCreateFurnace(clickedBlock, furnaceLocation);
+        if (furnace == null) {
             return;
         }
 
@@ -104,6 +105,84 @@ public class BellowsListener implements Listener {
         setCooldown(player, bellowsType.get());
 
         applyBellowsEffect(player, furnaceLocation, heldItem, bellowsType.get());
+    }
+
+    /**
+     * Gets existing furnace or creates one if this is a valid CE furniture.
+     */
+    private FurnaceInstance getOrCreateFurnace(Block block, Location location) {
+        // First check if furnace already exists
+        if (furnaceManager.isFurnace(location)) {
+            return furnaceManager.getFurnaceInstance(location);
+        }
+
+        // Check if this is a CE furniture that should be a furnace
+        String furnitureId = getCraftEngineFurnitureId(block, location);
+        if (furnitureId == null || furnitureId.isEmpty()) {
+            return null;
+        }
+
+        // Check if this furniture ID is registered as a furnace type
+        FurnaceConfig furnaceConfig = configManager.getFurnaceConfig();
+        Optional<FurnaceType> furnaceTypeOpt = furnaceConfig.getFurnaceTypeForFurniture(furnitureId);
+
+        if (furnaceTypeOpt.isEmpty()) {
+            return null;
+        }
+
+        // Create the furnace instance
+        FurnaceInstance instance = furnaceManager.createFurnace(furnaceTypeOpt.get().getId(), location);
+        return instance;
+    }
+
+    /**
+     * Gets CE furniture ID at a location.
+     */
+    private String getCraftEngineFurnitureId(Block block, Location location) {
+        CraftEngineHook ceHook = plugin.getCraftEngineHook();
+        if (ceHook == null || !ceHook.isAvailable()) {
+            return null;
+        }
+
+        // Check barrier blocks (CE furniture)
+        if (block.getType() == Material.BARRIER) {
+            return findFurnitureIdFromItemDisplays(location);
+        }
+
+        // Check nearby ItemDisplays
+        return findFurnitureIdFromItemDisplays(location);
+    }
+
+    /**
+     * Finds furniture ID from nearby ItemDisplay entities.
+     */
+    private String findFurnitureIdFromItemDisplays(Location location) {
+        CraftEngineHook ceHook = plugin.getCraftEngineHook();
+        if (ceHook == null) return null;
+
+        Location center = location.clone().add(0.5, 0.5, 0.5);
+
+        Collection<Entity> nearby = location.getWorld().getNearbyEntities(
+                center,
+                FURNITURE_SEARCH_RADIUS,
+                FURNITURE_SEARCH_RADIUS,
+                FURNITURE_SEARCH_RADIUS,
+                entity -> entity instanceof ItemDisplay
+        );
+
+        for (Entity entity : nearby) {
+            if (entity instanceof ItemDisplay itemDisplay) {
+                ItemStack displayItem = itemDisplay.getItemStack();
+                if (displayItem != null && !displayItem.getType().isAir()) {
+                    String ceId = ceHook.getItemId(displayItem);
+                    if (ceId != null && !ceId.isEmpty()) {
+                        return ceId;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     @EventHandler

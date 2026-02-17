@@ -1,6 +1,5 @@
 package com.simmc.blacksmith.listeners;
 
-import com.simmc.blacksmith.SMCBlacksmith;
 import com.simmc.blacksmith.quench.QuenchingGUI;
 import com.simmc.blacksmith.quench.QuenchingManager;
 import org.bukkit.entity.Player;
@@ -9,14 +8,13 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 
 import java.util.UUID;
 
 /**
- * Handles quenching GUI interactions and chat input for naming.
+ * Handles quenching GUI interactions.
  */
 public class QuenchingListener implements Listener {
 
@@ -55,24 +53,6 @@ public class QuenchingListener implements Listener {
         quenchingManager.handleGUIClose(player);
     }
 
-    // ==================== CHAT INPUT ====================
-
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onChat(AsyncPlayerChatEvent event) {
-        Player player = event.getPlayer();
-        UUID playerId = player.getUniqueId();
-
-        if (!quenchingManager.isAwaitingName(playerId)) return;
-
-        event.setCancelled(true);
-        String message = event.getMessage();
-
-        // Handle on main thread
-        SMCBlacksmith.getInstance().getServer().getScheduler().runTask(
-                SMCBlacksmith.getInstance(),
-                () -> quenchingManager.handleChatInput(player, message)
-        );
-    }
 
     // ==================== CLEANUP ====================
 

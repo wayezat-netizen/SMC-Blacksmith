@@ -2,68 +2,73 @@
 # SMCBlacksmith - Fuel Configuration
 # ==========================================
 # burn_time: Duration in ticks (20 ticks = 1 second)
-# temperature_boost: Base temperature provided by this fuel
+# temperature_boost: Maximum temperature this fuel can provide
+#                    (fuel alone provides 20% of this, bellows needed for rest)
+#
+# For a furnace with max_temperature: 100
+# - temperature_boost: 100 means this fuel can reach 100 degrees with bellows
+# - Base temperature from fuel alone = temperature_boost * 0.2
 
 # === BASIC FUELS ===
 coal:
   type: minecraft
   id: COAL
   burn_time: 1600                   # 80 seconds
-  temperature_boost: 400            # +400°C base
+  temperature_boost: 100            # Can reach max temp (100) with bellows
 
 charcoal:
   type: minecraft
   id: CHARCOAL
   burn_time: 1600
-  temperature_boost: 380
+  temperature_boost: 95             # Slightly less than coal
 
 # === WOOD FUELS (low heat) ===
 oak_planks:
   type: minecraft
   id: OAK_PLANKS
   burn_time: 300
-  temperature_boost: 200
+  temperature_boost: 60             # Lower max temp
 
 stick:
   type: minecraft
   id: STICK
   burn_time: 100
-  temperature_boost: 150
+  temperature_boost: 40             # Very low heat
 
 # === ADVANCED FUELS ===
 coal_block:
   type: minecraft
   id: COAL_BLOCK
   burn_time: 16000                  # 10x coal duration
-  temperature_boost: 550
+  temperature_boost: 100            # Same max as coal
 
 lava_bucket:
   type: minecraft
   id: LAVA_BUCKET
   burn_time: 20000                  # 1000 seconds
-  temperature_boost: 700
+  temperature_boost: 100            # High heat
 
 blaze_rod:
   type: minecraft
   id: BLAZE_ROD
   burn_time: 2400
-  temperature_boost: 600
+  temperature_boost: 100            # High heat
 
 blaze_powder:
   type: minecraft
   id: BLAZE_POWDER
   burn_time: 1200
-  temperature_boost: 500
+  temperature_boost: 90             # Good heat
 
 # === SMCCORE FUELS ===
 magical_coal:
   type: smc
   id: magical_coal
   burn_time: 3200
-  temperature_boost: 800
+  temperature_boost: 100            # Max temp with longer burn
 
 dragon_coal:
   type: smc
   id: dragon_coal
   burn_time: 6400
-  temperature_boost: 1000
+  temperature_boost: 100            # Max temp with very long burn

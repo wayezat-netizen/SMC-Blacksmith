@@ -26,16 +26,14 @@ import java.util.logging.Level;
 /**
  * Manages all furnace instances, GUIs, and temperature displays.
  * Boss bar shows recipe-specific ideal temperature ranges.
- *
- * FIXES:
- * - Added getPlugin() method
- * - Added GUI refresh task integration
- * - Proper fuel config passing to GUI
  */
 public class FurnaceManager {
 
     private static final double LOOK_DISTANCE = 5.0;
     private static final String DATA_FILE = "data/furnaces.yml";
+
+    // Batch size for processing furnaces
+    private static final int FURNACE_BATCH_SIZE = 50;
 
     // Temperature status display data
     private static final String[] STATUS_DISPLAY = {
@@ -64,6 +62,7 @@ public class FurnaceManager {
     private final ConfigManager configManager;
     private final ItemProviderRegistry itemRegistry;
 
+    // ConcurrentHashMap for thread-safe access
     private final Map<String, FurnaceInstance> furnaces;
     private final Map<UUID, FurnaceGUI> openGUIs;
     private final Map<UUID, BossBar> playerBossBars;
@@ -71,6 +70,10 @@ public class FurnaceManager {
 
     // GUI refresh tasks
     private final Map<UUID, BukkitTask> guiRefreshTasks;
+
+    // Cache fuel config to avoid repeated lookups
+    private FuelConfig cachedFuelConfig;
+    private long lastFuelConfigUpdate;
 
     private BukkitTask tickTask;
     private BukkitTask displayTask;
@@ -124,15 +127,27 @@ public class FurnaceManager {
 
     // ==================== TICK ====================
 
+    /**
+     * Main tick method - processes all furnaces.
+     */
     private void tick() {
-        FuelConfig fuelConfig = configManager.getFuelConfig();
-        if (fuelConfig != null) {
-            fuelConfig.setItemRegistry(itemRegistry);
+        // Cache fuel config (refresh every 5 seconds)
+        long now = System.currentTimeMillis();
+        if (cachedFuelConfig == null || (now - lastFuelConfigUpdate) > 5000) {
+            cachedFuelConfig = configManager.getFuelConfig();
+            if (cachedFuelConfig != null) {
+                cachedFuelConfig.setItemRegistry(itemRegistry);
+            }
+            lastFuelConfigUpdate = now;
         }
 
+        // Early exit if no furnaces
+        if (furnaces.isEmpty()) return;
+
+        // Process all furnaces
         for (FurnaceInstance furnace : furnaces.values()) {
             try {
-                furnace.tick(itemRegistry, fuelConfig);
+                furnace.tick(itemRegistry, cachedFuelConfig);
             } catch (Exception e) {
                 plugin.getLogger().log(Level.WARNING, "Error ticking furnace at " + furnace.getLocation(), e);
             }
@@ -141,9 +156,48 @@ public class FurnaceManager {
 
     // ==================== DISPLAY ====================
 
+    // Track display update cycle for batch processing
+    private int displayUpdateIndex = 0;
+    private static final int PLAYERS_PER_TICK = 50;
+
+    /**
+     * Updates boss bar displays for players in batches.
+     * Processes players per tick to spread load across server ticks.
+     */
     private void updateDisplays() {
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            updatePlayerDisplay(player);
+        // Early exit if no furnaces exist
+        if (furnaces.isEmpty()) {
+            playerBossBars.values().forEach(bar -> bar.setVisible(false));
+            return;
+        }
+
+        // Get snapshot of online players
+        Player[] players = Bukkit.getOnlinePlayers().toArray(new Player[0]);
+        int totalPlayers = players.length;
+
+        if (totalPlayers == 0) return;
+
+        // For small player counts, process all at once
+        if (totalPlayers <= PLAYERS_PER_TICK) {
+            for (Player player : players) {
+                updatePlayerDisplay(player);
+            }
+            return;
+        }
+
+        // Batch processing for large player counts
+        int startIndex = displayUpdateIndex % totalPlayers;
+        int endIndex = Math.min(startIndex + PLAYERS_PER_TICK, totalPlayers);
+
+        for (int i = startIndex; i < endIndex; i++) {
+            updatePlayerDisplay(players[i]);
+        }
+
+        // Wrap around if needed
+        if (endIndex >= totalPlayers) {
+            displayUpdateIndex = 0;
+        } else {
+            displayUpdateIndex = endIndex;
         }
     }
 

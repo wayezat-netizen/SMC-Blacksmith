@@ -27,7 +27,6 @@ import java.util.UUID;
 
 /**
  * Handles forge session interactions.
- * Player must hold HAMMER and LEFT-CLICK to hit targets.
  */
 public class ForgeListener implements Listener {
 
@@ -99,8 +98,7 @@ public class ForgeListener implements Listener {
     // ==================== ANVIL PROTECTION ====================
 
     /**
-     * CRITICAL: Prevent block damage and reset break animation.
-     * This fixes the transparent anvil issue.
+     * Prevent block damage and reset break animation.
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onBlockDamage(BlockDamageEvent event) {
@@ -151,11 +149,6 @@ public class ForgeListener implements Listener {
         }
     }
 
-    /**
-     * Sends a block break animation packet to reset/set the break stage.
-     * Stage -1 = reset (no animation)
-     * Stage 0-9 = break progress
-     */
     private void sendBlockBreakAnimation(Player player, Block block, int stage) {
         // Use a unique entity ID for the animation (negative to avoid conflicts)
         int entityId = -block.hashCode();

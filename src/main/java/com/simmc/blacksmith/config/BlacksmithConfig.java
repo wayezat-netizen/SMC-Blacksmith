@@ -11,9 +11,6 @@ import java.util.*;
 
 /**
  * Configuration for forge recipes and categories.
- *
- * ADDED:
- * - Display settings parsing for CE items on anvil
  */
 public class BlacksmithConfig {
 
@@ -142,7 +139,7 @@ public class BlacksmithConfig {
         String baseItemId = section.getString("base_item", "");
         String baseItemType = section.getString("base_item_type", "smc");
 
-        // Parse display settings
+        // Parse display settings (with 3-stage support)
         ForgeDisplaySettings displaySettings = parseDisplaySettings(id, section.getConfigurationSection("display"));
 
         return new ForgeRecipe(id, frames, permission, condition, hits, bias, targetSize,
@@ -155,23 +152,53 @@ public class BlacksmithConfig {
      */
     private ForgeDisplaySettings parseDisplaySettings(String recipeId, ConfigurationSection section) {
         if (section == null) {
-            return null;
+            return null; // Will use ForgeDisplaySettings.DEFAULT
         }
 
-        String itemType = section.getString("item_type", null);
-        String itemId = section.getString("item_id", null);
+        Map<Integer, ForgeDisplaySettings.DisplayItem> stageItems = new HashMap<>();
+        String legacyItemType = null;
+        String legacyItemId = null;
 
+        // Check for NEW 3-stage format
+        ConfigurationSection stagesSection = section.getConfigurationSection("stages");
+        if (stagesSection != null) {
+            for (String stageKey : stagesSection.getKeys(false)) {
+                try {
+                    int stage = Integer.parseInt(stageKey);
+                    ConfigurationSection stageConfig = stagesSection.getConfigurationSection(stageKey);
+                    if (stageConfig != null) {
+                        String itemType = stageConfig.getString("item_type", "ce");
+                        String itemId = stageConfig.getString("item_id", "");
+                        if (!itemId.isEmpty()) {
+                            stageItems.put(stage, new ForgeDisplaySettings.DisplayItem(itemType, itemId));
+                        }
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+
+        // Check for LEGACY single-item format (still supported)
+        if (stageItems.isEmpty()) {
+            legacyItemType = section.getString("item_type", null);
+            legacyItemId = section.getString("item_id", null);
+        }
+
+        // Parse position offsets
         double offsetX = section.getDouble("offset_x", 0.5);
-        double offsetY = section.getDouble("offset_y", 0.9);
+        double offsetY = section.getDouble("offset_y", 1.0);
         double offsetZ = section.getDouble("offset_z", 0.5);
 
-        float baseScale = (float) section.getDouble("base_scale", 0.5);
-        float maxScale = (float) section.getDouble("max_scale", 0.7);
+        // Parse scale settings
+        float baseScale = (float) section.getDouble("base_scale", 0.6);
+        float maxScale = (float) section.getDouble("max_scale", 0.9);
 
+        // Parse rotation
         boolean layFlat = section.getBoolean("lay_flat", true);
 
         return new ForgeDisplaySettings(
-                itemType, itemId,
+                stageItems.isEmpty() ? Collections.emptyMap() : stageItems,
+                legacyItemType,
+                legacyItemId,
                 offsetX, offsetY, offsetZ,
                 baseScale, maxScale, layFlat
         );

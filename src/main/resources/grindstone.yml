@@ -1,52 +1,1713 @@
-# ==========================================
+﻿# ==========================================
 # Grindstone Repair Configuration
 # ==========================================
-
-# Sneak + right-click vanilla grindstone to use vanilla behavior
+#
+# PERMISSION-BASED REPAIR SYSTEM:
+# - permission: Base permission to repair item
+# - repair_chance_permission: Prefix for success chance
+# ==========================================
 sneak_for_vanilla: true
+repair_hammer:
+  enabled: true
+  type: smc
+  id: repair_hammer
+  fallback_material: IRON_AXE
+gui:
+  title: "&8&lRepair Station"
+  size: 27
+  input_slot: 13
+  repair_button_slot: 22
+  info_slot: 4
+permissions:
+  use_permission: skill.tiejiang.hejin.xiufu
+  repair_amount_permission: skill.tiejiang.hejin.cgl
+  success_chance_permission: smithing_repair_chance.hammer
+  default_repair_amount: 25
+  default_success_chance: 50
+furniture:
+  enabled: true
+  ids:
+    - "smc:grindstone"
 
-# Repair configurations by item type
 repairs:
-  iron_sword:
-    item_type: smc
-    item_id: iron_sword
-    repair_material:
+  hammer:
+    permission: skill.tiejiang.tie.xiufu # just the beginning. if player has smithing.hammer.10 they can repair 10% durability. 50% if smithing.hammer.50 etc
+    id: hammer
+    type: smc
+    repair_chance_permission: smithing_repair_chance.hammer # just the beginning. if player has smithing_repair_chance.hammer.10 they have 10% chance to successfully repair. 50% chance if smithing_repair_chance.hammer.50 etc
+    input:
+      id: iron_ingot
       type: minecraft
-      id: IRON_INGOT
-      amount: 2
-    repair_percent: 25
-    max_repairs: 5
-    cost: 0
-
-  diamond_sword:
-    item_type: smc
-    item_id: diamond_sword
-    repair_material:
-      type: minecraft
-      id: DIAMOND
       amount: 1
-    repair_percent: 20
-    max_repairs: 3
-    cost: 0
-
-  iron_pickaxe:
-    item_type: smc
-    item_id: iron_pickaxe
-    repair_material:
+  dy_ry_1:  # 熔岩耐热头盔
+    permission: skill.tiejiang.hejin.xiufu
+    id: rongyannairetoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
       type: minecraft
-      id: IRON_INGOT
-      amount: 3
-    repair_percent: 30
-    max_repairs: 5
-    cost: 0
-
-  diamond_pickaxe:
-    item_type: smc
-    item_id: diamond_pickaxe
-    repair_material:
+      amount: 1  # 消耗1个
+  
+  dy_ry_2:  # 熔岩耐热胸甲
+    permission: skill.tiejiang.hejin.xiufu
+    id: rongyannairexiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
       type: minecraft
-      id: DIAMOND
-      amount: 2
-    repair_percent: 25
-    max_repairs: 3
-    cost: 0
+      amount: 1  # 消耗1个
+  
+  dy_ry_3:  # 熔岩耐热护腿
+    permission: skill.tiejiang.hejin.xiufu
+    id: rongyannairehutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  dy_ry_4:  # 熔岩耐热靴子
+    permission: skill.tiejiang.hejin.xiufu
+    id: rongyannairexuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  dy_ry_5:  # 熔岩耐热靴子
+    permission: skill.tiejiang.hejin.xiufu
+    id: rongyannairejian
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  dy_ly_1:  # 炼狱核心头盔
+    permission: skill.tiejiang.hejin.xiufu
+    id: lianyuhexintoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  dy_ly_2:  # 炼狱核心胸甲
+    permission: skill.tiejiang.hejin.xiufu
+    id: lianyuhexinxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  dy_ly_3:  # 炼狱核心护腿
+    permission: skill.tiejiang.hejin.xiufu
+    id: lianyuhexinhutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  dy_ly_4:  # 炼狱核心靴子
+    permission: skill.tiejiang.hejin.xiufu
+    id: lianyuhexinxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  dy_ly_5:  # 炼狱核心剑
+    permission: skill.tiejiang.hejin.xiufu
+    id: lianyuhejinjian
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_t_1:  # 精钢头盔1
+    permission: skill.tiejiang.tie.xiufu
+    id: jinggangtoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_t_2:  # 精钢头盔2
+    permission: skill.tiejiang.tie.xiufu
+    id: jinggangtoukui2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_t_3:  # 精钢头盔3
+    permission: skill.tiejiang.tie.xiufu
+    id: jinggangtoukui3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_x_1:  # 精钢胸甲1
+    permission: skill.tiejiang.tie.xiufu
+    id: jinggangxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_x_2:  # 精钢胸甲2
+    permission: skill.tiejiang.tie.xiufu
+    id: jinggangxiongjia2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_x_3:  # 精钢胸甲3
+    permission: skill.tiejiang.tie.xiufu
+    id: jinggangxiongjia3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_k_1:  # 精钢护腿1
+    permission: skill.tiejiang.tie.xiufu
+    id: jingganghutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_k_2:  # 精钢护腿2
+    permission: skill.tiejiang.tie.xiufu
+    id: jingganghutui2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_k_3:  # 精钢护腿3
+    permission: skill.tiejiang.tie.xiufu
+    id: jingganghutui3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_xue_1:  # 精钢靴子1
+    permission: skill.tiejiang.tie.xiufu
+    id: jinggangxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_xue_2:  # 精钢靴子2
+    permission: skill.tiejiang.tie.xiufu
+    id: jinggangxuezi2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  jg_xue_3:  # 精钢靴子3
+    permission: skill.tiejiang.tie.xiufu
+    id: jinggangxuezi3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_t_1:  # 钻石头盔1
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshitoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_t_2:  # 钻石头盔2
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshitoukui2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_t_3:  # 钻石头盔3
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshitoukui3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_x_1:  # 钻石胸甲1
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshixiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_x_2:  # 钻石胸甲2
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshixiongjia2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_x_3:  # 钻石胸甲3
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshixiongjia3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_k_1:  # 钻石护腿1
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshihutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_k_2:  # 钻石护腿2
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshihutui2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_k_3:  # 钻石护腿3
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshihutui3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_xue_1:  # 钻石靴子1
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshixuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_xue_2:  # 钻石靴子2
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshixuezi2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  zs_xue_3:  # 钻石靴子3
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: zuanshixuezi3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_t_1:  # 下界合金头盔1
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejintoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_t_2:  # 下界合金头盔2
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejintoukui2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_t_3:  # 下界合金头盔3
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejintoukui3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_x_1:  # 下界合金胸甲1
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejinxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_x_2:  # 下界合金胸甲2
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejinxiongjia2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_x_3:  # 下界合金胸甲3
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejinxiongjia3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_k_1:  # 下界合金护腿1
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejinhutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_k_2:  # 下界合金护腿2
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejinhutui2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_k_3:  # 下界合金护腿3
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejinhutui3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_xue_1:  # 下界合金靴子1
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejinxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_xue_2:  # 下界合金靴子2
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejinxuezi2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  hj_xue_3:  # 下界合金靴子3
+    permission: skill.tiejiang.hejin.xiufu
+    id: xiajiehejinxuezi3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgj1:  # 武器_精钢剑1
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgj1
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgj2:  # 武器_精钢剑2
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgj2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgj3:  # 武器_精钢剑3
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgj3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgqq1:  # 武器_精钢斧头1
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgqq1
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgqq2:  # 武器_精钢斧头2
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgqq2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgqq3:  # 武器_精钢斧头3
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgqq3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgdj1:  # 武器_精钢短剑1
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgdj1
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgdj2:  # 武器_精钢短剑2
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgdj2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgdj3:  # 武器_精钢短剑3
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgdj3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgpf1:  # 武器_精钢劈斧1
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgpf1
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgpf2:  # 武器_精钢劈斧2
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgpf2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_jgpf3:  # 武器_精钢劈斧3
+    permission: skill.tiejiang.tie.xiufu
+    id: wuqi_zf_jgpf3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjj1:  # 武器_合金剑1
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjj1
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjj2:  # 武器_合金剑2
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjj2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjj3:  # 武器_合金剑3
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjj3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_ydyd:  # 武器_RP合金剑
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_ydyd
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_bszdcj:  # 武器_RP合金剑
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_bszdcj
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjqq1:  # 武器_合金斧头1
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjqq1
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjqq2:  # 武器_合金斧头2
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjqq2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjqq3:  # 武器_合金斧头3
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjqq3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjdj1:  # 武器_合金短剑1
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjdj1
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjdj2:  # 武器_合金短剑2
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjdj2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjdj3:  # 武器_合金短剑3
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjdj3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjpf1:  # 武器_合金劈斧1
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjpf1
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjpf2:  # 武器_合金劈斧2
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjpf2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  wuqi_zf_hjpf3:  # 武器_合金劈斧3
+    permission: skill.tiejiang.hejin.xiufu
+    id: wuqi_zf_hjpf3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  # 精钢锄头系列
+  gongju_zf_jgct1:  # 精钢锄头1-3星
+    permission: skill.tiejiang.tie.xiufu
+    id: gongju_zf_jgct1
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 所有星级消耗1个
+  
+  gongju_zf_jgct2:  # 精钢锄头4星
+    permission: skill.tiejiang.tie.xiufu
+    id: gongju_zf_jgct2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_jgct3:  # 精钢锄头5星
+    permission: skill.tiejiang.tie.xiufu
+    id: gongju_zf_jgct3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  # 钻石钢锄头系列
+  gongju_zf_zsgct1:  # 钻石钢锄头1-3星
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: gongju_zf_zsgct1
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_zsgct2:  # 钻石钢锄头4星
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: gongju_zf_zsgct2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_zsgct3:  # 钻石钢锄头5星
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: gongju_zf_zsgct3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  # 下界合金锄头系列
+  gongju_zf_xjhjct1:  # 下界合金锄头1-3星
+    permission: skill.tiejiang.hejin.xiufu
+    id: gongju_zf_xjhjct1
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_xjhjct2:  # 下界合金锄头4星
+    permission: skill.tiejiang.hejin.xiufu
+    id: gongju_zf_xjhjct2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_xjhjct3:  # 下界合金锄头5星
+    permission: skill.tiejiang.hejin.xiufu
+    id: gongju_zf_xjhjct3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  # 精钢铲系列
+  gongju_zf_jgc1:  # 精钢铲1-3星
+    permission: skill.tiejiang.tie.xiufu
+    id: gongju_zf_jgc1
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_jgc2:  # 精钢铲4星
+    permission: skill.tiejiang.tie.xiufu
+    id: gongju_zf_jgc2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_jgc3:  # 精钢铲5星
+    permission: skill.tiejiang.tie.xiufu
+    id: gongju_zf_jgc3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  # 钻石钢铲系列
+  gongju_zf_zsgc1:  # 钻石钢铲1-3星
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: gongju_zf_zsgc1
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_zsgc2:  # 钻石钢铲4星
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: gongju_zf_zsgc2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_zsgc3:  # 钻石钢铲5星
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: gongju_zf_zsgc3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  # 下界合金铲系列
+  gongju_zf_xjhjc1:  # 下界合金铲1-3星
+    permission: skill.tiejiang.hejin.xiufu
+    id: gongju_zf_xjhjc1
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_xjhjc2:  # 下界合金铲4星
+    permission: skill.tiejiang.hejin.xiufu
+    id: gongju_zf_xjhjc2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_xjhjc3:  # 下界合金铲5星
+    permission: skill.tiejiang.hejin.xiufu
+    id: gongju_zf_xjhjc3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  # 精钢镐系列
+  gongju_zf_jgg1:  # 精钢镐1-3星
+    permission: skill.tiejiang.tie.xiufu
+    id: gongju_zf_jgg1
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_jgg2:  # 精钢镐4星
+    permission: skill.tiejiang.tie.xiufu
+    id: gongju_zf_jgg2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_jgg3:  # 精钢镐5星
+    permission: skill.tiejiang.tie.xiufu
+    id: gongju_zf_jgg3
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: iron_ingot
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  # 钻石钢镐系列
+  gongju_zf_zsgg1:  # 钻石钢镐1-3星
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: gongju_zf_zsgg1
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_zsgg2:  # 钻石钢镐4星
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: gongju_zf_zsgg2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_zsgg3:  # 钻石钢镐5星
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: gongju_zf_zsgg3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  # 下界合金镐系列
+  gongju_zf_xjhjg1:  # 下界合金镐1-3星
+    permission: skill.tiejiang.hejin.xiufu
+    id: gongju_zf_xjhjg1
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_xjhjg2:  # 下界合金镐4星
+    permission: skill.tiejiang.hejin.xiufu
+    id: gongju_zf_xjhjg2
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  gongju_zf_xjhjg3:  # 下界合金镐5星
+    permission: skill.tiejiang.hejin.xiufu
+    id: gongju_zf_xjhjg3
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1  # 消耗1个
+  
+  # 钻石剑系列修复配置
+  wuqi_zf_zsj1:  # 武器_钻石剑1
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zsj1
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  wuqi_zf_zsj2:  # 武器_钻石剑2
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zsj2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  wuqi_zf_zsj3:  # 武器_钻石剑3
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zsj3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  # 钻石骑枪系列修复配置
+  wuqi_zf_zsqq1:  # 武器_钻石骑枪1
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zsqq1
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  wuqi_zf_zsqq2:  # 武器_钻石骑枪2
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zsqq2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  wuqi_zf_zsqq3:  # 武器_钻石骑枪3
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zsqq3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  # 钻石短剑系列修复配置
+  wuqi_zf_zsdj1:  # 武器_钻石短剑1
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zsdj1
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  wuqi_zf_zsdj2:  # 武器_钻石短剑2
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zsdj2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  wuqi_zf_zsdj3:  # 武器_钻石短剑3
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zsdj3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  # 钻石劈斧系列修复配置
+  wuqi_zf_zspf1:  # 武器_钻石劈斧1
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zspf1
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  wuqi_zf_zspf2:  # 武器_钻石劈斧2
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zspf2
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  wuqi_zf_zspf3:  # 武器_钻石劈斧3
+    permission: skill.tiejiang.zuanshi.xiufu
+    id: wuqi_zf_zspf3
+    type: smc
+    repair_chance_permission: skill.tiejiang.zuanshi.cgl
+    input:
+      id: diamond
+      type: minecraft
+      amount: 1  # 消耗1个钻石
+  
+  # 王者头盔修复配置
+  dy_wz_1_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: wangzhehexintoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 王者胸甲修复配置
+  dy_wz_2_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: wangzhehexinxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 王者护腿修复配置
+  dy_wz_3_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: wangzhehexinhutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 王者靴子修复配置
+  dy_wz_4_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: wangzhehexinxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 王者长剑修复配置
+  dy_wz_5_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: wangzhezhishichangjian
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 破败头盔修复配置
+  dy_pb_1_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: pobaihexintoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 破败胸甲修复配置
+  dy_pb_2_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: pobaihexinxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 破败护腿修复配置
+  dy_pb_3_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: pobaihexinhutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 破败靴子修复配置
+  dy_pb_4_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: pobaihexinxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 破败长剑修复配置
+  dy_pb_5_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: pobaironghechangjian
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 头盔 - 赤炎系列修复
+  dy_cy_1_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: chiyanhexintoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 头盔 - 骨霜系列修复
+  dy_gs_1_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: gushuanghexintoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 胸甲 - 赤炎系列修复
+  dy_cy_2_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: chiyanhexinxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 胸甲 - 骨霜系列修复
+  dy_gs_2_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: gushuanghexinxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 护腿 - 赤炎系列修复
+  dy_cy_3_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: chiyanhexinhutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 护腿 - 骨霜系列修复
+  dy_gs_3_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: gushuanghexinhutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 靴子 - 赤炎系列修复
+  dy_cy_4_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: chiyanhexinxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 靴子 - 骨霜系列修复
+  dy_gs_4_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: gushuanghexinxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 武器 - 赤炎系列修复
+  dy_cy_5_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: chiyanzhishichangqiang
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 武器 - 骨霜系列修复
+  dy_gs_5_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: gushuangronghechangjian
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 头盔 - 反叛系列修复
+  dy_fp_1_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: fanpanhexintoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 头盔 - 弑君系列修复
+  dy_sj_1_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: shijunhexintoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 胸甲 - 反叛系列修复
+  dy_fp_2_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: fanpanhexinxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 胸甲 - 弑君系列修复
+  dy_sj_2_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: shijunhexinxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 护腿 - 反叛系列修复
+  dy_fp_3_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: fanpanhexinhutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 护腿 - 弑君系列修复
+  dy_sj_3_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: shijunhexinhutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 靴子 - 反叛系列修复
+  dy_fp_4_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: fanpanhexinxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 靴子 - 弑君系列修复
+  dy_sj_4_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: shijunhexinxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 武器 - 反叛系列修复
+  dy_fp_5_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: fanpanzhishichangjian
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 武器 - 弑君系列修复
+  dy_sj_5_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: shijunronghechangjian
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 气动头盔修复
+  dy_qd_1_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: qidonghexintoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 超载头盔修复
+  dy_cz_1_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: chaozaihexintoukui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 气动胸甲修复
+  dy_qd_2_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: qidonghexinxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 超载胸甲修复
+  dy_cz_2_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: chaozaihexinxiongjia
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 气动护腿修复
+  dy_qd_3_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: qidonghexinhutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 超载护腿修复
+  dy_cz_3_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: chaozaihexinhutui
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 气动靴子修复
+  dy_qd_4_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: qidonghexinxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 超载靴子修复
+  dy_cz_4_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: chaozaihexinxuezi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 气动武器修复
+  dy_qd_5_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: qidongzhishichangjian
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  # 超载武器修复
+  dy_cz_5_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: chaozaironghechangjian
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: netherite_scrap
+      type: minecraft
+      amount: 1
+  
+  baijun_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: baijun
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: smc:diyu_ty_2
+      type: craftengine
+      amount: 1
+  
+  yaoshi_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: yaoshi
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: smc:diyu_ty_2
+      type: craftengine
+      amount: 1
+  
+  huangjinjiqiang_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: huangjinjiqiang
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: smc:diyu_ty_2
+      type: craftengine
+      amount: 1
+  
+  longya_repair:
+    permission: skill.tiejiang.hejin.xiufu
+    id: longya
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: smc:diyu_ty_2
+      type: craftengine
+      amount: 1
+  
+  huangjinjiqiang_teshu:
+    permission: skill.tiejiang.hejin.xiufu
+    id: huangjinjiqiang_teshu
+    type: smc
+    repair_chance_permission: skill.tiejiang.hejin.cgl
+    input:
+      id: smc:diyu_ty_2
+      type: craftengine
+      amount: 1
+  
+  zs_sword1:  
+    permission: skill.tiejiang.tie.xiufu
+    id: zs_sword1
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: icon38
+      type: smc
+      amount: 1  # 消耗1个
+      
+  fs_sword1:  # 精钢头盔1
+    permission: skill.tiejiang.tie.xiufu
+    id: fs_sword1
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: icon38
+      type: smc
+      amount: 1  # 消耗1个
+  
+  sr_sword1:  # 精钢头盔1
+    permission: skill.tiejiang.tie.xiufu
+    id: sr_sword1
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: icon38
+      type: smc
+      amount: 1  # 消耗1个
+  
+  zs_sword2:  
+    permission: skill.tiejiang.tie.xiufu
+    id: zs_sword2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: icon38
+      type: smc
+      amount: 2  # 消耗1个
+      
+  fs_sword2:  # 精钢头盔1
+    permission: skill.tiejiang.tie.xiufu
+    id: fs_sword2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: icon38
+      type: smc
+      amount: 2  # 消耗1个
+  
+  sr_sword2:  # 精钢头盔1
+    permission: skill.tiejiang.tie.xiufu
+    id: sr_sword2
+    type: smc
+    repair_chance_permission: skill.tiejiang.tie.cgl
+    input:
+      id: icon38
+      type: smc
+      amount: 2  # 消耗1个

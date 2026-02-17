@@ -1,6 +1,7 @@
 package com.simmc.blacksmith.items;
 
 import com.simmc.blacksmith.integration.CraftEngineHook;
+import com.simmc.blacksmith.integration.CustomFishingHook;
 import com.simmc.blacksmith.integration.NexoHook;
 import com.simmc.blacksmith.integration.SMCCoreHook;
 import org.bukkit.inventory.ItemStack;
@@ -14,7 +15,17 @@ public class ItemProviderRegistry {
     private final JavaPlugin plugin;
     private final Map<String, ItemProvider> providers;
 
-    public ItemProviderRegistry(JavaPlugin plugin, SMCCoreHook smcHook, CraftEngineHook craftEngineHook, NexoHook nexoHook) {
+    // Type aliases for convenience (e.g., "ce" -> "craftengine")
+    private static final Map<String, String> TYPE_ALIASES = Map.of(
+            "ce", "craftengine",
+            "craft_engine", "craftengine",
+            "smccore", "smc",
+            "vanilla", "minecraft",
+            "mc", "minecraft"
+    );
+
+    public ItemProviderRegistry(JavaPlugin plugin, SMCCoreHook smcHook, CraftEngineHook craftEngineHook,
+                                NexoHook nexoHook, CustomFishingHook customFishingHook) {
         this.plugin = plugin;
         this.providers = new HashMap<>();
 
@@ -35,11 +46,25 @@ public class ItemProviderRegistry {
         if (nexoHook != null && nexoHook.isAvailable()) {
             registerProvider(new NexoItemProvider(nexoHook));
         }
+
+        // Register CustomFishing provider if available
+        if (customFishingHook != null && customFishingHook.isAvailable()) {
+            registerProvider(new CustomFishingItemProvider(customFishingHook));
+        }
     }
 
     public void registerProvider(ItemProvider provider) {
         providers.put(provider.getType().toLowerCase(), provider);
         plugin.getLogger().info("Registered item provider: " + provider.getType());
+    }
+
+    /**
+     * Resolves type aliases to canonical type names.
+     */
+    private String resolveType(String type) {
+        if (type == null) return null;
+        String lower = type.toLowerCase();
+        return TYPE_ALIASES.getOrDefault(lower, lower);
     }
 
     public ItemStack getItem(String type, String id, int amount) {
@@ -55,9 +80,10 @@ public class ItemProviderRegistry {
             amount = 1;
         }
 
-        ItemProvider provider = providers.get(type.toLowerCase());
+        String resolvedType = resolveType(type);
+        ItemProvider provider = providers.get(resolvedType);
         if (provider == null) {
-            plugin.getLogger().warning("Unknown item provider: " + type);
+            plugin.getLogger().warning("Unknown item provider: " + type + " (resolved: " + resolvedType + ")");
             return null;
         }
 
@@ -79,7 +105,8 @@ public class ItemProviderRegistry {
             return false;
         }
 
-        ItemProvider provider = providers.get(type.toLowerCase());
+        String resolvedType = resolveType(type);
+        ItemProvider provider = providers.get(resolvedType);
         if (provider == null || !provider.isAvailable()) {
             return false;
         }
@@ -88,7 +115,8 @@ public class ItemProviderRegistry {
     }
 
     public boolean hasProvider(String type) {
-        ItemProvider provider = providers.get(type.toLowerCase());
+        String resolvedType = resolveType(type);
+        ItemProvider provider = providers.get(resolvedType);
         return provider != null && provider.isAvailable();
     }
 

@@ -20,13 +20,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages quenching (naming) sessions after forging completes.
- * Flow: Forge complete → GUI opens → Player names item (or skips) → Item given
  */
 public class QuenchingManager {
 
     private static final long DEFAULT_TIMEOUT_SECONDS = 120;
-    private static final long TIMEOUT_CHECK_TICKS = 200L; // 10 seconds
-    private static final int MAX_NAME_LENGTH = 50;
+    private static final long TIMEOUT_CHECK_TICKS = 200L;
 
     private final JavaPlugin plugin;
     private final ConfigManager configManager;
@@ -65,7 +63,8 @@ public class QuenchingManager {
             }
         }
 
-        expired.forEach(id -> cancelSession(id, "Session timed out."));
+        // Auto-complete expired sessions without name
+        expired.forEach(id -> autoCompleteSession(id));
     }
 
     private long getSessionTimeoutMs() {
@@ -94,28 +93,31 @@ public class QuenchingManager {
         gui.open(player);
 
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f, 1.0f);
+
+        player.sendMessage("§e§l⚒ FORGING COMPLETE!");
+        player.sendMessage("§7Click §aRename §7to name your item using the anvil.");
+        player.sendMessage("§7Click §7Skip/Close §7to finish without naming.");
+        player.sendMessage("§c§oYou only have one chance to name your item!");
     }
 
     // ==================== GUI HANDLERS ====================
 
-    /**
-     * Handles rename button click - transitions to chat input mode.
-     */
     public void handleRenameClick(Player player) {
         UUID playerId = player.getUniqueId();
         QuenchingSession session = sessions.get(playerId);
         if (session == null) return;
 
-        player.closeInventory();
-        openGUIs.remove(playerId);
+        // Set state BEFORE closing inventory to prevent handleGUIClose from completing
         session.awaitNameInput();
+        openGUIs.remove(playerId);
 
-        sendNamingPrompt(player);
+        player.closeInventory();
+
+        // Open naming GUI
+        QuenchingAnvilGUI namingGUI = new QuenchingAnvilGUI(plugin, session, this);
+        namingGUI.open(player);
     }
 
-    /**
-     * Handles skip button click - completes with default name.
-     */
     public void handleSkipClick(Player player) {
         UUID playerId = player.getUniqueId();
         QuenchingSession session = sessions.get(playerId);
@@ -123,75 +125,53 @@ public class QuenchingManager {
 
         player.closeInventory();
         openGUIs.remove(playerId);
+
+        completeQuenching(player, null);
+    }
+
+
+    public void handleGUIClose(Player player) {
+        UUID playerId = player.getUniqueId();
+        QuenchingSession session = sessions.get(playerId);
+        if (session == null) return;
+
+        if (!session.isGuiOpen()) return;
+
+        openGUIs.remove(playerId);
+
+        player.sendMessage("§7Naming skipped. Your item has been given to you.");
         completeQuenching(player, null);
     }
 
     /**
-     * Handles GUI close event.
+     * Called when anvil naming is complete.
      */
-    public void handleGUIClose(Player player) {
-        UUID playerId = player.getUniqueId();
-        QuenchingSession session = sessions.get(playerId);
-        if (session == null || !session.isGuiOpen()) return;
-
-        openGUIs.remove(playerId);
-        sendReminderMessage(player);
+    public void handleAnvilComplete(Player player, String customName) {
+        completeQuenching(player, customName);
     }
-
-    private void sendNamingPrompt(Player player) {
-        player.sendMessage("");
-        player.sendMessage("§6§l⚒ NAME YOUR CREATION");
-        player.sendMessage("§7Type a name in chat, or type §c'cancel' §7to go back.");
-        player.sendMessage("");
-        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.8f, 1.2f);
-    }
-
-    private void sendReminderMessage(Player player) {
-        player.sendMessage("");
-        player.sendMessage("§e§l⚠ NAMING SESSION ACTIVE");
-        player.sendMessage("§7Type §a/forge name §7to reopen the naming GUI");
-        player.sendMessage("§7Or type §c/forge cancel §7to cancel and get your item back");
-        player.sendMessage("");
-    }
-
-    // ==================== CHAT INPUT ====================
 
     /**
-     * Handles chat input for naming.
+     * Called when anvil is closed without naming.
      */
-    public void handleChatInput(Player player, String message) {
+    public void handleAnvilClose(Player player) {
         UUID playerId = player.getUniqueId();
-        QuenchingSession session = sessions.get(playerId);
 
-        if (session == null || !session.isAwaitingName()) return;
-
-        String trimmed = message.trim();
-
-        if (trimmed.equalsIgnoreCase("cancel")) {
-            reopenGUI(player);
-            player.sendMessage("§7Naming cancelled. Choose an option.");
+        // Check if session exists before completing
+        if (!sessions.containsKey(playerId)) {
             return;
         }
 
-        if (trimmed.isEmpty()) {
-            player.sendMessage("§cPlease enter a valid name or type §c'cancel' §7to go back.");
-            return;
-        }
-
-        if (trimmed.length() > MAX_NAME_LENGTH) {
-            player.sendMessage("§cName too long! Maximum " + MAX_NAME_LENGTH + " characters.");
-            return;
-        }
-
-        completeQuenching(player, trimmed);
+        // Complete without name
+        completeQuenching(player, null);
     }
+
 
     // ==================== COMPLETION ====================
 
     /**
      * Completes the quenching session and gives the item to the player.
      */
-    private void completeQuenching(Player player, String customName) {
+    public void completeQuenching(Player player, String customName) {
         UUID playerId = player.getUniqueId();
         QuenchingSession session = sessions.remove(playerId);
         openGUIs.remove(playerId);
@@ -205,19 +185,39 @@ public class QuenchingManager {
         playCompletionSounds(player);
     }
 
+    private void autoCompleteSession(UUID playerId) {
+        QuenchingSession session = sessions.remove(playerId);
+        openGUIs.remove(playerId);
+        if (session == null) return;
+
+        Player player = Bukkit.getPlayer(playerId);
+        if (player != null && player.isOnline()) {
+            if (player.getOpenInventory().getTopInventory().getHolder() instanceof QuenchingGUI) {
+                player.closeInventory();
+            }
+
+            ItemStack result = buildFinalItem(session, player.getName(), null);
+            giveItemToPlayer(player, result);
+
+            player.sendMessage("§cSession timed out.");
+            player.sendMessage("§7Your item has been given to you without a custom name.");
+        }
+    }
+
     private ItemStack buildFinalItem(QuenchingSession session, String forgerName, String customName) {
         ItemStack result = session.getForgedItem();
         ForgeRecipe recipe = session.getRecipe();
         int stars = session.getStarRating();
 
-        // Apply star modifiers
+        // Get formatted forger line from config
+        String forgerFormat = configManager.getMainConfig().formatSmithedName(forgerName);
+
         if (recipe != null && recipe.hasStarModifiers()) {
-            result = modifierService.applyStarModifiers(result, stars, recipe.getStarModifiers(), forgerName);
+            result = modifierService.applyStarModifiers(result, stars, recipe.getStarModifiers(), forgerName, forgerFormat);
         } else {
             result = addBasicLore(result, stars, forgerName);
         }
 
-        // Apply custom name
         if (customName != null && !customName.isEmpty()) {
             ItemMeta meta = result.getItemMeta();
             if (meta != null) {
@@ -238,7 +238,11 @@ public class QuenchingManager {
         lore.add("");
         lore.add("§7§m─────────────");
         lore.add(formatStars(stars));
-        lore.add("§7Forged by §e" + forgerName);
+
+        // Use config format for forger name
+        String forgerLine = configManager.getMainConfig().formatSmithedName(forgerName);
+        lore.add(forgerLine);
+
         lore.add("§7§m─────────────");
 
         meta.setLore(lore);
@@ -270,29 +274,6 @@ public class QuenchingManager {
 
     // ==================== SESSION MANAGEMENT ====================
 
-    /**
-     * Reopens the naming GUI for a player.
-     */
-    public void reopenGUI(Player player) {
-        UUID playerId = player.getUniqueId();
-        QuenchingSession session = sessions.get(playerId);
-
-        if (session == null) {
-            player.sendMessage("§cYou don't have an active naming session.");
-            return;
-        }
-
-        // Reset to GUI state
-        session.returnToGui();
-
-        QuenchingGUI gui = new QuenchingGUI(session);
-        openGUIs.put(playerId, gui);
-        gui.open(player);
-    }
-
-    /**
-     * Cancels a session and returns the item to the player.
-     */
     public void cancelSession(UUID playerId, String reason) {
         QuenchingSession session = sessions.remove(playerId);
         openGUIs.remove(playerId);
@@ -300,7 +281,9 @@ public class QuenchingManager {
 
         Player player = Bukkit.getPlayer(playerId);
         if (player != null && player.isOnline()) {
-            if (player.getOpenInventory().getTopInventory().getHolder() instanceof QuenchingGUI) {
+            // Close any quenching-related GUI
+            var holder = player.getOpenInventory().getTopInventory().getHolder();
+            if (holder instanceof QuenchingGUI || holder instanceof QuenchingAnvilGUI) {
                 player.closeInventory();
             }
 

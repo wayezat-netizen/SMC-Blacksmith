@@ -26,9 +26,9 @@ public class QuenchingGUI implements InventoryHolder {
     private static final int STAR_DISPLAY_SLOT = 22;
     private static final int RENAME_SLOT = 29;
     private static final int SKIP_SLOT = 33;
+    private static final int CLOSE_SLOT = 40;
 
-    // Border slots
-    private static final int[] GOLD_BORDER = {0, 1, 2, 3, 4, 5, 6, 7, 8, 36, 37, 38, 39, 40, 41, 42, 43, 44};
+    private static final int[] GOLD_BORDER = {0, 1, 2, 3, 5, 6, 7, 8, 36, 37, 38, 39, 41, 42, 43, 44};
 
     private final QuenchingSession session;
     private final Inventory inventory;
@@ -40,21 +40,19 @@ public class QuenchingGUI implements InventoryHolder {
     }
 
     private void setupGUI() {
-        // Fill background
         fillBackground();
 
-        // Decorative gold border
         ItemStack goldGlass = createGlassPane(Material.YELLOW_STAINED_GLASS_PANE);
         for (int slot : GOLD_BORDER) {
             inventory.setItem(slot, goldGlass);
         }
 
-        // Content
         inventory.setItem(INFO_SLOT, createInfoItem());
         inventory.setItem(ITEM_PREVIEW_SLOT, createPreviewItem());
         inventory.setItem(STAR_DISPLAY_SLOT, createStarDisplay());
         inventory.setItem(RENAME_SLOT, createRenameButton());
         inventory.setItem(SKIP_SLOT, createSkipButton());
+        inventory.setItem(CLOSE_SLOT, createCloseButton());
     }
 
     private void fillBackground() {
@@ -64,16 +62,16 @@ public class QuenchingGUI implements InventoryHolder {
         }
     }
 
-    // ==================== ITEM BUILDERS ====================
-
     private ItemStack createInfoItem() {
         return buildItem(Material.BOOK, "§6§lForging Complete!",
                 "",
                 "§7Your item has been forged.",
                 "§7You may now give it a custom name.",
                 "",
-                "§e• §fClick §aRename §fto name your item",
-                "§e• §fClick §7Skip §fto use default name"
+                "§c§oThis is your only chance!",
+                "",
+                "§e• §fClick §aRename §fto open anvil",
+                "§e• §fClick §7Skip/Close §fto finish"
         );
     }
 
@@ -105,24 +103,32 @@ public class QuenchingGUI implements InventoryHolder {
     }
 
     private ItemStack createRenameButton() {
-        return buildItem(Material.NAME_TAG, "§a§lRename Item",
+        return buildItem(Material.ANVIL, "§a§lRename Item",
                 "",
-                "§7Give your creation a custom name.",
+                "§7Open the anvil to name your item.",
                 "",
-                "§eClick to type a name in chat"
+                "§eClick to open anvil"
         );
     }
 
     private ItemStack createSkipButton() {
-        return buildItem(Material.BARRIER, "§7§lSkip Naming",
+        return buildItem(Material.PAPER, "§7§lSkip Naming",
                 "",
                 "§7Keep the default item name.",
                 "",
-                "§eClick to finish"
+                "§eClick to finish without naming"
         );
     }
 
-    // ==================== HELPERS ====================
+    private ItemStack createCloseButton() {
+        return buildItem(Material.BARRIER, "§c§lClose & Finish",
+                "",
+                "§7Close this menu and receive your item",
+                "§7without a custom name.",
+                "",
+                "§c§oYou cannot reopen this menu!"
+        );
+    }
 
     private ItemStack createGlassPane(Material material) {
         ItemStack item = new ItemStack(material);
@@ -157,8 +163,6 @@ public class QuenchingGUI implements InventoryHolder {
         return sb.toString();
     }
 
-    // ==================== PUBLIC API ====================
-
     public void open(Player player) {
         player.openInventory(inventory);
     }
@@ -168,7 +172,11 @@ public class QuenchingGUI implements InventoryHolder {
     }
 
     public boolean isSkipSlot(int slot) {
-        return slot == SKIP_SLOT;
+        return slot == SKIP_SLOT || slot == CLOSE_SLOT;
+    }
+
+    public boolean isCloseSlot(int slot) {
+        return slot == CLOSE_SLOT;
     }
 
     public QuenchingSession getSession() {
@@ -179,8 +187,6 @@ public class QuenchingGUI implements InventoryHolder {
     public Inventory getInventory() {
         return inventory;
     }
-
-    // ==================== STAR TIER ENUM ====================
 
     private enum StarTier {
         MASTERWORK(5, Material.NETHER_STAR, "§6§lMASTERWORK"),

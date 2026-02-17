@@ -46,10 +46,6 @@ public class PlaceholderAPIHook {
 
     /**
      * Parses a placeholder and returns it as a double.
-     *
-     * @param player The player
-     * @param placeholder The placeholder string (e.g., "%svalues_smithing%")
-     * @return The parsed double value, or 0.0 if parsing fails
      */
     public double parseDouble(Player player, String placeholder) {
         if (!available || placeholder == null || placeholder.isEmpty() || player == null) {
@@ -78,10 +74,6 @@ public class PlaceholderAPIHook {
 
     /**
      * Parses a placeholder and returns it as an integer.
-     *
-     * @param player The player
-     * @param placeholder The placeholder string
-     * @return The parsed int value, or 0 if parsing fails
      */
     public int parseInt(Player player, String placeholder) {
         return (int) parseDouble(player, placeholder);
@@ -89,10 +81,6 @@ public class PlaceholderAPIHook {
 
     /**
      * Parses a placeholder and returns it as a long.
-     *
-     * @param player The player
-     * @param placeholder The placeholder string
-     * @return The parsed long value, or 0 if parsing fails
      */
     public long parseLong(Player player, String placeholder) {
         return (long) parseDouble(player, placeholder);
@@ -100,10 +88,6 @@ public class PlaceholderAPIHook {
 
     /**
      * Parses a placeholder and returns it as a boolean.
-     *
-     * @param player The player
-     * @param placeholder The placeholder string
-     * @return true if the result is "true", "yes", "1", or a positive number
      */
     public boolean parseBoolean(Player player, String placeholder) {
         if (!available || placeholder == null || placeholder.isEmpty() || player == null) {
@@ -135,10 +119,6 @@ public class PlaceholderAPIHook {
 
     /**
      * Checks a condition like "%placeholder% >= 5"
-     *
-     * @param player The player to check
-     * @param condition The condition string
-     * @return true if condition is met, false otherwise
      */
     public boolean checkCondition(Player player, String condition) {
         if (!available || condition == null || condition.trim().isEmpty()) {

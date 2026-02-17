@@ -17,15 +17,15 @@ import java.util.logging.Level;
 public class ForgePoint {
 
     // Timing windows (percentage of duration)
-    private static final double PERFECT_WINDOW = 0.30;
-    private static final double GREAT_WINDOW = 0.50;
-    private static final double GOOD_WINDOW = 0.70;
+    private static final double PERFECT_WINDOW = 0.35;
+    private static final double GREAT_WINDOW = 0.55;
+    private static final double GOOD_WINDOW = 0.75;
 
     // Accuracy scores for each window
     private static final double PERFECT_ACCURACY = 1.0;
-    private static final double GREAT_ACCURACY = 0.85;
-    private static final double GOOD_ACCURACY = 0.65;
-    private static final double POOR_ACCURACY = 0.35;
+    private static final double GREAT_ACCURACY = 0.88;
+    private static final double GOOD_ACCURACY = 0.70;
+    private static final double POOR_ACCURACY = 0.40;
 
     private final UUID id;
     private final Location location;
@@ -86,7 +86,7 @@ public class ForgePoint {
 
     private void playSpawnEffects(World world) {
         Location effectLoc = location.clone().add(0, 0.1, 0);
-        world.spawnParticle(Particle.ELECTRIC_SPARK, effectLoc, 5, 0.1, 0.05, 0.1, 0.02);
+        world.spawnParticle(Particle.ELECTRIC_SPARK, effectLoc, 3, 0.08, 0.04, 0.08, 0.02);
         world.playSound(location, Sound.BLOCK_NOTE_BLOCK_HAT, 0.4f, 1.5f);
     }
 
@@ -184,7 +184,7 @@ public class ForgePoint {
     }
 
     private void spawnBeaconParticle() {
-        if (tickCount % 4 != 0) return;
+        if (tickCount % 6 != 0) return;
         if (targetDisplay == null || targetDisplay.isDead()) return;
 
         World world = location.getWorld();

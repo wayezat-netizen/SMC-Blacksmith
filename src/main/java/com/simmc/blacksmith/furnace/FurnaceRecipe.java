@@ -87,7 +87,6 @@ public class FurnaceRecipe {
 
     /**
      * Checks if the provided input slots match this recipe's requirements.
-     * FIXED: Proper matching for both minecraft and custom items.
      */
     public boolean matchesInputs(ItemStack[] slots, ItemProviderRegistry registry) {
         if (slots == null || registry == null) {

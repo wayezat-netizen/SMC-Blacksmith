@@ -23,17 +23,12 @@ import java.util.logging.Logger;
 
 /**
  * Handles visual display of forge item on anvil during minigame.
- *
- * FEATURES:
- * - Supports CE/SMC items as display model
- * - Configurable position offsets
- * - Configurable scale
  */
 public class ForgeDisplay {
 
     private static final Logger LOGGER = Bukkit.getLogger();
 
-    // Color progression for heat glow
+    // Heat glow colors
     private static final Color COLOR_COLD = Color.fromRGB(255, 100, 50);
     private static final Color COLOR_WARM = Color.fromRGB(255, 150, 50);
     private static final Color COLOR_HOT = Color.fromRGB(255, 200, 80);
@@ -50,7 +45,6 @@ public class ForgeDisplay {
     private int tick;
     private int lastFrame = -1;
 
-    // Animation state
     private float currentScale;
 
     public ForgeDisplay(UUID playerId, Location anvilLocation, ForgeRecipe recipe) {
@@ -83,6 +77,10 @@ public class ForgeDisplay {
         }
     }
 
+    /**
+     * Spawn item display on top of anvil.
+     * Uses configurable offsets from recipe display settings.
+     */
     private void spawnItemDisplay(World world) {
         Location itemLoc = calculateDisplayLocation();
 
@@ -91,19 +89,40 @@ public class ForgeDisplay {
 
             display.setItemStack(item);
             display.setBillboard(Display.Billboard.FIXED);
-            display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+            display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GROUND);
             display.setGlowing(true);
             display.setGlowColorOverride(COLOR_COLD);
             display.setBrightness(new Display.Brightness(15, 15));
-            display.setShadowRadius(0.3f);
-            display.setShadowStrength(0.5f);
-            display.setTransformation(createTransformation(settings.baseScale(), 0));
+            display.setShadowRadius(0.5f);
+            display.setShadowStrength(0.8f);
+
+            // Proper transformation to sit on top of anvil
+            display.setTransformation(createDisplayTransformation(settings.baseScale()));
             display.setInterpolationDuration(0);
         });
     }
 
+    /**
+     * Gets the display item - supports 3-stage items or legacy single item.
+     */
     private ItemStack getDisplayItem() {
-        // Check if custom display item is configured
+        return getDisplayItemForStage(0); // Start with stage 0
+    }
+
+    /**
+     * Gets display item for a specific stage.
+     */
+    private ItemStack getDisplayItemForStage(int stage) {
+        // Check for stage-specific item first (3-stage format)
+        if (settings.hasStageItems()) {
+            ForgeDisplaySettings.DisplayItem stageItem = settings.getStageItem(stage);
+            if (stageItem != null && stageItem.isValid()) {
+                ItemStack item = getItemFromProvider(stageItem.type(), stageItem.id());
+                if (item != null) return item;
+            }
+        }
+
+        // Check legacy single display item
         if (settings.hasCustomDisplayItem()) {
             ItemStack customItem = getCustomDisplayItem();
             if (customItem != null) {
@@ -112,7 +131,7 @@ public class ForgeDisplay {
         }
 
         // Fallback to recipe frame
-        ForgeFrame frame = recipe.getFrame(0);
+        ForgeFrame frame = recipe.getFrame(stage);
         if (frame != null) {
             return frame.createDisplayItem();
         }
@@ -120,27 +139,34 @@ public class ForgeDisplay {
         return new ItemStack(Material.IRON_INGOT);
     }
 
-    private ItemStack getCustomDisplayItem() {
-        String type = settings.displayItemType();
-        String id = settings.displayItemId();
-
+    /**
+     * Gets item from provider (CE/SMC/Minecraft).
+     */
+    private ItemStack getItemFromProvider(String type, String id) {
         if (id == null || id.isEmpty()) return null;
 
         try {
             SMCBlacksmith plugin = SMCBlacksmith.getInstance();
             ItemProviderRegistry registry = plugin.getItemRegistry();
 
-            if (registry != null && type != null) {
+            if (registry != null) {
                 ItemStack item = registry.getItem(type, id, 1);
                 if (item != null && !item.getType().isAir()) {
                     return item;
                 }
             }
         } catch (Exception e) {
-            LOGGER.warning("[ForgeDisplay] Failed to get custom item: " + type + ":" + id);
+            LOGGER.warning("[ForgeDisplay] Failed to get item: " + type + ":" + id);
         }
 
         return null;
+    }
+
+    /**
+     * Gets custom display item from CE/SMC/Minecraft (legacy format).
+     */
+    private ItemStack getCustomDisplayItem() {
+        return getItemFromProvider(settings.displayItemType(), settings.displayItemId());
     }
 
     private void spawnProgressBar(Player player) {
@@ -152,8 +178,8 @@ public class ForgeDisplay {
 
     private void playSpawnEffects(World world) {
         Location loc = calculateDisplayLocation();
-        world.spawnParticle(Particle.FLAME, loc, 15, 0.15, 0.1, 0.15, 0.03);
-        world.spawnParticle(Particle.SMOKE, loc, 8, 0.1, 0.05, 0.1, 0.01);
+        world.spawnParticle(Particle.FLAME, loc, 10, 0.12, 0.08, 0.12, 0.02);
+        world.spawnParticle(Particle.SMOKE, loc, 5, 0.08, 0.04, 0.08, 0.01);
         world.playSound(anvilLocation, Sound.ITEM_FIRECHARGE_USE, 0.7f, 1.2f);
         world.playSound(anvilLocation, Sound.BLOCK_ANVIL_PLACE, 0.5f, 1.5f);
     }
@@ -188,42 +214,34 @@ public class ForgeDisplay {
     private void updateItemDisplay(ForgeSession session) {
         if (itemDisplay == null || itemDisplay.isDead()) return;
 
-        // Update frame if changed (only if not using custom display item)
-        if (!settings.hasCustomDisplayItem()) {
-            int currentFrame = session.getCurrentFrame();
-            if (currentFrame != lastFrame) {
-                ForgeFrame frame = recipe.getFrame(currentFrame);
-                if (frame != null) {
-                    itemDisplay.setItemStack(frame.createDisplayItem());
-                    playFrameChangeEffect();
-                }
-                lastFrame = currentFrame;
-            }
+        // Update display item based on current stage (0, 1, 2)
+        int currentFrame = session.getCurrentFrame();
+        if (currentFrame != lastFrame) {
+            // Get stage-specific item (supports 3-stage CE items)
+            ItemStack stageItem = getDisplayItemForStage(currentFrame);
+            itemDisplay.setItemStack(stageItem);
+            playFrameChangeEffect();
+            lastFrame = currentFrame;
         }
 
         double progress = session.getProgress();
         float heatIntensity = (float) progress;
 
-        // Update glow color
+        // Update glow color based on heat
         itemDisplay.setGlowColorOverride(getHeatColor(progress));
 
         // Calculate scale with animation
         float targetScale = settings.baseScale() + (settings.maxScale() - settings.baseScale()) * heatIntensity;
         currentScale = lerp(currentScale, targetScale, 0.1f);
 
-        // Subtle animations
+        // Subtle breathing animation
         float time = tick * 0.05f;
-        float breathe = (float) Math.sin(time * 2) * 0.015f * heatIntensity;
-        float wobble = 0;
-
-        if (heatIntensity > 0.5f) {
-            wobble = (float) Math.sin(time * 8) * 0.008f * (heatIntensity - 0.5f) * 2f;
-        }
+        float breathe = (float) Math.sin(time * 2) * 0.02f * heatIntensity;
 
         float finalScale = currentScale + breathe;
-        float yOffset = wobble;
 
-        itemDisplay.setTransformation(createTransformation(finalScale, yOffset));
+        // CLIENT FIX: Update transformation to keep item on top of anvil
+        itemDisplay.setTransformation(createDisplayTransformation(finalScale));
         itemDisplay.setInterpolationDuration(2);
         itemDisplay.setInterpolationDelay(0);
     }
@@ -255,6 +273,33 @@ public class ForgeDisplay {
 
     private float lerp(float a, float b, float t) {
         return a + (b - a) * t;
+    }
+
+    // ==================== DISPLAY LOCATION & TRANSFORMATION ====================
+    private Location calculateDisplayLocation() {
+        // Get configured offsets (default: center of block, on top surface)
+        double offsetX = settings.offsetX();  // 0.5 = center
+        double offsetY = settings.offsetY();  // Height above anvil block (1.0 = on top surface)
+        double offsetZ = settings.offsetZ();  // 0.5 = center
+
+        return anvilLocation.clone().add(offsetX, offsetY, offsetZ);
+    }
+
+    private Transformation createDisplayTransformation(float scale) {
+        Vector3f translation = new Vector3f(0, 0, 0);
+        Vector3f scaleVec = new Vector3f(scale, scale, scale);
+        Quaternionf rightRotation = new Quaternionf();
+
+        Quaternionf leftRotation;
+        if (settings.layFlat()) {
+            // Lay flat on the anvil surface - rotate 90 degrees on X axis
+            leftRotation = new Quaternionf().rotateX((float) Math.toRadians(-90));
+        } else {
+            // Stand upright
+            leftRotation = new Quaternionf();
+        }
+
+        return new Transformation(translation, leftRotation, scaleVec, rightRotation);
     }
 
     // ==================== BOSS BAR ====================
@@ -326,6 +371,9 @@ public class ForgeDisplay {
 
     // ==================== PARTICLES ====================
 
+    /**
+     * Spawn ambient particles during forging.
+     */
     private void spawnAmbientParticles(ForgeSession session) {
         World world = anvilLocation.getWorld();
         if (world == null) return;
@@ -333,21 +381,25 @@ public class ForgeDisplay {
         Location particleLoc = calculateDisplayLocation();
         double heat = session.getProgress();
 
-        if (tick % 3 == 0 && heat > 0.1) {
-            int count = 1 + (int) (heat * 2);
-            world.spawnParticle(Particle.SMALL_FLAME, particleLoc, count, 0.08, 0.02, 0.08, 0.005);
+        // Spawn particles less frequently for performance
+        if (tick % 5 == 0 && heat > 0.1) {
+            int count = 1 + (int) (heat * 1.5);
+            world.spawnParticle(Particle.SMALL_FLAME, particleLoc, count, 0.06, 0.02, 0.06, 0.004);
         }
 
-        if (heat > 0.4 && tick % 6 == 0) {
-            world.spawnParticle(Particle.ELECTRIC_SPARK, particleLoc.clone().add(0, 0.1, 0), 2, 0.1, 0.05, 0.1, 0.02);
+        // Spark particles
+        if (heat > 0.4 && tick % 10 == 0) {
+            world.spawnParticle(Particle.ELECTRIC_SPARK, particleLoc.clone().add(0, 0.1, 0), 1, 0.08, 0.04, 0.08, 0.015);
         }
 
-        if (heat > 0.6 && tick % 10 == 0) {
+        // Smoke particles
+        if (heat > 0.6 && tick % 15 == 0) {
             world.spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, particleLoc.clone().add(0, 0.15, 0), 1, 0.03, 0, 0.03, 0.002);
         }
 
-        if (tick % 40 == 0 && heat > 0.3) {
-            world.playSound(anvilLocation, Sound.BLOCK_FIRE_AMBIENT, 0.3f, 1.5f);
+        // Ambient sound
+        if (tick % 60 == 0 && heat > 0.3) {
+            world.playSound(anvilLocation, Sound.BLOCK_FIRE_AMBIENT, 0.25f, 1.5f);
         }
     }
 
@@ -429,8 +481,9 @@ public class ForgeDisplay {
         World world = itemDisplay.getWorld();
         Location loc = itemDisplay.getLocation();
 
+        // Brief scale pulse on hit
         float hitScale = currentScale * 1.15f;
-        itemDisplay.setTransformation(createTransformation(hitScale, 0.02f));
+        itemDisplay.setTransformation(createDisplayTransformation(hitScale));
         itemDisplay.setInterpolationDuration(1);
 
         if (accuracy >= 0.9) {
@@ -440,29 +493,6 @@ public class ForgeDisplay {
         } else {
             world.spawnParticle(Particle.CRIT, loc, 4, 0.05, 0.03, 0.05, 0.01);
         }
-    }
-
-    // ==================== UTILITIES ====================
-
-    private Location calculateDisplayLocation() {
-        return anvilLocation.clone().add(settings.offsetX(), settings.offsetY(), settings.offsetZ());
-    }
-
-    private Transformation createTransformation(float scale, float yOffset) {
-        Vector3f translation = new Vector3f(0, yOffset, 0);
-
-        Quaternionf leftRotation;
-        Quaternionf rightRotation = new Quaternionf();
-
-        if (settings.layFlat()) {
-            leftRotation = new Quaternionf().rotateX((float) Math.toRadians(-90));
-        } else {
-            leftRotation = new Quaternionf();
-        }
-
-        Vector3f scaleVec = new Vector3f(scale, scale, scale);
-
-        return new Transformation(translation, leftRotation, scaleVec, rightRotation);
     }
 
     // ==================== GETTERS ====================

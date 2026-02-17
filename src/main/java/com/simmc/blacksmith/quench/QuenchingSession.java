@@ -27,6 +27,7 @@ public class QuenchingSession {
 
     private State state;
     private String customName;
+    private long chatInputStartTime;
 
     public QuenchingSession(UUID playerId, ItemStack forgedItem, int starRating,
                             Location anvilLocation, ForgeRecipe recipe) {
@@ -38,6 +39,7 @@ public class QuenchingSession {
         this.startTime = System.currentTimeMillis();
         this.state = State.GUI_OPEN;
         this.customName = null;
+        this.chatInputStartTime = 0;
     }
 
     // ==================== STATE TRANSITIONS ====================
@@ -48,17 +50,10 @@ public class QuenchingSession {
     public void awaitNameInput() {
         if (state != State.COMPLETED) {
             this.state = State.AWAITING_NAME;
+            this.chatInputStartTime = System.currentTimeMillis();
         }
     }
 
-    /**
-     * Returns to GUI state from chat input.
-     */
-    public void returnToGui() {
-        if (state == State.AWAITING_NAME) {
-            this.state = State.GUI_OPEN;
-        }
-    }
 
     /**
      * Sets the custom name.
@@ -105,6 +100,7 @@ public class QuenchingSession {
     public long getStartTime() { return startTime; }
     public State getState() { return state; }
     public String getCustomName() { return customName; }
+    public long getChatInputStartTime() { return chatInputStartTime; }
 
     public Location getAnvilLocation() {
         return anvilLocation != null ? anvilLocation.clone() : null;

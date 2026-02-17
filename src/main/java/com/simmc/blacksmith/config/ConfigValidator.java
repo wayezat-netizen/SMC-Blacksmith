@@ -80,7 +80,7 @@ public class ConfigValidator {
             addWarning(furnaceId, "temperature_change should be positive, got: " + tempChange);
         }
 
-        // Cooling rate validation (NEW)
+        // Cooling rate validation
         int coolingRate = section.getInt("cooling_rate", 1);
         if (coolingRate < 0) {
             addWarning(furnaceId, "cooling_rate should be non-negative, got: " + coolingRate);
@@ -241,15 +241,15 @@ public class ConfigValidator {
     public boolean validateRepairConfig(ConfigurationSection section, String configId) {
         boolean valid = true;
 
-        // Item ID validation
-        String itemId = section.getString("id", "");
+         // Item ID validation - check both 'id' and 'item_id'
+        String itemId = section.getString("id", section.getString("item_id", ""));
         if (itemId.isEmpty()) {
             addError(configId, "Item id cannot be empty");
             valid = false;
         }
 
-        // Item type validation
-        String itemType = section.getString("type", "minecraft").toLowerCase();
+        // Item type validation - check both 'type' and 'item_type'
+        String itemType = section.getString("type", section.getString("item_type", "minecraft")).toLowerCase();
         if (!isValidItemType(itemType)) {
             addWarning(configId, "Unknown item type '" + itemType + "', expected minecraft/craftengine/smc/nexo");
         }
@@ -262,8 +262,11 @@ public class ConfigValidator {
             }
         }
 
-        // Input validation (optional)
+        // Input validation (optional) - check both 'input' and 'repair_material'
         ConfigurationSection input = section.getConfigurationSection("input");
+        if (input == null) {
+            input = section.getConfigurationSection("repair_material");
+        }
         if (input != null) {
             valid &= validateItemReference(input, configId + ".input");
         }
@@ -336,10 +339,10 @@ public class ConfigValidator {
             addWarning(bellowsId, "Unknown item type '" + itemType + "', expected minecraft/craftengine/smc/nexo");
         }
 
-        // Heat per blow validation
-        int heatPerBlow = section.getInt("heat_per_blow", 0);
+        // Heat per blow validation - check both heat_boost and heat_per_blow
+        int heatPerBlow = section.getInt("heat_boost", section.getInt("heat_per_blow", 0));
         if (heatPerBlow <= 0) {
-            addWarning(bellowsId, "heat_per_blow should be positive, got: " + heatPerBlow + ", defaulting to 10");
+            addWarning(bellowsId, "heat_boost/heat_per_blow should be positive, got: " + heatPerBlow + ", defaulting to 10");
         }
 
         // Max durability validation

@@ -26,8 +26,15 @@ public class BellowsConfig {
         bellowsById.clear();
         bellowsByItemId.clear();
 
-        for (String id : config.getKeys(false)) {
-            ConfigurationSection section = config.getConfigurationSection(id);
+
+        // Check for nested 'bellows:' section first, then fall back to root level
+        ConfigurationSection bellowsSection = config.getConfigurationSection("bellows");
+        if (bellowsSection == null) {
+            bellowsSection = config;
+        }
+
+        for (String id : bellowsSection.getKeys(false)) {
+            ConfigurationSection section = bellowsSection.getConfigurationSection(id);
             if (section == null) continue;
 
             BellowsType type = parseType(id, section);
@@ -41,7 +48,9 @@ public class BellowsConfig {
     private BellowsType parseType(String id, ConfigurationSection section) {
         String itemId = section.getString("id", id);
         String itemType = section.getString("type", "smc").toLowerCase();
-        int heatPerBlow = Math.max(1, section.getInt("heat_per_blow", 10));
+        // Support both heat_boost (current format) and heat_per_blow (legacy)
+        int heatPerBlow = Math.max(1, section.getInt("heat_boost",
+                section.getInt("heat_per_blow", 10)));
         int maxDurability = Math.max(1, section.getInt("max_durability", 100));
         int cooldownTicks = Math.max(0, section.getInt("cooldown_ticks", 10));
         String sound = section.getString("sound", "block.fire.ambient");

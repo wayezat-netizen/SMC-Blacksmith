@@ -1,9 +1,8 @@
 package com.simmc.blacksmith.repair;
 
-import com.simmc.blacksmith.SMCBlacksmith;
 import com.simmc.blacksmith.config.ConfigManager;
+import com.simmc.blacksmith.config.GrindstoneConfig;
 import com.simmc.blacksmith.config.MessageConfig;
-import com.simmc.blacksmith.integration.PlaceholderAPIHook;
 import com.simmc.blacksmith.items.ItemProviderRegistry;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -12,16 +11,16 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages item repair through grindstone interaction.
- * Supports PAPI placeholders for dynamic success chance and repair amount.
  */
 public class RepairManager {
 
-    private static final int DEFAULT_SUCCESS_CHANCE = 50;
-    private static final int DEFAULT_REPAIR_PERCENT = 25;
     private static final int MIN_CHANCE = 0;
     private static final int MAX_CHANCE = 100;
 
@@ -29,70 +28,225 @@ public class RepairManager {
     private final ConfigManager configManager;
     private final ItemProviderRegistry itemRegistry;
     private final Random random;
+    private final Map<UUID, RepairGUI> openGUIs;
 
     public RepairManager(JavaPlugin plugin, ConfigManager configManager, ItemProviderRegistry itemRegistry) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.itemRegistry = itemRegistry;
         this.random = new Random();
-
+        this.openGUIs = new ConcurrentHashMap<>();
         configManager.getGrindstoneConfig().setItemRegistry(itemRegistry);
+    }
+
+    // ==================== GUI MANAGEMENT ====================
+
+    public void openRepairGUI(Player player) {
+        GrindstoneConfig config = configManager.getGrindstoneConfig();
+        int successChance = getSuccessChanceFromPermission(player);
+        int repairAmount = getRepairAmountFromPermission(player);
+
+        RepairGUI gui = new RepairGUI(player, config, successChance, repairAmount);
+        openGUIs.put(player.getUniqueId(), gui);
+        gui.open();
+    }
+
+    public void closeRepairGUI(Player player) {
+        RepairGUI gui = openGUIs.remove(player.getUniqueId());
+        if (gui != null) {
+            ItemStack inputItem = gui.getInputItem();
+            if (inputItem != null && !inputItem.getType().isAir()) {
+                Map<Integer, ItemStack> overflow = player.getInventory().addItem(inputItem);
+                for (ItemStack leftover : overflow.values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+                }
+            }
+        }
+    }
+
+    public RepairGUI getOpenGUI(UUID playerId) {
+        return openGUIs.get(playerId);
+    }
+
+    public boolean hasOpenGUI(UUID playerId) {
+        return openGUIs.containsKey(playerId);
+    }
+
+    // ==================== REPAIR EXECUTION ====================
+
+    public boolean attemptRepairFromGUI(Player player) {
+        RepairGUI gui = openGUIs.get(player.getUniqueId());
+        if (gui == null) return false;
+
+        ItemStack item = gui.getInputItem();
+        if (item == null || item.getType().isAir()) {
+            player.sendMessage("§cPlace an item first!");
+            return false;
+        }
+
+        if (!isDamaged(item)) {
+            player.sendMessage("§eThis item doesn't need repair.");
+            return false;
+        }
+
+        RepairConfigData config = findRepairConfig(item);
+
+        // Item MUST be in repair config to be repairable
+        if (config == null) {
+            player.sendMessage("§cThis item cannot be repaired here.");
+            return false;
+        }
+
+        // Check per-item permission
+        if (!hasRepairPermissionForItem(player, config)) {
+            player.sendMessage(configManager.getMessageConfig().getNoPermission());
+            return false;
+        }
+
+        // Check materials - ALWAYS required if config has input defined
+        if (config.hasInput() && !hasRepairMaterials(player, config)) {
+            player.sendMessage(configManager.getMessageConfig()
+                    .getMissingMaterials(config.inputAmount(), config.inputId()));
+            return false;
+        }
+
+        // Get per-item success chance
+        int successChance = getSuccessChanceForItem(player, config);
+
+        boolean success = rollSuccess(successChance);
+
+        if (!success) {
+            handleRepairFailure(player);
+            // Consume materials even on failure
+            if (config.hasInput()) {
+                consumeRepairMaterials(player, config);
+            }
+            return false;
+        }
+
+        // Success - consume materials
+        if (config.hasInput()) {
+            consumeRepairMaterials(player, config);
+        }
+
+        int repairAmount = getRepairAmountForItem(player, config);
+
+        applyRepair(item, repairAmount);
+        gui.updateRepairButton();
+        handleRepairSuccess(player);
+        return true;
+    }
+
+    public boolean attemptRepair(Player player, ItemStack item) {
+        MessageConfig messages = configManager.getMessageConfig();
+
+        RepairConfigData config = findRepairConfig(item);
+
+        // Item MUST be in repair config to be repairable
+        if (config == null) {
+            player.sendMessage("§cThis item cannot be repaired.");
+            return false;
+        }
+
+        // Check per-item permission
+        if (!hasRepairPermissionForItem(player, config)) {
+            player.sendMessage(messages.getNoPermission());
+            return false;
+        }
+
+        // Check materials - ALWAYS required if config has input defined
+        if (config.hasInput() && !hasRepairMaterials(player, config)) {
+            player.sendMessage(messages.getMissingMaterials(config.inputAmount(), config.inputId()));
+            return false;
+        }
+
+        int successChance = getSuccessChanceForItem(player, config);
+        boolean success = rollSuccess(successChance);
+
+        if (!success) {
+            handleRepairFailure(player);
+            // Consume materials even on failure
+            if (config.hasInput()) {
+                consumeRepairMaterials(player, config);
+            }
+            return false;
+        }
+
+        // Success - consume materials
+        if (config.hasInput()) {
+            consumeRepairMaterials(player, config);
+        }
+
+        int repairPercent = getRepairAmountForItem(player, config);
+        applyRepair(item, repairPercent);
+        handleRepairSuccess(player);
+        return true;
+    }
+
+    // ==================== PERMISSION CHECKS ====================
+
+    public boolean hasRepairPermission(Player player) {
+        return true; // We check per-item permission when attempting repair
+    }
+
+    public boolean hasRepairPermissionForItem(Player player, RepairConfigData config) {
+        if (config == null) return false;
+        String itemPerm = config.condition();
+        if (itemPerm != null && !itemPerm.isEmpty()) {
+            return player.hasPermission(itemPerm);
+        }
+        String basePerm = configManager.getGrindstoneConfig().getUsePermission();
+        return player.hasPermission(basePerm);
+    }
+
+    public int getSuccessChanceFromPermission(Player player) {
+        GrindstoneConfig config = configManager.getGrindstoneConfig();
+        return getPermissionValue(player, config.getSuccessChancePermission(), config.getDefaultSuccessChance());
+    }
+
+    public int getSuccessChanceForItem(Player player, RepairConfigData config) {
+        if (config == null) return getSuccessChanceFromPermission(player);
+        String permPrefix = config.successChancePlaceholder();
+        if (permPrefix == null || permPrefix.isEmpty()) {
+            return getSuccessChanceFromPermission(player);
+        }
+        return getPermissionValue(player, permPrefix, configManager.getGrindstoneConfig().getDefaultSuccessChance());
+    }
+
+    public int getRepairAmountFromPermission(Player player) {
+        GrindstoneConfig config = configManager.getGrindstoneConfig();
+        return getPermissionValue(player, config.getRepairAmountPermission(), config.getDefaultRepairAmount());
+    }
+
+    public int getRepairAmountForItem(Player player, RepairConfigData config) {
+        if (config == null) return getRepairAmountFromPermission(player);
+        String permPrefix = config.repairAmountPlaceholder();
+        if (permPrefix == null || permPrefix.isEmpty()) {
+            return getRepairAmountFromPermission(player);
+        }
+        return getPermissionValue(player, permPrefix, configManager.getGrindstoneConfig().getDefaultRepairAmount());
+    }
+
+    private int getPermissionValue(Player player, String permPrefix, int defaultValue) {
+        if (permPrefix == null || permPrefix.isEmpty()) return defaultValue;
+        for (int value = 100; value >= 1; value--) {
+            if (player.hasPermission(permPrefix + "." + value)) {
+                return clamp(value, MIN_CHANCE, MAX_CHANCE);
+            }
+        }
+        return defaultValue;
     }
 
     // ==================== PUBLIC API ====================
 
-    /**
-     * Attempts to repair an item for a player.
-     * @return true if repair succeeded
-     */
-    public boolean attemptRepair(Player player, ItemStack item) {
-        MessageConfig messages = configManager.getMessageConfig();
-
-        // Find repair config
-        RepairConfigData config = findRepairConfig(item);
-        if (config == null) {
-            player.sendMessage(messages.getInvalidItem());
-            return false;
-        }
-
-        // Validate conditions
-        ValidationResult validation = validateRepair(player, config);
-        if (!validation.success()) {
-            player.sendMessage(validation.message());
-            return false;
-        }
-
-        // Roll for success
-        int successChance = getSuccessChance(player, config);
-        boolean success = rollSuccess(successChance);
-
-        if (!success) {
-            handleRepairFailure(player, messages);
-            return false;
-        }
-
-        // Success - consume materials and apply repair
-        consumeRepairMaterials(player, config);
-
-        int repairPercent = getRepairAmount(player, config);
-        applyRepair(item, repairPercent);
-
-        handleRepairSuccess(player, messages);
-        return true;
-    }
-
-    /**
-     * Checks if an item can be repaired with this system.
-     */
     public boolean canRepair(ItemStack item) {
         if (item == null || item.getType().isAir()) return false;
         if (!isDamageableItem(item)) return false;
-        return findRepairConfig(item) != null;
+        // Only items with a repair config can be repaired
+        RepairConfigData config = findRepairConfig(item);
+        return config != null;
     }
 
-    /**
-     * Checks if an item is damaged and needs repair.
-     */
     public boolean isDamaged(ItemStack item) {
         if (item == null) return false;
         ItemMeta meta = item.getItemMeta();
@@ -100,53 +254,30 @@ public class RepairManager {
         return damageable.getDamage() > 0;
     }
 
+    public boolean isRepairHammer(ItemStack item) {
+        if (item == null || item.getType().isAir()) return false;
+        GrindstoneConfig config = configManager.getGrindstoneConfig();
+        if (!config.isHammerRequired()) return true;
+
+        String hammerType = config.getHammerType();
+        String hammerId = config.getHammerId();
+
+        if (itemRegistry.matches(item, hammerType, hammerId)) {
+            return true;
+        }
+
+        String fallbackMaterial = config.getHammerFallbackMaterial();
+        return item.getType().name().equalsIgnoreCase(fallbackMaterial);
+    }
+
     public void reload() {
         configManager.getGrindstoneConfig().setItemRegistry(itemRegistry);
-    }
-
-    // ==================== VALIDATION ====================
-
-    private record ValidationResult(boolean success, String message) {
-        static ValidationResult ok() {
-            return new ValidationResult(true, null);
-        }
-        static ValidationResult fail(String message) {
-            return new ValidationResult(false, message);
-        }
-    }
-
-    private ValidationResult validateRepair(Player player, RepairConfigData config) {
-        MessageConfig messages = configManager.getMessageConfig();
-
-        // Check PAPI condition
-        if (!checkCondition(player, config)) {
-            return ValidationResult.fail(messages.getConditionNotMet());
-        }
-
-        // Check materials
-        if (!hasRepairMaterials(player, config)) {
-            return ValidationResult.fail(
-                    messages.getMissingMaterials(config.inputAmount(), config.inputId())
-            );
-        }
-
-        return ValidationResult.ok();
-    }
-
-    private boolean checkCondition(Player player, RepairConfigData config) {
-        if (!config.hasCondition()) return true;
-
-        PlaceholderAPIHook papi = getPapiHook();
-        if (papi == null || !papi.isAvailable()) return true;
-
-        return papi.checkCondition(player, config.condition());
     }
 
     // ==================== MATERIALS ====================
 
     private boolean hasRepairMaterials(Player player, RepairConfigData config) {
         if (!config.hasInput()) return true;
-
         int required = config.inputAmount();
         int found = countMatchingItems(player, config);
         return found >= required;
@@ -164,7 +295,6 @@ public class RepairManager {
 
     private void consumeRepairMaterials(Player player, RepairConfigData config) {
         if (!config.hasInput()) return;
-
         int remaining = config.inputAmount();
         ItemStack[] contents = player.getInventory().getContents();
 
@@ -175,7 +305,6 @@ public class RepairManager {
             if (itemRegistry.matches(slot, config.inputType(), config.inputId())) {
                 int take = Math.min(remaining, slot.getAmount());
                 remaining -= take;
-
                 int newAmount = slot.getAmount() - take;
                 if (newAmount <= 0) {
                     player.getInventory().setItem(i, null);
@@ -186,35 +315,7 @@ public class RepairManager {
         }
     }
 
-    // ==================== REPAIR CALCULATION ====================
-
-    private int getSuccessChance(Player player, RepairConfigData config) {
-        if (!config.hasSuccessChancePlaceholder()) {
-            return DEFAULT_SUCCESS_CHANCE;
-        }
-
-        PlaceholderAPIHook papi = getPapiHook();
-        if (papi == null || !papi.isAvailable()) {
-            return DEFAULT_SUCCESS_CHANCE;
-        }
-
-        double value = papi.parseDouble(player, config.successChancePlaceholder());
-        return clamp((int) value, MIN_CHANCE, MAX_CHANCE);
-    }
-
-    private int getRepairAmount(Player player, RepairConfigData config) {
-        if (!config.hasRepairAmountPlaceholder()) {
-            return DEFAULT_REPAIR_PERCENT;
-        }
-
-        PlaceholderAPIHook papi = getPapiHook();
-        if (papi == null || !papi.isAvailable()) {
-            return DEFAULT_REPAIR_PERCENT;
-        }
-
-        double value = papi.parseDouble(player, config.repairAmountPlaceholder());
-        return clamp((int) value, 1, 100);
-    }
+    // ==================== REPAIR APPLICATION ====================
 
     private boolean rollSuccess(int chance) {
         int roll = random.nextInt(100) + 1;
@@ -237,24 +338,19 @@ public class RepairManager {
 
     // ==================== FEEDBACK ====================
 
-    private void handleRepairSuccess(Player player, MessageConfig messages) {
-        player.sendMessage(messages.getRepairSuccess());
+    private void handleRepairSuccess(Player player) {
+        player.sendMessage(configManager.getMessageConfig().getRepairSuccess());
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0f, 1.2f);
     }
 
-    private void handleRepairFailure(Player player, MessageConfig messages) {
-        player.sendMessage(messages.getRepairFailed());
+    private void handleRepairFailure(Player player) {
+        player.sendMessage(configManager.getMessageConfig().getRepairFailed());
         player.playSound(player.getLocation(), Sound.BLOCK_ANVIL_LAND, 0.8f, 0.7f);
     }
 
     // ==================== HELPERS ====================
 
-    /**
-     * Finds repair config for an item.
-     * Handles Optional return from GrindstoneConfig.
-     */
     private RepairConfigData findRepairConfig(ItemStack item) {
-        // FIX: Handle Optional<RepairConfigData> return type
         return configManager.getGrindstoneConfig().findByItem(item).orElse(null);
     }
 
@@ -262,11 +358,8 @@ public class RepairManager {
         return item.getItemMeta() instanceof Damageable;
     }
 
-    private PlaceholderAPIHook getPapiHook() {
-        return SMCBlacksmith.getInstance().getPapiHook();
-    }
-
     private int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }
 }
+

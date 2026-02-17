@@ -6,7 +6,8 @@
 
     <groupId>com.simmc</groupId>
     <artifactId>SMCBlacksmith</artifactId>
-    <version>1.0.0</version>
+    <version>2.1.2
+    </version>
     <packaging>jar</packaging>
 
     <name>SMCBlacksmith</name>
@@ -46,7 +47,7 @@
         <dependency>
             <groupId>com.execsuroot</groupId>
             <artifactId>smc-core</artifactId>
-            <version>1.0.0</version>
+            <version>2.1.1</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/libs/smc-core.jar</systemPath>
         </dependency>

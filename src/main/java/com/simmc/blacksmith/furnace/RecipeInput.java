@@ -2,11 +2,6 @@ package com.simmc.blacksmith.furnace;
 
 /**
  * Represents an input item requirement for a furnace recipe.
- *
- * @param slot The slot identifier (a, b, c, etc.)
- * @param id The item ID (material name or custom item ID)
- * @param type The item type ("minecraft", "smc", "nexo", etc.)
- * @param amount The required quantity
  */
 public record RecipeInput(
         String slot,

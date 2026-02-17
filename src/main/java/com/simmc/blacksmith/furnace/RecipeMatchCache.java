@@ -10,8 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Cache for furnace recipe matching results.
- * Reduces CPU usage by avoiding repeated recipe matching for unchanged inputs.
  */
+
 public class RecipeMatchCache {
 
     private static final long DEFAULT_EXPIRATION_MS = 5000;

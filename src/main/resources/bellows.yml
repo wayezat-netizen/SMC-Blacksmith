@@ -1,55 +1,29 @@
 # ==========================================
 # Bellows Configuration
-# BALANCED - lower heat per blow, need constant use
 # ==========================================
+# Temperature scale is 0-100
+# Coal alone can only raise temp to ~20
+# Bellows are needed to reach ideal range (80-100)
 
-# Basic tier - low heat, low durability
-leather_bellows:
-  type: minecraft
-  id: LEATHER
-  heat_per_blow: 20
-  max_durability: 50
-  cooldown_ticks: 8
-  sound: ENTITY_HORSE_BREATHE
+bellows:
+  simple_bellows:
+    id: simple_bellows
+    type: smc
+    heat_boost: 3                # +3 degrees per use (need ~20 uses to go from 20 to 80)
+    max_durability: 100
+    durability_cost: 1
 
-paper_bellows:
-  type: minecraft
-  id: PAPER
-  heat_per_blow: 12
-  max_durability: 25
-  cooldown_ticks: 8
-  sound: ENTITY_HORSE_BREATHE
+  advanced_bellows:
+    id: advanced_bellows
+    type: smc
+    heat_boost: 8                # +8 degrees per use (need ~8 uses to go from 20 to 80)
+    max_durability: 500
+    durability_cost: 1
 
-# Mid tier
-iron_bellows:
-  type: smc
-  id: iron_bellows
-  heat_per_blow: 30
-  max_durability: 150
-  cooldown_ticks: 6
-  sound: BLOCK_PISTON_EXTEND
-
-copper_bellows:
-  type: smc
-  id: copper_bellows
-  heat_per_blow: 25
-  max_durability: 120
-  cooldown_ticks: 6
-  sound: BLOCK_PISTON_EXTEND
-
-# High tier
-steel_bellows:
-  type: smc
-  id: steel_bellows
-  heat_per_blow: 45
-  max_durability: 300
-  cooldown_ticks: 5
-  sound: BLOCK_PISTON_EXTEND
-
-advanced_bellows:
-  type: smc
-  id: advanced_bellows
-  heat_per_blow: 60
-  max_durability: 500
-  cooldown_ticks: 4
-  sound: BLOCK_PISTON_EXTEND
+  # Example vanilla item as bellows (for testing)
+  leather_bellows:
+    id: LEATHER
+    type: minecraft
+    heat_boost: 2                # +2 degrees per use
+    max_durability: 50
+    durability_cost: 1
